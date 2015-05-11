@@ -19,7 +19,7 @@ Requirements
 * [GLFW][glfw-go] (v3.1) - native library and go binding for window creation
 * [Go GL][go-gl] - pre-generated OpenGL bindings using their glow project
 * [Mathgl][mgl] - for 3d math
-* [Freetype-go][ft-go] - for dynamic font texture generation
+* [Freetype-go][ftgo] - for dynamic font texture generation
 * [Groggy][groggy] - for flexible logging
 
 Current Features
@@ -44,7 +44,7 @@ The following need to be addressed in order to start releases:
 LICENSE
 =======
 
-Fizzle is released under the BSD license. See the `LICENSE` file for more details.
+Fizzle is released under the BSD license. See the [LICENSE][license-link] file for more details.
 
 
 [golang]: https://golang.org/
@@ -54,3 +54,4 @@ Fizzle is released under the BSD license. See the `LICENSE` file for more detail
 [go-gl]: https://github.com/go-gl/glow
 [mgl]: https://github.com/go-gl/mathgl
 [ftgo]: code.google.com/p/freetype-go/freetype
+[license-link]: https://raw.githubusercontent.com/tbogdala/fizzle/master/LICENSE
