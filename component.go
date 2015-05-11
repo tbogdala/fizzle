@@ -5,7 +5,7 @@ package fizzle
 
 import (
   "fmt"
-  "tbogdala/assimp/gombz"
+  "github.com/tbogdala/gombz"
   "github.com/tbogdala/groggy"
   gl "github.com/go-gl/gl/v3.3-core/gl"
   mgl "github.com/go-gl/mathgl/mgl32"
