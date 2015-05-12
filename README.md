@@ -22,6 +22,23 @@ Requirements
 * [Freetype-go][ftgo] - for dynamic font texture generation
 * [Groggy][groggy] - for flexible logging
 
+Installation
+------------
+
+The dependency Go libraries can be installed with the following commands.
+
+```bash
+go get github.com/go-gl/glfw/v3.1/glfw
+go get github.com/go-gl/gl/v3.3-core/gl
+go get github.com/go-gl/mathgl/mgl32
+go get code.google.com/p/freetype-go/freetype
+go get github.com/tbogdala/groggy
+```
+
+This does assume that you have the native GLFW 3.1 library installed already
+accessible to Go tools.
+
+
 Current Features
 ----------------
 
@@ -44,7 +61,7 @@ The following need to be addressed in order to start releases:
 LICENSE
 =======
 
-Fizzle is released under the BSD license. See the [LICENSE][license-link] file for more details.
+Fizzle is released under the BSD license. See the [LICENSE][license-link] file for more detspotails.
 
 
 [golang]: https://golang.org/
