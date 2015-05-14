@@ -61,7 +61,7 @@ The following need to be addressed in order to start releases:
 LICENSE
 =======
 
-Fizzle is released under the BSD license. See the [LICENSE][license-link] file for more detspotails.
+Fizzle is released under the BSD license. See the [LICENSE][license-link] file for more details.
 
 
 [golang]: https://golang.org/
