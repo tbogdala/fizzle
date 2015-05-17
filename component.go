@@ -38,8 +38,9 @@ type ComponentChildRef struct {
 // (e.g. a collision cube for a wall).
 // Note: right now it only supports AABB collisions.
 type CollisionRef struct {
-	Min mgl.Vec3
-	Max mgl.Vec3
+	Min  mgl.Vec3
+	Max  mgl.Vec3
+	Tags []string
 }
 
 // Component is the main structure for component JSON files.
