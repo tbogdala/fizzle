@@ -5,6 +5,7 @@ package fizzle
 
 import (
 	"fmt"
+
 	gl "github.com/go-gl/gl/v3.3-core/gl"
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/groggy"
@@ -18,9 +19,9 @@ type DeferredRenderer struct {
 	Normals        uint32
 	CompositePlane *Renderable
 
-	shaders                 map[string]*RenderShader
-	width int32
-	height int32
+	shaders map[string]*RenderShader
+	width   int32
+	height  int32
 }
 
 func NewDeferredRenderer() *DeferredRenderer {
@@ -137,7 +138,6 @@ func (dr *DeferredRenderer) InitShaders(compositeBaseFilepath string, dirlightSh
 	return nil
 }
 
-
 func (dr *DeferredRenderer) CompositeDraw() {
 	// the view matrix would be identity
 	ortho := mgl.Ortho(0, float32(dr.width), 0, float32(dr.height), -200.0, 200.0)
@@ -217,7 +217,6 @@ func (dr *DeferredRenderer) DrawDirectionalLight(eye mgl.Vec3, dir mgl.Vec3, col
 		gl.Uniform3f(shaderEyePosition, eye[0], eye[1], eye[2])
 	}
 
-
 	shaderTex0 := shader.GetUniformLocation("DIFFUSE_TEX")
 	if shaderTex0 >= 0 {
 		gl.ActiveTexture(gl.TEXTURE0)
@@ -238,7 +237,6 @@ func (dr *DeferredRenderer) DrawDirectionalLight(eye mgl.Vec3, dir mgl.Vec3, col
 		gl.BindTexture(gl.TEXTURE_2D, dr.Normals)
 		gl.Uniform1i(shaderTex2, 2)
 	}
-
 
 	shaderLightDir := shader.GetUniformLocation("LIGHT_DIRECTION")
 	if shaderLightDir >= 0 {
@@ -261,7 +259,6 @@ func (dr *DeferredRenderer) DrawDirectionalLight(eye mgl.Vec3, dir mgl.Vec3, col
 		gl.Uniform1f(shaderLightSpecPow, specular)
 	}
 
-
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
 	gl.DrawElements(gl.TRIANGLES, int32(r.FaceCount*3), gl.UNSIGNED_INT, gl.PtrOffset(0))
 	gl.BindVertexArray(0)
@@ -281,7 +278,7 @@ func (dr *DeferredRenderer) DrawRenderable(r *Renderable, perspective mgl.Mat4, 
 		return
 	}
 
-	dr.bindAndDraw(r, r.Core.Shader, perspective, view)
+	dr.bindAndDraw(r, r.Core.Shader, perspective, view, gl.TRIANGLES)
 }
 
 func (dr *DeferredRenderer) DrawRenderableWithShader(r *Renderable, shader *RenderShader, perspective mgl.Mat4, view mgl.Mat4) {
@@ -298,10 +295,27 @@ func (dr *DeferredRenderer) DrawRenderableWithShader(r *Renderable, shader *Rend
 		return
 	}
 
-	dr.bindAndDraw(r, shader, perspective, view)
+	dr.bindAndDraw(r, shader, perspective, view, gl.TRIANGLES)
 }
 
-func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, perspective mgl.Mat4, view mgl.Mat4) {
+func (dr *DeferredRenderer) DrawLines(r *Renderable, shader *RenderShader, perspective mgl.Mat4, view mgl.Mat4) {
+	// only draw visible nodes
+	if !r.IsVisible {
+		return
+	}
+
+	// if the renderable is a group, just try to draw the children
+	if r.IsGroup {
+		for _, child := range r.Children {
+			dr.DrawLines(child, shader, perspective, view)
+		}
+		return
+	}
+
+	dr.bindAndDraw(r, shader, perspective, view, gl.LINES)
+}
+
+func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, perspective mgl.Mat4, view mgl.Mat4, mode uint32) {
 	gl.UseProgram(shader.Prog)
 	gl.BindVertexArray(r.Core.Vao)
 
@@ -326,8 +340,7 @@ func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, per
 
 	shaderDiffuse := shader.GetUniformLocation("MATERIAL_DIFFUSE")
 	if shaderDiffuse >= 0 {
-		// FIXME: currently unsupported
-		gl.Uniform4f(shaderDiffuse, 1.0, 1.0, 1.0, 1.0)
+		gl.Uniform4f(shaderDiffuse, r.Core.DiffuseColor[0], r.Core.DiffuseColor[1], r.Core.DiffuseColor[2], r.Core.DiffuseColor[3])
 	}
 
 	shaderTex1 := shader.GetUniformLocation("MATERIAL_TEX_0")
@@ -359,6 +372,6 @@ func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, per
 	}
 
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.DrawElements(gl.TRIANGLES, int32(r.FaceCount*3), gl.UNSIGNED_INT, gl.PtrOffset(0))
+	gl.DrawElements(mode, int32(r.FaceCount*3), gl.UNSIGNED_INT, gl.PtrOffset(0))
 	gl.BindVertexArray(0)
 }
