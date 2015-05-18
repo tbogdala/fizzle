@@ -88,7 +88,13 @@ func NewRenderableCore() *RenderableCore {
 	return rc
 }
 
-// DestroyCore releases the OpenGL data
+// Destroy releases the RenderableCore data
+func (r *Renderable) Destroy() {
+	r.Core.DestroyCore()
+}
+
+// DestroyCore releases the OpenGL VBO and VAO objects but does not release
+// things that could be shared like Tex0.
 func (r *RenderableCore) DestroyCore() {
 	gl.DeleteBuffers(1, &r.VertVBO)
 	gl.DeleteBuffers(1, &r.UvVBO)

@@ -44,6 +44,11 @@ func (dr *DeferredRenderer) ChangeResolution(width, height int32) {
 	dr.Init(width, height)
 }
 
+// GetResolution returns the current dimensions of the renderer.
+func (dr *DeferredRenderer) GetResolution() (int32, int32) {
+	return dr.width, dr.height
+}
+
 func (dr *DeferredRenderer) Init(width, height int32) error {
 	dr.width = width
 	dr.height = height

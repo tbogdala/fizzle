@@ -17,12 +17,12 @@ mapped to the appropriate glyphs.
 import (
 	ft "code.google.com/p/freetype-go/freetype"
 	"errors"
+	"fmt"
 	gl "github.com/go-gl/gl/v3.3-core/gl"
 	"image"
 	"image/draw"
 	"io/ioutil"
 	"os"
-	"fmt"
 )
 
 type runeData struct {
@@ -43,7 +43,9 @@ type GLFont struct {
 	Shader      *RenderShader
 }
 
-func NewGLFont(fontFilepath string, scale int32, glyphs string) (f GLFont, e error) {
+func NewGLFont(fontFilepath string, scale int32, glyphs string) (f *GLFont, e error) {
+	f = new(GLFont)
+
 	// allocate the location map
 	f.locations = make(map[rune]runeData)
 
@@ -93,7 +95,7 @@ func NewGLFont(fontFilepath string, scale int32, glyphs string) (f GLFont, e err
 	fontImg := image.NewRGBA(fontImgRect)
 
 	// the number of glyphs
-	fontRowSize := fontTexSize / (glyphWidth) - 1
+	fontRowSize := fontTexSize/(glyphWidth) - 1
 
 	// create the freetype context
 	c := ft.NewContext()
@@ -247,25 +249,24 @@ func (f *GLFont) CreateLabel(msg string) *Renderable {
 	r.Core.Shader = f.Shader
 	r.BoundingRect = GetBoundingRect(stringVerts)
 
-
 	// calculate the memory size of floats used to calculate total memory size of float arrays
-	const floatSize  = 4
+	const floatSize = 4
 	const uintSize = 4
 
 	// create a VBO to hold the vertex data
 	gl.GenBuffers(1, &r.Core.VertVBO)
 	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(stringVerts),  gl.Ptr(stringVerts), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(stringVerts), gl.Ptr(stringVerts), gl.STATIC_DRAW)
 
 	// create a VBO to hold the uv data
 	gl.GenBuffers(1, &r.Core.UvVBO)
 	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(stringUVs),  gl.Ptr(stringUVs), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(stringUVs), gl.Ptr(stringUVs), gl.STATIC_DRAW)
 
 	// create a VBO to hold the face indexes
 	gl.GenBuffers(1, &r.Core.ElementsVBO)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(stringIndexes),  gl.Ptr(stringIndexes), gl.STATIC_DRAW)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(stringIndexes), gl.Ptr(stringIndexes), gl.STATIC_DRAW)
 
 	return r
 }
