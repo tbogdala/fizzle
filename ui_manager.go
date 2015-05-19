@@ -7,7 +7,7 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 )
 
-// Define UILayout Anchor positions
+// These are constants used in UILayout Anchor positions.
 const (
 	_ = iota
 	UIAnchor_TopLeft
@@ -20,52 +20,95 @@ const (
 	UIAnchor_BottomRight
 )
 
+// These are the min and max Z depth used for the UI ortho projection.
 const (
 	minZDepth = -200.0
 	maxZDepth = 200.0
 )
 
-// UILayout determines how the UI widget will get positioned
+// UILayout determines how the UI widget will get positioned by
+// specifying a corner or mid-point to anchor to and an offset to
+// that anchor.
 type UILayout struct {
+	// The offset in pixels from the Anchor point. Can be positive or negative.
 	Offset mgl.Vec3
+
+	// The anchor point for the layout, which should be one of the UIANchor constants
+	// like UIAnchor_TopLeft.
 	Anchor int
 }
 
-// UILabel is a text label in the user interface
+// UILabel is a text label widget in the user interface.
 type UILabel struct {
-	Text       string
-	Layout     UILayout
+	// Text is the text string that was used to create the renderable.
+	Text string
+
+	// Layout specifies the way the label should be positioned on screen.
+	Layout UILayout
+
+	// Renderable is the drawable object
 	Renderable *Renderable
 
+	// manager is a pointer back to the owner UIManager.
 	manager *UIManager
 }
 
+// UIWidget is a common interface for all of the user interface widgets
+// that represents common functionality.
 type UIWidget interface {
+	// Destroy should release any OpenGL or other data specific to widget.
 	Destroy()
+
+	// Draw should render the widget to screen.
 	Draw(perspective mgl.Mat4, view mgl.Mat4)
+
+	// GetLayout should return the UILayout for the widget that's used for positioning.
 	GetLayout() *UILayout
+
+	// GetRenderable should return the drawable Renderable object.
 	GetRenderable() *Renderable
 }
 
+// UIManager is the primary owner for all of the widgets created by it and
+// has methods to layout the widgets on screen and draw them.
 type UIManager struct {
+	// renderer is a reference to the renderer needed to draw the widgets
 	renderer *DeferredRenderer
-	width    int32
-	height   int32
-	widgets  []UIWidget
+
+	// width is used to construct the ortho projection matrix and is probably
+	// best set to the width of the window.
+	width int32
+
+	// height is used to construct the ortho projection matrix and is probably
+	// best set to the height of the window.
+	height int32
+
+	// widget is a slice that contains all of the widgets to be rendered
+	// to the screen by the UIManager on Draw().
+	widgets []UIWidget
 }
 
+// NewUIManager creates a new UIManager object and stores
+// references that will be needed for drawing.
 func NewUIManager(renderer *DeferredRenderer) *UIManager {
 	uim := new(UIManager)
 	uim.renderer = renderer
 	return uim
 }
 
+// Destroy removes all widgets from the UIManager and Destroy()s them all
+// one by one.
 func (ui *UIManager) Destroy() {
 	for _, w := range ui.widgets {
 		w.Destroy()
 	}
+
+	// make an empty slice
+	ui.widgets = []UIWidget{}
 }
 
+// AdviseResolution will change the resolution the UIManager uses to draw
+// widgets and will also adjust the layouts of any exiting wigets.
 func (ui *UIManager) AdviseResolution(w int32, h int32) {
 	ui.width = w
 	ui.height = h
@@ -74,43 +117,52 @@ func (ui *UIManager) AdviseResolution(w int32, h int32) {
 
 // LayoutWidgets repositions the widgets according to the anchor and offset.
 // This can be useful if the size of the root window changes.
+// Note: currently only the root window is supported, but this could be
+// changed in the future
 func (ui *UIManager) LayoutWidgets() {
 	for _, w := range ui.widgets {
 		layout := w.GetLayout()
 		renderable := w.GetRenderable()
 
+		// for now use the root window as the reference point
+		var minX, minY, maxX, maxY float32
+		minX = 0.0
+		minY = 0.0
+		maxX = float32(ui.width)
+		maxY = float32(ui.height)
+
 		switch layout.Anchor {
 		case UIAnchor_TopLeft:
-			renderable.Location[0] = layout.Offset[0]
-			renderable.Location[1] = float32(ui.height) - renderable.BoundingRect.DeltaY() + layout.Offset[1]
+			renderable.Location[0] = minX + layout.Offset[0]
+			renderable.Location[1] = maxY - renderable.BoundingRect.DeltaY() + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		case UIAnchor_TopMiddle:
-			renderable.Location[0] = float32(ui.width)/2.0 - renderable.BoundingRect.DeltaX()/2.0 + layout.Offset[0]
-			renderable.Location[1] = float32(ui.height) - renderable.BoundingRect.DeltaY() + layout.Offset[1]
+			renderable.Location[0] = maxX/2.0 - renderable.BoundingRect.DeltaX()/2.0 + layout.Offset[0]
+			renderable.Location[1] = maxY - renderable.BoundingRect.DeltaY() + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		case UIAnchor_TopRight:
-			renderable.Location[0] = float32(ui.width) - renderable.BoundingRect.DeltaX() + layout.Offset[0]
-			renderable.Location[1] = float32(ui.height) - renderable.BoundingRect.DeltaY() + layout.Offset[1]
+			renderable.Location[0] = maxX - renderable.BoundingRect.DeltaX() + layout.Offset[0]
+			renderable.Location[1] = maxY - renderable.BoundingRect.DeltaY() + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		case UIAnchor_MiddleLeft:
-			renderable.Location[0] = layout.Offset[0]
-			renderable.Location[1] = float32(ui.height)/2.0 + layout.Offset[1]
+			renderable.Location[0] = minX + layout.Offset[0]
+			renderable.Location[1] = maxY/2.0 + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		case UIAnchor_MiddleRight:
-			renderable.Location[0] = float32(ui.width) - renderable.BoundingRect.DeltaX() + layout.Offset[0]
-			renderable.Location[1] = float32(ui.height)/2.0 + layout.Offset[1]
+			renderable.Location[0] = maxX - renderable.BoundingRect.DeltaX() + layout.Offset[0]
+			renderable.Location[1] = maxY/2.0 + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		case UIAnchor_BottomLeft:
-			renderable.Location[0] = layout.Offset[0]
-			renderable.Location[1] = layout.Offset[1]
+			renderable.Location[0] = minX + layout.Offset[0]
+			renderable.Location[1] = minY + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		case UIAnchor_BottomMiddle:
-			renderable.Location[0] = float32(ui.width)/2.0 - renderable.BoundingRect.DeltaX()/2.0 + layout.Offset[0]
-			renderable.Location[1] = layout.Offset[1]
+			renderable.Location[0] = maxX/2.0 - renderable.BoundingRect.DeltaX()/2.0 + layout.Offset[0]
+			renderable.Location[1] = minY + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		case UIAnchor_BottomRight:
-			renderable.Location[0] = float32(ui.width) - renderable.BoundingRect.DeltaX() + layout.Offset[0]
-			renderable.Location[1] = layout.Offset[1]
+			renderable.Location[0] = maxX - renderable.BoundingRect.DeltaX() + layout.Offset[0]
+			renderable.Location[1] = minY + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		}
 	}
@@ -128,6 +180,21 @@ func (ui *UIManager) Draw() {
 	}
 }
 
+// RemoveWidget removes the supplied widget from the internal collection
+// of widgets so that it's no longer modified on layout changes or drawn to
+// screen.
+func (ui *UIManager) RemoveWidget(widgetToRemove UIWidget) {
+	for i, w := range ui.widgets {
+		if w == widgetToRemove {
+			ui.widgets = append(ui.widgets[:i], ui.widgets[i+1:]...)
+			return
+		}
+	}
+}
+
+// -------------------------------------------------------------------------
+// LABEL WIDGET
+
 // CreateLabel creates the label widget and the text renderable.
 func (ui *UIManager) CreateLabel(font *GLFont, anchor int, offset mgl.Vec3, msg string) *UILabel {
 	label := new(UILabel)
@@ -143,14 +210,19 @@ func (ui *UIManager) CreateLabel(font *GLFont, anchor int, offset mgl.Vec3, msg 
 	return label
 }
 
+// Destroy releases the OpenGL data specific to the widget
+// but DOES NOT remove the widget from the parent UIManager.
 func (l *UILabel) Destroy() {
 	l.Renderable.Destroy()
 }
 
+// Draw renders the widget onto the screen. Layout should have already
+// modified the positioning of the renderable.
 func (l *UILabel) Draw(perspective mgl.Mat4, view mgl.Mat4) {
 	l.manager.renderer.DrawRenderable(l.Renderable, perspective, view)
 }
 
+// GetLayout returns a pointer to the layout object of the widget.
 func (l *UILabel) GetLayout() *UILayout {
 	return &l.Layout
 }
