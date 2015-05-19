@@ -27,6 +27,15 @@ func NewComponentManager(tm *TextureManager) *ComponentManager {
 	return cm
 }
 
+// Destroy will destroy all of the contained Component objects and
+// reset the storage map.
+func (cm *ComponentManager) Destroy() {
+	for _, c := range cm.storage {
+		c.Destroy()
+	}
+	cm.storage = make(map[string]*Component)
+}
+
 func (cm *ComponentManager) GetComponent(name string) (*Component, bool) {
 	crComponent, okay := cm.storage[name]
 	return crComponent, okay

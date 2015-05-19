@@ -15,15 +15,19 @@ import (
 // ComponentMesh defines a mesh reference for a component and everything
 // needed to draw it.
 type ComponentMesh struct {
-	// this filepath should be relative to component file
+	// SrcFile is a filepath should be relative to component file
 	SrcFile string
 
-	// this filepath should be relative to component file
+	// BinFile is a filepath should be relative to component file
 	BinFile string
 
+	// Textures specifies the texture files to load for mesh
 	Textures []string
-	Parent   *Component
 
+	// Parent is the owning Component object
+	Parent *Component
+
+	// srcMesh is the cached mesh data either from SrcFile or BinFile
 	srcMesh *gombz.Mesh
 }
 
@@ -65,6 +69,13 @@ type Component struct {
 	// this is the cached renerable object for the component that can
 	// be used as a prototype.
 	cachedRenderable *Renderable
+}
+
+// Destroy will destroy the cached Renderable object if it exists.
+func (c *Component) Destroy() {
+	if c.cachedRenderable != nil {
+		c.cachedRenderable.Destroy()
+	}
 }
 
 // GetRenderable will return the cached renderable object for the component

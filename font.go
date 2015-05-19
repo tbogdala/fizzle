@@ -25,6 +25,7 @@ import (
 	"os"
 )
 
+// runeData stores information pulled from the freetype parsing of glyphs.
 type runeData struct {
 	imgX, imgY                    int // offset into the image texture for the top left position of rune
 	advanceWidth, leftSideBearing int // HMetric data from glyph
@@ -33,6 +34,9 @@ type runeData struct {
 	uvMaxX, uvMaxY                float32
 }
 
+// GLFont contains data regarding a font and the texture that was created
+// with the specified set of glyphs. It can then be used to create
+// renderable string objects.
 type GLFont struct {
 	Texture     uint32
 	TextureSize int
@@ -43,6 +47,8 @@ type GLFont struct {
 	Shader      *RenderShader
 }
 
+// NewGLFont takes a fontFilepath and uses the Go freetype library to parse it
+// and render the specified glyphs to a texture that is then buffered into OpenGL.
 func NewGLFont(fontFilepath string, scale int32, glyphs string) (f *GLFont, e error) {
 	f = new(GLFont)
 
@@ -199,6 +205,14 @@ func setFaceInts(fa []uint32, faceIdx int, startIndex uint32) {
 	fa[faceIdx+5] = startIndex
 }
 
+// Destroy releases the OpenGL texture for the font but does
+// not release the associated shader.
+func (f *GLFont) Destroy() {
+	gl.DeleteTextures(1, &f.Texture)
+}
+
+// CreateLabel makes a new renderable object from the supplied string
+// using the data in the font.
 func (f *GLFont) CreateLabel(msg string) *Renderable {
 	msgLength := len(msg)
 
