@@ -62,6 +62,9 @@ type Component struct {
 	// Collision objects for the component
 	Collisions []*CollisionRef
 
+	// Properties is a map for client software's custom properties for the component.
+	Properties map[string]string
+
 	// this is the directory path for the component file if it was loaded
 	// from JSON.
 	componentDirPath string
