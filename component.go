@@ -21,7 +21,8 @@ type ComponentMesh struct {
 	// BinFile is a filepath should be relative to component file
 	BinFile string
 
-	// Textures specifies the texture files to load for mesh
+	// Textures specifies the texture files to load for mesh, relative
+	// to the component file
 	Textures []string
 
 	// Parent is the owning Component object
@@ -52,6 +53,9 @@ type Component struct {
 	// The name of the component
 	Name string
 
+	// Location is the location of the component.
+	Location mgl.Vec3
+
 	// All of the meshes that are part of this component
 	Meshes []*ComponentMesh
 
@@ -81,6 +85,25 @@ func (c *Component) Destroy() {
 	}
 }
 
+// Clone makes a new component and then copies the members over
+// to the new object. This means that Meshes, Collisions, ChildReferences, etc...
+// are shared between the clones.
+func (c *Component) Clone() *Component {
+	clone := new(Component)
+
+	// copy over all of the fields
+	clone.Name = c.Name
+	clone.Location = c.Location
+	clone.Meshes = c.Meshes
+	clone.ChildReferences = c.ChildReferences
+	clone.Collisions = c.Collisions
+	clone.Properties = c.Properties
+	clone.componentDirPath = c.componentDirPath
+	clone.cachedRenderable = c.cachedRenderable
+
+	return clone
+}
+
 // GetRenderable will return the cached renderable object for the component
 // or create one if it hasn't been made yet. The TextureManager is needed
 // to resolve texture references.
@@ -93,6 +116,7 @@ func (c *Component) GetRenderable(tm *TextureManager) *Renderable {
 	// start by creating a renderable to hold all of the meshes
 	group := NewRenderable()
 	group.IsGroup = true
+	group.Location = c.Location
 
 	// now create renderables for all of the meshes.
 	// comnponents only create new render nodes for the meshs defined and
