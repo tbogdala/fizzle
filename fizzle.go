@@ -1,6 +1,12 @@
 // Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
+/*
+
+Fizzle is a library to make rendering graphics via OpenGL easier.
+
+*/
+
 package fizzle
 
 import (

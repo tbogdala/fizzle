@@ -10,14 +10,14 @@ import (
 // These are constants used in UILayout Anchor positions.
 const (
 	_ = iota
-	UIAnchor_TopLeft
-	UIAnchor_TopMiddle
-	UIAnchor_TopRight
-	UIAnchor_MiddleLeft
-	UIAnchor_MiddleRight
-	UIAnchor_BottomLeft
-	UIAnchor_BottomMiddle
-	UIAnchor_BottomRight
+	UIAnchorTopLeft
+	UIAnchorTopMiddle
+	UIAnchorTopRight
+	UIAnchorMiddleLeft
+	UIAnchorMiddleRight
+	UIAnchorBottomLeft
+	UIAnchorBottomMiddle
+	UIAnchorBottomRight
 )
 
 // These are the min and max Z depth used for the UI ortho projection.
@@ -34,7 +34,7 @@ type UILayout struct {
 	Offset mgl.Vec3
 
 	// The anchor point for the layout, which should be one of the UIANchor constants
-	// like UIAnchor_TopLeft.
+	// like UIAnchorTopLeft.
 	Anchor int
 }
 
@@ -60,7 +60,7 @@ type UIWidget interface {
 	Destroy()
 
 	// Draw should render the widget to screen.
-	Draw(perspective mgl.Mat4, view mgl.Mat4)
+	Draw(renderer *DeferredRenderer, projection mgl.Mat4, view mgl.Mat4)
 
 	// GetLayout should return the UILayout for the widget that's used for positioning.
 	GetLayout() *UILayout
@@ -72,9 +72,6 @@ type UIWidget interface {
 // UIManager is the primary owner for all of the widgets created by it and
 // has methods to layout the widgets on screen and draw them.
 type UIManager struct {
-	// renderer is a reference to the renderer needed to draw the widgets
-	renderer *DeferredRenderer
-
 	// width is used to construct the ortho projection matrix and is probably
 	// best set to the width of the window.
 	width int32
@@ -88,11 +85,9 @@ type UIManager struct {
 	widgets []UIWidget
 }
 
-// NewUIManager creates a new UIManager object and stores
-// references that will be needed for drawing.
-func NewUIManager(renderer *DeferredRenderer) *UIManager {
+// NewUIManager creates a new UIManager object.
+func NewUIManager() *UIManager {
 	uim := new(UIManager)
-	uim.renderer = renderer
 	return uim
 }
 
@@ -132,35 +127,35 @@ func (ui *UIManager) LayoutWidgets() {
 		maxY = float32(ui.height)
 
 		switch layout.Anchor {
-		case UIAnchor_TopLeft:
+		case UIAnchorTopLeft:
 			renderable.Location[0] = minX + layout.Offset[0]
 			renderable.Location[1] = maxY - renderable.BoundingRect.DeltaY() + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
-		case UIAnchor_TopMiddle:
+		case UIAnchorTopMiddle:
 			renderable.Location[0] = maxX/2.0 - renderable.BoundingRect.DeltaX()/2.0 + layout.Offset[0]
 			renderable.Location[1] = maxY - renderable.BoundingRect.DeltaY() + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
-		case UIAnchor_TopRight:
+		case UIAnchorTopRight:
 			renderable.Location[0] = maxX - renderable.BoundingRect.DeltaX() + layout.Offset[0]
 			renderable.Location[1] = maxY - renderable.BoundingRect.DeltaY() + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
-		case UIAnchor_MiddleLeft:
+		case UIAnchorMiddleLeft:
 			renderable.Location[0] = minX + layout.Offset[0]
 			renderable.Location[1] = maxY/2.0 + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
-		case UIAnchor_MiddleRight:
+		case UIAnchorMiddleRight:
 			renderable.Location[0] = maxX - renderable.BoundingRect.DeltaX() + layout.Offset[0]
 			renderable.Location[1] = maxY/2.0 + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
-		case UIAnchor_BottomLeft:
+		case UIAnchorBottomLeft:
 			renderable.Location[0] = minX + layout.Offset[0]
 			renderable.Location[1] = minY + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
-		case UIAnchor_BottomMiddle:
+		case UIAnchorBottomMiddle:
 			renderable.Location[0] = maxX/2.0 - renderable.BoundingRect.DeltaX()/2.0 + layout.Offset[0]
 			renderable.Location[1] = minY + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
-		case UIAnchor_BottomRight:
+		case UIAnchorBottomRight:
 			renderable.Location[0] = maxX - renderable.BoundingRect.DeltaX() + layout.Offset[0]
 			renderable.Location[1] = minY + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
@@ -169,14 +164,14 @@ func (ui *UIManager) LayoutWidgets() {
 }
 
 // Draw renders all of widgets on the screen.
-func (ui *UIManager) Draw() {
+func (ui *UIManager) Draw(renderer *DeferredRenderer) {
 	// calculate the perspective and view
 	ortho := mgl.Ortho(0, float32(ui.width), 0, float32(ui.height), minZDepth, maxZDepth)
 	view := mgl.Ident4()
 
 	// draw all of the widgets
 	for _, w := range ui.widgets {
-		w.Draw(ortho, view)
+		w.Draw(renderer, ortho, view)
 	}
 }
 
@@ -218,8 +213,8 @@ func (l *UILabel) Destroy() {
 
 // Draw renders the widget onto the screen. Layout should have already
 // modified the positioning of the renderable.
-func (l *UILabel) Draw(perspective mgl.Mat4, view mgl.Mat4) {
-	l.manager.renderer.DrawRenderable(l.Renderable, perspective, view)
+func (l *UILabel) Draw(renderer *DeferredRenderer, projection mgl.Mat4, view mgl.Mat4) {
+	renderer.DrawRenderable(l.Renderable, projection, view)
 }
 
 // GetLayout returns a pointer to the layout object of the widget.
@@ -227,6 +222,7 @@ func (l *UILabel) GetLayout() *UILayout {
 	return &l.Layout
 }
 
+// GetRenderable returns the Renderable object for the label widget
 func (l *UILabel) GetRenderable() *Renderable {
 	return l.Renderable
 }

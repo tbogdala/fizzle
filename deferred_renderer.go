@@ -5,11 +5,33 @@ package fizzle
 
 import (
 	"fmt"
+	"time"
 
 	gl "github.com/go-gl/gl/v3.3-core/gl"
+	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/groggy"
 )
+
+// ScreenSizeChanged is the type of the function called by the renderer after
+// a screen size change is detected.
+type ScreenSizeChanged func(dr *DeferredRenderer, width int32, height int32)
+
+// DeferredBeforeDraw is the type of the function called by the renderer before
+// endtering the geometry draw function.
+type DeferredBeforeDraw func(dr *DeferredRenderer, deltaFrameTime float32)
+
+// DeferredAfterDraw is the type of the function called by the renderer after
+// endtering the geometry draw function.
+type DeferredAfterDraw func(dr *DeferredRenderer, deltaFrameTime float32)
+
+// DeferredGeometryPass is the type of the function called to render geometry to the
+// framebuffers in the deferred renderer.
+type DeferredGeometryPass func(dr *DeferredRenderer, deltaFrameTime float32)
+
+// DeferredCompositePass is the type of the function called to render the framebuffers
+// to the screen in the deferred renderer.
+type DeferredCompositePass func(dr *DeferredRenderer, deltaFrameTime float32)
 
 type DeferredRenderer struct {
 	Frame          uint32
@@ -19,14 +41,48 @@ type DeferredRenderer struct {
 	Normals        uint32
 	CompositePlane *Renderable
 
-	shaders map[string]*RenderShader
-	width   int32
-	height  int32
+	// GeometryPassFn is the function called to render geometry to the
+	// framebuffers in the deferred renderer.
+	GeometryPassFn DeferredGeometryPass
+
+	// CompositePassFn is the function called to render the framebuffers
+	// to the screen in the deferred renderer.
+	CompositePassFn DeferredCompositePass
+
+	// BeforeDrawFn is the function called by the renderer before
+	// endtering the geometry draw function.
+	BeforeDrawFn DeferredBeforeDraw
+
+	// AfterDrawFn is the function called by the renderer after
+	// endtering the geometry draw function.
+	AfterDrawFn DeferredAfterDraw
+
+	// OnScreenSizeChangedFn is the function called by the renderer after
+	// a screen size change is detected.
+	OnScreenSizeChangedFn ScreenSizeChanged
+
+	// MainWindow the window used to show the rendered composite plane to.
+	MainWindow *glfw.Window
+
+	// UIManager is the user interface manager assigned to the renderer.
+	UIManager *UIManager
+
+	shaders       map[string]*RenderShader
+	width         int32
+	height        int32
+	lastFrameTime time.Time
 }
 
-func NewDeferredRenderer() *DeferredRenderer {
+func NewDeferredRenderer(window *glfw.Window) *DeferredRenderer {
 	dr := new(DeferredRenderer)
 	dr.shaders = make(map[string]*RenderShader)
+	dr.MainWindow = window
+	dr.OnScreenSizeChangedFn = func(r *DeferredRenderer, width int32, height int32) {}
+	dr.BeforeDrawFn = func(r *DeferredRenderer, deltaFrameTime float32) {}
+	dr.AfterDrawFn = func(r *DeferredRenderer, deltaFrameTime float32) {}
+	dr.GeometryPassFn = func(dr *DeferredRenderer, deltaFrameTime float32) {}
+	dr.CompositePassFn = func(dr *DeferredRenderer, deltaFrameTime float32) {}
+
 	return dr
 }
 
@@ -379,4 +435,74 @@ func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, per
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
 	gl.DrawElements(mode, int32(r.FaceCount*3), gl.UNSIGNED_INT, gl.PtrOffset(0))
 	gl.BindVertexArray(0)
+}
+
+// RenderLoop keeps running a render loop function until MainWindow is
+// set to should close
+func (dr *DeferredRenderer) RenderLoop() {
+	dr.lastFrameTime = time.Now()
+	for !dr.MainWindow.ShouldClose() {
+		currentFrameTime := time.Now()
+		deltaFrameTime := float32(currentFrameTime.Sub(dr.lastFrameTime).Seconds())
+
+		// setup the camera matrixes
+		tempW, tempH := dr.MainWindow.GetFramebufferSize()
+		currentWidth, currentHeight := int32(tempW), int32(tempH)
+		if dr.width != currentWidth || dr.height != currentHeight {
+			fmt.Printf("Updating resoluation to %d,%d\n", currentWidth, currentHeight)
+			dr.ChangeResolution(currentWidth, currentHeight)
+			dr.width, dr.height = currentWidth, currentHeight
+			dr.OnScreenSizeChangedFn(dr, currentWidth, currentHeight)
+		}
+
+		////////////////////////////////////////////////////////////////////////////
+		// BEFORE DRAW
+		dr.BeforeDrawFn(dr, deltaFrameTime)
+
+		////////////////////////////////////////////////////////////////////////////
+		// GEOMETRY PASS
+		// setup the view matrixes
+		gl.DepthMask(true)
+		//gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) // necessary?
+		gl.Enable(gl.DEPTH_TEST)
+		gl.Disable(gl.BLEND)
+
+		gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, dr.Frame)
+		gl.Viewport(0, 0, dr.width, dr.height)
+		buffsToClear := []uint32{gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2}
+		gl.DrawBuffers(3, &buffsToClear[0])
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+		// do the geometry pass on the renderables
+		dr.GeometryPassFn(dr, deltaFrameTime)
+
+		gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)
+		gl.DepthMask(false)
+		gl.Disable(gl.DEPTH_TEST)
+
+		////////////////////////////////////////////////////////////////////////////
+		// COMPOSITE PASS START
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.Enable(gl.BLEND)
+		gl.BlendEquation(gl.FUNC_ADD)
+		gl.BlendFunc(gl.ONE, gl.ONE)
+
+		dr.CompositePassFn(dr, deltaFrameTime)
+
+		gl.BindVertexArray(0)
+
+		dr.MainWindow.SwapBuffers()
+		glfw.PollEvents()
+
+		////////////////////////////////////////////////////////////////////////////
+		// AFTER DRAW
+		dr.AfterDrawFn(dr, deltaFrameTime)
+
+		dr.lastFrameTime = currentFrameTime
+	}
+}
+
+// GetAspectRatio returns the ratio of screen width to height.
+func (dr *DeferredRenderer) GetAspectRatio() float32 {
+	return float32(dr.width) / float32(dr.height)
 }
