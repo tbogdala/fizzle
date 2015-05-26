@@ -25,6 +25,9 @@ type ComponentMesh struct {
 	// to the component file
 	Textures []string
 
+	// Offset is the location offset of the mesh in the component.
+	Offset mgl.Vec3
+
 	// Parent is the owning Component object
 	Parent *Component
 
@@ -191,6 +194,7 @@ func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Rende
 
 	// set some basic properties up
 	r.FaceCount = compMesh.srcMesh.FaceCount
+	r.Location = compMesh.Offset
 
 	// create a buffer to hold all the data that is the same size as VertexCount
 	vertBuffer := make([]float32, compMesh.srcMesh.VertexCount*3)
