@@ -39,6 +39,12 @@ type ComponentChildRef struct {
 	Location mgl.Vec3
 }
 
+// ComponentMaterial defines the material appearance of the component.
+type ComponentMaterial struct {
+	// Diffuse color for the material
+	Diffuse mgl.Vec4
+}
+
 // CollisionRef specifies a collision object within the component
 // (e.g. a collision cube for a wall).
 // Note: right now it only supports AABB collisions.
@@ -58,6 +64,9 @@ type Component struct {
 
 	// All of the meshes that are part of this component
 	Meshes []*ComponentMesh
+
+	// The material description of the component
+	Material *ComponentMaterial
 
 	// ChildReferences can be specified to include other components
 	// to be contained in this component.
@@ -124,6 +133,11 @@ func (c *Component) GetRenderable(tm *TextureManager) *Renderable {
 	for _, compMesh := range c.Meshes {
 		cmRenderable := createRenderableForMesh(tm, compMesh)
 		group.AddChild(cmRenderable)
+
+		// assign material properties if specified
+		if c.Material != nil {
+			cmRenderable.Core.DiffuseColor = c.Material.Diffuse
+		}
 
 		// cache it for later
 		c.cachedRenderable = cmRenderable
