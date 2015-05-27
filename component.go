@@ -110,6 +110,7 @@ func (c *Component) Clone() *Component {
 	clone.ChildReferences = c.ChildReferences
 	clone.Collisions = c.Collisions
 	clone.Properties = c.Properties
+	clone.Material = c.Material
 	clone.componentDirPath = c.componentDirPath
 	clone.cachedRenderable = c.cachedRenderable
 
