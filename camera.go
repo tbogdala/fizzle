@@ -3,7 +3,16 @@
 
 package fizzle
 
-import mgl "github.com/go-gl/mathgl/mgl32"
+import (
+	"math"
+
+	mgl "github.com/go-gl/mathgl/mgl32"
+)
+
+var (
+	upVector   = mgl.Vec3{0.0, 1.0, 0.0}
+	sideVector = mgl.Vec3{1.0, 0.0, 0.0}
+)
 
 // Camera keeps track of the view rotation and position and provides
 // utility methods to generate a view matrix.
@@ -73,9 +82,30 @@ func (c *Camera) UpdatePitch(delta float32) {
 	c.generateRotation()
 }
 
+// LookAt adjusts the position of the camera based on the camera yaw/pitch
+// and the target location passed in. It does automatically adjust
+// the camera's internal rotation quaternion.
+func (c *Camera) LookAt(target mgl.Vec3, distance float32) {
+	// use trig to get the camera position scaled by distance
+	rotatedX := float32(math.Cos(float64(c.yaw))) * distance
+	rotatedZ := float32(math.Sin(float64(c.yaw))) * distance
+
+	// set the camera's location
+	c.position[0] = target[0] + rotatedX
+	c.position[1] = target[1] + distance
+	c.position[2] = target[2] + rotatedZ
+
+	correctedYaw := float32(math.Atan2(float64(c.position[0]-target[0]), float64(c.position[2]-target[2])))
+
+	// update the rotation quaternion
+	camYawQ := mgl.QuatRotate(-1*correctedYaw, upVector)
+	camPitchQ := mgl.QuatRotate(c.pitch, sideVector)
+	c.rotation = camPitchQ.Mul(camYawQ)
+}
+
 // generateRotation recalculates the rotation quaternion based on the pitch and yaw radians.
 func (c *Camera) generateRotation() {
-	camYawQ := mgl.QuatRotate(c.yaw, mgl.Vec3{0.0, 1.0, 0.0})
-	camPitchQ := mgl.QuatRotate(c.pitch, mgl.Vec3{1.0, .0, 0.0})
+	camYawQ := mgl.QuatRotate(c.yaw, upVector)
+	camPitchQ := mgl.QuatRotate(c.pitch, sideVector)
 	c.rotation = camPitchQ.Mul(camYawQ)
 }
