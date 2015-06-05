@@ -196,13 +196,6 @@ func GetBoundingRect(verts []float32) (r Rectangle3D) {
 // CreatePlaneXY makes a 2d Renderable object on the XY plane for the given size,
 // where (x0,y0) is the lower left and (x1, y1) is the upper right coordinate.
 func CreatePlaneXY(shader string, x0, y0, x1, y1 float32) *Renderable {
-	r := NewRenderable()
-	r.Core = NewRenderableCore()
-	r.ShaderName = shader
-	r.FaceCount = 2
-	r.BoundingRect.Bottom = mgl.Vec3{x0, y0, 0.0}
-	r.BoundingRect.Top = mgl.Vec3{x1, y1, 0.0}
-
 	verts := [12]float32{
 		x0, y0, 0.0,
 		x1, y0, 0.0,
@@ -226,8 +219,48 @@ func CreatePlaneXY(shader string, x0, y0, x1, y1 float32) *Renderable {
 		0.0, 0.0, 1.0,
 	}
 
+	return createPlane(shader, x0, y0, x1, y1, verts, indexes, uvs, normals)
+}
+
+// CreatePlaneXZ makes a 2d Renderable object on the XZ plane for the given size,
+// where (x0,z0) is the lower left and (x1, z1) is the upper right coordinate.
+func CreatePlaneXZ(shader string, x0, z0, x1, z1 float32) *Renderable {
+	verts := [12]float32{
+		x0, 0.0, z0,
+		x1, 0.0, z0,
+		x0, 0.0, z1,
+		x1, 0.0, z1,
+	}
+	indexes := [6]uint32{
+		0, 1, 2,
+		1, 3, 2,
+	}
+	uvs := [8]float32{
+		0.0, 0.0,
+		1.0, 0.0,
+		0.0, 1.0,
+		1.0, 1.0,
+	}
+	normals := [12]float32{
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+	}
+
+	return createPlane(shader, x0, z0, x1, z1, verts, indexes, uvs, normals)
+}
+
+func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, indexes [6]uint32, uvs [8]float32, normals [12]float32) *Renderable {
 	const floatSize = 4
 	const uintSize = 4
+
+	r := NewRenderable()
+	r.Core = NewRenderableCore()
+	r.ShaderName = shader
+	r.FaceCount = 2
+	r.BoundingRect.Bottom = mgl.Vec3{x0, y0, 0.0}
+	r.BoundingRect.Top = mgl.Vec3{x1, y1, 0.0}
 
 	// create a VBO to hold the vertex data
 	gl.GenBuffers(1, &r.Core.VertVBO)
