@@ -119,7 +119,7 @@ func (dr *DeferredRenderer) Init(width, height int32) error {
 	gl.GenTextures(1, &dr.Diffuse)
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, dr.Diffuse)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, width, height, 0, gl.RGBA, gl.FLOAT, nil)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, nil)
 	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
@@ -129,7 +129,7 @@ func (dr *DeferredRenderer) Init(width, height int32) error {
 	gl.GenTextures(1, &dr.Positions)
 	gl.ActiveTexture(gl.TEXTURE1)
 	gl.BindTexture(gl.TEXTURE_2D, dr.Positions)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, width, height, 0, gl.RGBA, gl.FLOAT, nil)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, nil)
 	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
@@ -154,7 +154,10 @@ func (dr *DeferredRenderer) Init(width, height int32) error {
 
 	// how did it all go? lets find out ...
 	status := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
-	if status != gl.FRAMEBUFFER_COMPLETE {
+	switch {
+	case status == gl.FRAMEBUFFER_UNSUPPORTED:
+		return fmt.Errorf("Failed to create the deferred rendering pipeline because the framebuffer was unsupported.\n")
+	case status != gl.FRAMEBUFFER_COMPLETE:
 		return fmt.Errorf("Failed to create the deferred rendering pipeline. Code 0x%x\n", status)
 	}
 
