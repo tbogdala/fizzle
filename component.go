@@ -31,8 +31,8 @@ type ComponentMesh struct {
 	// Parent is the owning Component object
 	Parent *Component
 
-	// srcMesh is the cached mesh data either from SrcFile or BinFile
-	srcMesh *gombz.Mesh
+	// SrcMesh is the cached mesh data either from SrcFile or BinFile
+	SrcMesh *gombz.Mesh
 }
 
 // ComponentChildRef defines a reference to another component JSON file
@@ -167,10 +167,10 @@ func (cm *ComponentMesh) GetFullTexturePath(textureIndex int) string {
 
 // GetVertices returns the vector slice containing the vertices for the mesh.
 func (cm *ComponentMesh) GetVertices() ([]mgl.Vec3, error) {
-	if cm.srcMesh == nil {
+	if cm.SrcMesh == nil {
 		return nil, fmt.Errorf("No internal data present for component mesh to get vertices from.")
 	}
-	return cm.srcMesh.Vertices, nil
+	return cm.SrcMesh.Vertices, nil
 }
 
 // createRenderableForMesh does the work of creating the Renderable and putting all of
@@ -184,6 +184,11 @@ func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Rende
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
 
+	// setup a skeleton if the mesh has bones associated with it
+	if compMesh.SrcMesh.BoneCount > 0 {
+		r.Core.Skeleton = NewSkeleton(compMesh.SrcMesh.Bones, compMesh.SrcMesh.Animations)
+	}
+
 	// assign the texture
 	if len(compMesh.Textures) > 0 {
 		var okay bool
@@ -194,14 +199,14 @@ func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Rende
 	}
 
 	// set some basic properties up
-	r.FaceCount = compMesh.srcMesh.FaceCount
+	r.FaceCount = compMesh.SrcMesh.FaceCount
 	r.Location = compMesh.Offset
 
 	// create a buffer to hold all the data that is the same size as VertexCount
-	vertBuffer := make([]float32, compMesh.srcMesh.VertexCount*3)
+	vertBuffer := make([]float32, compMesh.SrcMesh.VertexCount*3)
 
 	// setup verts and track the bounding rectangle
-	for i, v := range compMesh.srcMesh.Vertices {
+	for i, v := range compMesh.SrcMesh.Vertices {
 		offset := i * 3
 		vertBuffer[offset] = v[0]
 		vertBuffer[offset+1] = v[1]
@@ -215,8 +220,8 @@ func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Rende
 	r.BoundingRect = GetBoundingRect(vertBuffer)
 
 	// setup normals
-	if len(compMesh.srcMesh.Normals) > 0 {
-		for i, n := range compMesh.srcMesh.Normals {
+	if len(compMesh.SrcMesh.Normals) > 0 {
+		for i, n := range compMesh.SrcMesh.Normals {
 			offset := i * 3
 			vertBuffer[offset] = n[0]
 			vertBuffer[offset+1] = n[1]
@@ -228,8 +233,8 @@ func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Rende
 	}
 
 	// setup tangents
-	if len(compMesh.srcMesh.Tangents) > 0 {
-		for i, t := range compMesh.srcMesh.Tangents {
+	if len(compMesh.SrcMesh.Tangents) > 0 {
+		for i, t := range compMesh.SrcMesh.Tangents {
 			offset := i * 3
 			vertBuffer[offset] = t[0]
 			vertBuffer[offset+1] = t[1]
@@ -241,9 +246,9 @@ func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Rende
 	}
 
 	// setup UVs
-	if len(compMesh.srcMesh.UVChannels[0]) > 0 {
-		uvChan := compMesh.srcMesh.UVChannels[0]
-		for i := uint32(0); i < compMesh.srcMesh.VertexCount; i++ {
+	if len(compMesh.SrcMesh.UVChannels[0]) > 0 {
+		uvChan := compMesh.SrcMesh.UVChannels[0]
+		for i := uint32(0); i < compMesh.SrcMesh.VertexCount; i++ {
 			uv := uvChan[i]
 			offset := i * 2
 			vertBuffer[offset] = uv[0]
@@ -251,12 +256,47 @@ func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Rende
 		}
 		gl.GenBuffers(1, &r.Core.UvVBO)
 		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*compMesh.srcMesh.VertexCount*2), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*compMesh.SrcMesh.VertexCount*2), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+	}
+
+	// setup vertex weight Ids for bones
+	var weightBuffer []float32
+	if len(compMesh.SrcMesh.VertexWeightIds) > 0 {
+		if weightBuffer == nil {
+			weightBuffer = make([]float32, compMesh.SrcMesh.VertexCount*4)
+		}
+		for i, v := range compMesh.SrcMesh.VertexWeightIds {
+			offset := i * 4
+			weightBuffer[offset] = v[0]
+			weightBuffer[offset+1] = v[1]
+			weightBuffer[offset+2] = v[2]
+			weightBuffer[offset+3] = v[3]
+		}
+		gl.GenBuffers(1, &r.Core.BoneFidsVBO)
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneFidsVBO)
+		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*compMesh.SrcMesh.VertexCount*4), gl.Ptr(&weightBuffer[0]), gl.STATIC_DRAW)
+	}
+
+	// setup the vertex weights
+	if len(compMesh.SrcMesh.VertexWeights) > 0 {
+		if weightBuffer == nil {
+			weightBuffer = make([]float32, compMesh.SrcMesh.VertexCount*4)
+		}
+		for i, v := range compMesh.SrcMesh.VertexWeights {
+			offset := i * 4
+			weightBuffer[offset] = v[0]
+			weightBuffer[offset+1] = v[1]
+			weightBuffer[offset+2] = v[2]
+			weightBuffer[offset+3] = v[3]
+		}
+		gl.GenBuffers(1, &r.Core.BoneWeightsVBO)
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
+		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*compMesh.SrcMesh.VertexCount*4), gl.Ptr(&weightBuffer[0]), gl.STATIC_DRAW)
 	}
 
 	// setup the face indices
-	indexBuffer := make([]uint32, len(compMesh.srcMesh.Faces)*3)
-	for i, f := range compMesh.srcMesh.Faces {
+	indexBuffer := make([]uint32, len(compMesh.SrcMesh.Faces)*3)
+	for i, f := range compMesh.SrcMesh.Faces {
 		offset := i * 3
 		indexBuffer[offset] = f[0]
 		indexBuffer[offset+1] = f[1]

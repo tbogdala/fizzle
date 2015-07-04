@@ -10,8 +10,11 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 )
 
+// RenderableCore contains data that is needed to draw an object on the screen.
+// Further, data here can be shared between multiple Renderable instances.
 type RenderableCore struct {
-	Shader *RenderShader
+	Shader   *RenderShader
+	Skeleton *Skeleton
 
 	Tex0         uint32
 	DiffuseColor mgl.Vec4
@@ -19,13 +22,15 @@ type RenderableCore struct {
 	Vao            uint32
 	VaoInitialized bool
 
-	VertVBO     uint32
-	UvVBO       uint32
-	NormsVBO    uint32
-	TangentsVBO uint32
-	ElementsVBO uint32
-	ComboVBO1   uint32
-	ComboVBO2   uint32
+	VertVBO        uint32
+	UvVBO          uint32
+	NormsVBO       uint32
+	TangentsVBO    uint32
+	ElementsVBO    uint32
+	BoneFidsVBO    uint32
+	BoneWeightsVBO uint32
+	ComboVBO1      uint32
+	ComboVBO2      uint32
 
 	IsDestroyed bool
 }
@@ -46,7 +51,7 @@ func (rect *Rectangle3D) DeltaZ() float32 {
 	return rect.Top[2] - rect.Bottom[2]
 }
 
-// Renderable defines the data necessary to draw an object in OpenGL
+// Renderable defines the data necessary to draw an object in OpenGL.
 type Renderable struct {
 	ShaderName string
 
@@ -55,6 +60,10 @@ type Renderable struct {
 	Location      mgl.Vec3
 	Rotation      mgl.Quat
 	LocalRotation mgl.Quat
+
+	// AnimationTime keeps track of the time value to use for the animation
+	// currently applied (if any) to the Renderable.
+	AnimationTime float32
 
 	// BoundingRect is the unscaled, unrotated bounding rectangle for the renderable.
 	BoundingRect Rectangle3D
@@ -101,6 +110,8 @@ func (r *RenderableCore) DestroyCore() {
 	gl.DeleteBuffers(1, &r.ElementsVBO)
 	gl.DeleteBuffers(1, &r.TangentsVBO)
 	gl.DeleteBuffers(1, &r.NormsVBO)
+	gl.DeleteBuffers(1, &r.BoneFidsVBO)
+	gl.DeleteBuffers(1, &r.BoneWeightsVBO)
 	gl.DeleteBuffers(1, &r.ComboVBO1)
 	gl.DeleteBuffers(1, &r.ComboVBO2)
 	gl.DeleteBuffers(1, &r.Vao)
@@ -131,6 +142,44 @@ func (r *Renderable) Clone() *Renderable {
 	}
 
 	return clone
+}
+
+// HasSkeleton returns true if the renderable has bones associated with it.
+func (r *Renderable) HasSkeleton() bool {
+	if r.Core.Skeleton != nil {
+		return true
+	}
+	return false
+}
+
+// HasSkeletonDeep returns true if the renderable, or any child, has bones associated with it.
+func (r *Renderable) HasSkeletonDeep() bool {
+	if r.Core.Skeleton != nil {
+		return true
+	}
+
+	for _, cn := range r.Children {
+		if cn.HasSkeletonDeep() == true {
+			return true
+		}
+	}
+
+	return false
+}
+
+// RenderableMapF defines the type of a function that can be passed to Renderable.Map().
+type RenderableMapF func(r *Renderable)
+
+// Map takes a function as a parameter that will be called for the renderable and all
+// child Renderable objects (as well as their children, etc...)
+func (r *Renderable) Map(f RenderableMapF) {
+	// call the function for the renderable first
+	f(r)
+
+	// loop through all of the children and recurse
+	for _, cn := range r.Children {
+		cn.Map(f)
+	}
 }
 
 // GetTransformMat4 creates a transform matrix: scale * transform

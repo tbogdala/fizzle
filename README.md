@@ -21,6 +21,7 @@ Requirements
 * [Mathgl][mgl] - for 3d math
 * [Freetype-go][ftgo] - for dynamic font texture generation
 * [Groggy][groggy] - for flexible logging
+* [Gombz][gombz] - provides a serializable data structure for 3d models and animations
 
 Installation
 ------------
@@ -33,6 +34,7 @@ go get github.com/go-gl/gl/v3.3-core/gl
 go get github.com/go-gl/mathgl/mgl32
 go get code.google.com/p/freetype-go/freetype
 go get github.com/tbogdala/groggy
+go get github.com/tbogdala/gombz
 ```
 
 This does assume that you have the native GLFW 3.1 library installed already
@@ -66,6 +68,7 @@ Fizzle is released under the BSD license. See the [LICENSE][license-link] file f
 
 [golang]: https://golang.org/
 [groggy]: https://github.com/tbogdala/groggy
+[gombz]: https://github.com/tbogdala/gombz
 [pg]: https://bitbucket.org/tbogdala/portableglue
 [glfw-go]: https://github.com/go-gl/glfw
 [go-gl]: https://github.com/go-gl/glow

@@ -414,6 +414,11 @@ func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, per
 		gl.Uniform1i(shaderTex1, 0)
 	}
 
+	shaderBones := shader.GetUniformLocation("BONES")
+	if shaderBones >= 0 && r.Core.Skeleton != nil && len(r.Core.Skeleton.Bones) > 0 {
+		gl.UniformMatrix4fv(shaderBones, int32(len(r.Core.Skeleton.Bones)), false, &(r.Core.Skeleton.PoseTransforms[0][0]))
+	}
+
 	shaderPosition := shader.GetAttribLocation("VERTEX_POSITION")
 	if shaderPosition >= 0 {
 		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
@@ -433,6 +438,20 @@ func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, per
 		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
 		gl.EnableVertexAttribArray(uint32(shaderNormal))
 		gl.VertexAttribPointer(uint32(shaderNormal), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+	}
+
+	shaderBoneFids := shader.GetAttribLocation("VERTEX_BONE_IDS")
+	if shaderBoneFids >= 0 {
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneFidsVBO)
+		gl.EnableVertexAttribArray(uint32(shaderBoneFids))
+		gl.VertexAttribPointer(uint32(shaderBoneFids), 4, gl.FLOAT, false, 0, gl.PtrOffset(0))
+	}
+
+	shaderBoneWeights := shader.GetAttribLocation("VERTEX_BONE_WEIGHTS")
+	if shaderBoneWeights >= 0 {
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
+		gl.EnableVertexAttribArray(uint32(shaderBoneWeights))
+		gl.VertexAttribPointer(uint32(shaderBoneWeights), 4, gl.FLOAT, false, 0, gl.PtrOffset(0))
 	}
 
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)

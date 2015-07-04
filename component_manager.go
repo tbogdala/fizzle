@@ -164,12 +164,12 @@ func loadMeshForComponent(component *Component, compMesh *ComponentMesh) error {
 	if numOfSrcMeshes > 1 {
 		groggy.Logsf("ERROR", "SrcFile mesh has %d meshes. Only one mesh is supported!", numOfSrcMeshes)
 	}
-	compMesh.srcMesh = srcMeshes[0]
+	compMesh.SrcMesh = srcMeshes[0]
 
 	// force a write out of the compressed binary form of the model if the BinFile is set
 	if len(compMesh.BinFile) > 0 {
 		// do the encode
-		meshBytes, err := compMesh.srcMesh.Encode()
+		meshBytes, err := compMesh.SrcMesh.Encode()
 		if err != nil {
 			groggy.Log("ERROR", "Failed to encode BinFile mesh")
 		} else {
