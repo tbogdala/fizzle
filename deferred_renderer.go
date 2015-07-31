@@ -440,6 +440,13 @@ func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, per
 		gl.VertexAttribPointer(uint32(shaderNormal), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
 	}
 
+	shaderCombo1 := shader.GetAttribLocation("VERTEX_COMBO1")
+	if shaderCombo1 >= 0 {
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.ComboVBO1)
+		gl.EnableVertexAttribArray(uint32(shaderCombo1))
+		gl.VertexAttribPointer(uint32(shaderCombo1), 1, gl.FLOAT, false, 0, gl.PtrOffset(0))
+	}
+
 	shaderBoneFids := shader.GetAttribLocation("VERTEX_BONE_IDS")
 	if shaderBoneFids >= 0 {
 		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneFidsVBO)
