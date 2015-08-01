@@ -73,6 +73,10 @@ type DeferredRenderer struct {
 	lastFrameTime time.Time
 }
 
+// DeferredBinder is the type of the function called when binding shader variables
+// which allows for custom binding of VBO objects.
+type DeferredBinder func(dr *DeferredRenderer, r *Renderable, shader *RenderShader)
+
 func NewDeferredRenderer(window *glfw.Window) *DeferredRenderer {
 	dr := new(DeferredRenderer)
 	dr.shaders = make(map[string]*RenderShader)
@@ -328,7 +332,7 @@ func (dr *DeferredRenderer) DrawDirectionalLight(eye mgl.Vec3, dir mgl.Vec3, col
 	gl.BindVertexArray(0)
 }
 
-func (dr *DeferredRenderer) DrawRenderable(r *Renderable, perspective mgl.Mat4, view mgl.Mat4) {
+func (dr *DeferredRenderer) DrawRenderable(r *Renderable, binder DeferredBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -337,15 +341,15 @@ func (dr *DeferredRenderer) DrawRenderable(r *Renderable, perspective mgl.Mat4, 
 	// if the renderable is a group, just try to draw the children
 	if r.IsGroup {
 		for _, child := range r.Children {
-			dr.DrawRenderable(child, perspective, view)
+			dr.DrawRenderable(child, binder, perspective, view)
 		}
 		return
 	}
 
-	dr.bindAndDraw(r, r.Core.Shader, perspective, view, gl.TRIANGLES)
+	dr.bindAndDraw(r, r.Core.Shader, binder, perspective, view, gl.TRIANGLES)
 }
 
-func (dr *DeferredRenderer) DrawRenderableWithShader(r *Renderable, shader *RenderShader, perspective mgl.Mat4, view mgl.Mat4) {
+func (dr *DeferredRenderer) DrawRenderableWithShader(r *Renderable, shader *RenderShader, binder DeferredBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -354,15 +358,15 @@ func (dr *DeferredRenderer) DrawRenderableWithShader(r *Renderable, shader *Rend
 	// if the renderable is a group, just try to draw the children
 	if r.IsGroup {
 		for _, child := range r.Children {
-			dr.DrawRenderableWithShader(child, shader, perspective, view)
+			dr.DrawRenderableWithShader(child, shader, binder, perspective, view)
 		}
 		return
 	}
 
-	dr.bindAndDraw(r, shader, perspective, view, gl.TRIANGLES)
+	dr.bindAndDraw(r, shader, binder, perspective, view, gl.TRIANGLES)
 }
 
-func (dr *DeferredRenderer) DrawLines(r *Renderable, shader *RenderShader, perspective mgl.Mat4, view mgl.Mat4) {
+func (dr *DeferredRenderer) DrawLines(r *Renderable, shader *RenderShader, binder DeferredBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -371,15 +375,15 @@ func (dr *DeferredRenderer) DrawLines(r *Renderable, shader *RenderShader, persp
 	// if the renderable is a group, just try to draw the children
 	if r.IsGroup {
 		for _, child := range r.Children {
-			dr.DrawLines(child, shader, perspective, view)
+			dr.DrawLines(child, shader, binder, perspective, view)
 		}
 		return
 	}
 
-	dr.bindAndDraw(r, shader, perspective, view, gl.LINES)
+	dr.bindAndDraw(r, shader, binder, perspective, view, gl.LINES)
 }
 
-func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, perspective mgl.Mat4, view mgl.Mat4, mode uint32) {
+func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, binder DeferredBinder, perspective mgl.Mat4, view mgl.Mat4, mode uint32) {
 	gl.UseProgram(shader.Prog)
 	gl.BindVertexArray(r.Core.Vao)
 
@@ -440,13 +444,6 @@ func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, per
 		gl.VertexAttribPointer(uint32(shaderNormal), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
 	}
 
-	shaderCombo1 := shader.GetAttribLocation("VERTEX_COMBO1")
-	if shaderCombo1 >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.ComboVBO1)
-		gl.EnableVertexAttribArray(uint32(shaderCombo1))
-		gl.VertexAttribPointer(uint32(shaderCombo1), 1, gl.FLOAT, false, 0, gl.PtrOffset(0))
-	}
-
 	shaderBoneFids := shader.GetAttribLocation("VERTEX_BONE_IDS")
 	if shaderBoneFids >= 0 {
 		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneFidsVBO)
@@ -459,6 +456,11 @@ func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, per
 		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
 		gl.EnableVertexAttribArray(uint32(shaderBoneWeights))
 		gl.VertexAttribPointer(uint32(shaderBoneWeights), 4, gl.FLOAT, false, 0, gl.PtrOffset(0))
+	}
+
+	// if a custom binder function was passed in then call it
+	if binder != nil {
+		binder(dr, r, shader)
 	}
 
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
