@@ -15,14 +15,15 @@ mapped to the appropriate glyphs.
 */
 
 import (
-	ft "code.google.com/p/freetype-go/freetype"
 	"errors"
 	"fmt"
-	gl "github.com/go-gl/gl/v3.3-core/gl"
 	"image"
 	"image/draw"
 	"io/ioutil"
 	"os"
+
+	gl "github.com/go-gl/gl/v3.3-core/gl"
+	ft "github.com/tbogdala/freetype-go/freetype"
 )
 
 // runeData stores information pulled from the freetype parsing of glyphs.
