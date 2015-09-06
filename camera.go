@@ -82,6 +82,17 @@ func (c *Camera) UpdatePitch(delta float32) {
 	c.generateRotation()
 }
 
+// LookAtDirect calculates a view rotation using the current Camera
+// position so that it will look at the target coordinate.
+// Uses standard up axis of {0,1,0}.
+var (
+	defaultLookAtUp = mgl.Vec3{0.0, 1.0, 0.0}
+)
+
+func (c *Camera) LookAtDirect(target mgl.Vec3) {
+	c.rotation = mgl.QuatLookAtV(c.position, target, defaultLookAtUp)
+}
+
 // LookAt adjusts the position of the camera based on the camera yaw/pitch
 // and the target location passed in. It does automatically adjust
 // the camera's internal rotation quaternion.

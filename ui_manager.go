@@ -60,7 +60,7 @@ type UIWidget interface {
 	Destroy()
 
 	// Draw should render the widget to screen.
-	Draw(renderer *DeferredRenderer, binder DeferredBinder, projection mgl.Mat4, view mgl.Mat4)
+	Draw(renderer Renderer, binder RenderBinder, projection mgl.Mat4, view mgl.Mat4)
 
 	// GetLayout should return the UILayout for the widget that's used for positioning.
 	GetLayout() *UILayout
@@ -164,7 +164,7 @@ func (ui *UIManager) LayoutWidgets() {
 }
 
 // Draw renders all of widgets on the screen.
-func (ui *UIManager) Draw(renderer *DeferredRenderer, binder DeferredBinder) {
+func (ui *UIManager) Draw(renderer Renderer, binder RenderBinder) {
 	// calculate the perspective and view
 	ortho := mgl.Ortho(0, float32(ui.width), 0, float32(ui.height), minZDepth, maxZDepth)
 	view := mgl.Ident4()
@@ -213,7 +213,7 @@ func (l *UILabel) Destroy() {
 
 // Draw renders the widget onto the screen. Layout should have already
 // modified the positioning of the renderable.
-func (l *UILabel) Draw(renderer *DeferredRenderer, binder DeferredBinder, projection mgl.Mat4, view mgl.Mat4) {
+func (l *UILabel) Draw(renderer Renderer, binder RenderBinder, projection mgl.Mat4, view mgl.Mat4) {
 	renderer.DrawRenderable(l.Renderable, binder, projection, view)
 }
 

@@ -33,6 +33,9 @@ type DeferredGeometryPass func(dr *DeferredRenderer, deltaFrameTime float32)
 // to the screen in the deferred renderer.
 type DeferredCompositePass func(dr *DeferredRenderer, deltaFrameTime float32)
 
+// DeferredRenderer is a deferred-rendering style renderer. Which means that
+// it creates several framebuffers for shaders to write to and has two main
+// rendering steps: 1) geometry and 2) compositing.
 type DeferredRenderer struct {
 	Frame          uint32
 	Depth          uint32
@@ -73,10 +76,8 @@ type DeferredRenderer struct {
 	lastFrameTime time.Time
 }
 
-// DeferredBinder is the type of the function called when binding shader variables
-// which allows for custom binding of VBO objects.
-type DeferredBinder func(dr *DeferredRenderer, r *Renderable, shader *RenderShader)
-
+// NewDeferredRenderer creates a new DeferredRenderer and sets some of the
+// default callback functions as well as other default values.
 func NewDeferredRenderer(window *glfw.Window) *DeferredRenderer {
 	dr := new(DeferredRenderer)
 	dr.shaders = make(map[string]*RenderShader)
@@ -90,6 +91,7 @@ func NewDeferredRenderer(window *glfw.Window) *DeferredRenderer {
 	return dr
 }
 
+// Destroy releases all of the OpenGL buffers the DeferredRenderer is holding on to.
 func (dr *DeferredRenderer) Destroy() {
 	gl.DeleteRenderbuffers(1, &dr.Depth)
 	gl.DeleteRenderbuffers(1, &dr.Diffuse)
@@ -99,6 +101,8 @@ func (dr *DeferredRenderer) Destroy() {
 	dr.CompositePlane.Core.DestroyCore()
 }
 
+// ChangeResolution internally changes the size of the framebuffers and compositing
+// plane that are used for rendering.
 func (dr *DeferredRenderer) ChangeResolution(width, height int32) {
 	dr.Destroy()
 	dr.Init(width, height)
@@ -109,6 +113,13 @@ func (dr *DeferredRenderer) GetResolution() (int32, int32) {
 	return dr.width, dr.height
 }
 
+// GetAspectRatio returns the ratio of screen width to height.
+func (dr *DeferredRenderer) GetAspectRatio() float32 {
+	return float32(dr.width) / float32(dr.height)
+}
+
+// Init sets up the DeferredRenderer by creating all of the framebuffers and
+// creating the compositing plane.
 func (dr *DeferredRenderer) Init(width, height int32) error {
 	dr.width = width
 	dr.height = height
@@ -184,6 +195,7 @@ func (dr *DeferredRenderer) Init(width, height int32) error {
 	return nil
 }
 
+// InitShaders sets up the special shaders used in a deferred rendering pipeline.
 func (dr *DeferredRenderer) InitShaders(compositeBaseFilepath string, dirlightShaderFilepath string) error {
 	// Load the composite pass shader and assert variables exist
 	prog, err := LoadShaderProgramFromFiles(compositeBaseFilepath, func(p uint32) {
@@ -206,6 +218,8 @@ func (dr *DeferredRenderer) InitShaders(compositeBaseFilepath string, dirlightSh
 	return nil
 }
 
+// CompositeDraw draws the final composite image onto the composite plane using
+// the composite shader.
 func (dr *DeferredRenderer) CompositeDraw() {
 	// the view matrix would be identity
 	ortho := mgl.Ortho(0, float32(dr.width), 0, float32(dr.height), -200.0, 200.0)
@@ -249,6 +263,8 @@ func (dr *DeferredRenderer) CompositeDraw() {
 	gl.BindVertexArray(0)
 }
 
+// DrawDirectionalLight draws the composite plane while lighting everything with
+// a directional light using the parameters specified.
 func (dr *DeferredRenderer) DrawDirectionalLight(eye mgl.Vec3, dir mgl.Vec3, color mgl.Vec3, ambient float32, diffuse float32, specular float32) {
 	// the view matrix would be identity
 	ortho := mgl.Ortho(0, float32(dr.width), 0, float32(dr.height), -200.0, 200.0)
@@ -332,7 +348,8 @@ func (dr *DeferredRenderer) DrawDirectionalLight(eye mgl.Vec3, dir mgl.Vec3, col
 	gl.BindVertexArray(0)
 }
 
-func (dr *DeferredRenderer) DrawRenderable(r *Renderable, binder DeferredBinder, perspective mgl.Mat4, view mgl.Mat4) {
+// DrawRenderable draws a Renderable object with the supplied projection and view matrixes.
+func (dr *DeferredRenderer) DrawRenderable(r *Renderable, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -346,10 +363,12 @@ func (dr *DeferredRenderer) DrawRenderable(r *Renderable, binder DeferredBinder,
 		return
 	}
 
-	dr.bindAndDraw(r, r.Core.Shader, binder, perspective, view, gl.TRIANGLES)
+	bindAndDraw(dr, r, r.Core.Shader, binder, perspective, view, gl.TRIANGLES)
 }
 
-func (dr *DeferredRenderer) DrawRenderableWithShader(r *Renderable, shader *RenderShader, binder DeferredBinder, perspective mgl.Mat4, view mgl.Mat4) {
+// DrawRenderableWithShader draws a Renderable object with the supplied projection and view matrixes
+// and a different shader than what is set in the Renderable.
+func (dr *DeferredRenderer) DrawRenderableWithShader(r *Renderable, shader *RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -363,10 +382,11 @@ func (dr *DeferredRenderer) DrawRenderableWithShader(r *Renderable, shader *Rend
 		return
 	}
 
-	dr.bindAndDraw(r, shader, binder, perspective, view, gl.TRIANGLES)
+	bindAndDraw(dr, r, shader, binder, perspective, view, gl.TRIANGLES)
 }
 
-func (dr *DeferredRenderer) DrawLines(r *Renderable, shader *RenderShader, binder DeferredBinder, perspective mgl.Mat4, view mgl.Mat4) {
+// DrawLines draws the Renderable using gl.LINES mode instead of gl.TRIANGLES.
+func (dr *DeferredRenderer) DrawLines(r *Renderable, shader *RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -380,92 +400,7 @@ func (dr *DeferredRenderer) DrawLines(r *Renderable, shader *RenderShader, binde
 		return
 	}
 
-	dr.bindAndDraw(r, shader, binder, perspective, view, gl.LINES)
-}
-
-func (dr *DeferredRenderer) bindAndDraw(r *Renderable, shader *RenderShader, binder DeferredBinder, perspective mgl.Mat4, view mgl.Mat4, mode uint32) {
-	gl.UseProgram(shader.Prog)
-	gl.BindVertexArray(r.Core.Vao)
-
-	model := r.GetTransformMat4()
-
-	shaderMvp := shader.GetUniformLocation("MVP_MATRIX")
-	if shaderMvp >= 0 {
-		mvp := perspective.Mul4(view).Mul4(model)
-		gl.UniformMatrix4fv(shaderMvp, 1, false, &mvp[0])
-	}
-
-	shaderMv := shader.GetUniformLocation("MV_MATRIX")
-	if shaderMv >= 0 {
-		mv := view.Mul4(model)
-		gl.UniformMatrix4fv(shaderMv, 1, false, &mv[0])
-	}
-
-	shaderM := shader.GetUniformLocation("M_MATRIX")
-	if shaderM >= 0 {
-		gl.UniformMatrix4fv(shaderM, 1, false, &model[0])
-	}
-
-	shaderDiffuse := shader.GetUniformLocation("MATERIAL_DIFFUSE")
-	if shaderDiffuse >= 0 {
-		gl.Uniform4f(shaderDiffuse, r.Core.DiffuseColor[0], r.Core.DiffuseColor[1], r.Core.DiffuseColor[2], r.Core.DiffuseColor[3])
-	}
-
-	shaderTex1 := shader.GetUniformLocation("MATERIAL_TEX_0")
-	if shaderTex1 >= 0 {
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, r.Core.Tex0)
-		gl.Uniform1i(shaderTex1, 0)
-	}
-
-	shaderBones := shader.GetUniformLocation("BONES")
-	if shaderBones >= 0 && r.Core.Skeleton != nil && len(r.Core.Skeleton.Bones) > 0 {
-		gl.UniformMatrix4fv(shaderBones, int32(len(r.Core.Skeleton.Bones)), false, &(r.Core.Skeleton.PoseTransforms[0][0]))
-	}
-
-	shaderPosition := shader.GetAttribLocation("VERTEX_POSITION")
-	if shaderPosition >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-		gl.EnableVertexAttribArray(uint32(shaderPosition))
-		gl.VertexAttribPointer(uint32(shaderPosition), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
-	}
-
-	shaderVertUv := shader.GetAttribLocation("VERTEX_UV_0")
-	if shaderVertUv >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-		gl.EnableVertexAttribArray(uint32(shaderVertUv))
-		gl.VertexAttribPointer(uint32(shaderVertUv), 2, gl.FLOAT, false, 0, gl.PtrOffset(0))
-	}
-
-	shaderNormal := shader.GetAttribLocation("VERTEX_NORMAL")
-	if shaderNormal >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
-		gl.EnableVertexAttribArray(uint32(shaderNormal))
-		gl.VertexAttribPointer(uint32(shaderNormal), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
-	}
-
-	shaderBoneFids := shader.GetAttribLocation("VERTEX_BONE_IDS")
-	if shaderBoneFids >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneFidsVBO)
-		gl.EnableVertexAttribArray(uint32(shaderBoneFids))
-		gl.VertexAttribPointer(uint32(shaderBoneFids), 4, gl.FLOAT, false, 0, gl.PtrOffset(0))
-	}
-
-	shaderBoneWeights := shader.GetAttribLocation("VERTEX_BONE_WEIGHTS")
-	if shaderBoneWeights >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
-		gl.EnableVertexAttribArray(uint32(shaderBoneWeights))
-		gl.VertexAttribPointer(uint32(shaderBoneWeights), 4, gl.FLOAT, false, 0, gl.PtrOffset(0))
-	}
-
-	// if a custom binder function was passed in then call it
-	if binder != nil {
-		binder(dr, r, shader)
-	}
-
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.DrawElements(mode, int32(r.FaceCount*3), gl.UNSIGNED_INT, gl.PtrOffset(0))
-	gl.BindVertexArray(0)
+	bindAndDraw(dr, r, shader, binder, perspective, view, gl.LINES)
 }
 
 // RenderLoop keeps running a render loop function until MainWindow is
@@ -531,9 +466,4 @@ func (dr *DeferredRenderer) RenderLoop() {
 
 		dr.lastFrameTime = currentFrameTime
 	}
-}
-
-// GetAspectRatio returns the ratio of screen width to height.
-func (dr *DeferredRenderer) GetAspectRatio() float32 {
-	return float32(dr.width) / float32(dr.height)
 }
