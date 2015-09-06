@@ -55,6 +55,16 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 		gl.Uniform4f(shaderDiffuse, r.Core.DiffuseColor[0], r.Core.DiffuseColor[1], r.Core.DiffuseColor[2], r.Core.DiffuseColor[3])
 	}
 
+	shaderSpecular := shader.GetUniformLocation("MATERIAL_SPECULAR")
+	if shaderSpecular >= 0 {
+		gl.Uniform4f(shaderSpecular, r.Core.SpecularColor[0], r.Core.SpecularColor[1], r.Core.SpecularColor[2], r.Core.SpecularColor[3])
+	}
+
+	shaderShiny := shader.GetUniformLocation("MATERIAL_SHININESS")
+	if shaderShiny >= 0 {
+		gl.Uniform1f(shaderShiny, r.Core.Shininess)
+	}
+
 	shaderTex1 := shader.GetUniformLocation("MATERIAL_TEX_0")
 	if shaderTex1 >= 0 {
 		gl.ActiveTexture(gl.TEXTURE0)
@@ -74,6 +84,7 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 			for lightI := 0; lightI < int(lightCount); lightI++ {
 				light := forwardRenderer.ActiveLights[lightI]
 
+				// NOTE: this gets bound in eye-space coordinates
 				shaderLightPosition := shader.GetUniformLocation(fmt.Sprintf("LIGHT_POSITION[%d]", lightI))
 				if shaderLightPosition >= 0 {
 					lightPosEyeSpace := view.Mul4x1(mgl.Vec4{light.Position[0], light.Position[1], light.Position[2], 1.0})
@@ -90,21 +101,25 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 					gl.Uniform4fv(shaderLightDiffuse, 1, &light.DiffuseColor[0])
 				}
 
-				shaderLightIntensity := shader.GetUniformLocation(fmt.Sprintf("LIGHT_INTENSITY[%d]", lightI))
+				shaderLightSpecular := shader.GetUniformLocation(fmt.Sprintf("LIGHT_SPECULAR[%d]", lightI))
+				if shaderLightSpecular >= 0 {
+					gl.Uniform4fv(shaderLightSpecular, 1, &light.SpecularColor[0])
+				}
+
+				shaderLightIntensity := shader.GetUniformLocation(fmt.Sprintf("LIGHT_DIFFUSE_INTENSITY[%d]", lightI))
 				if shaderLightIntensity >= 0 {
-					gl.Uniform1fv(shaderLightIntensity, 1, &light.Intensity)
+					gl.Uniform1fv(shaderLightIntensity, 1, &light.DiffuseIntensity)
+				}
+
+				shaderLightAmbientIntensity := shader.GetUniformLocation(fmt.Sprintf("LIGHT_AMBIENT_INTENSITY[%d]", lightI))
+				if shaderLightAmbientIntensity >= 0 {
+					gl.Uniform1fv(shaderLightAmbientIntensity, 1, &light.AmbientIntensity)
 				}
 
 				shaderLightAttenuation := shader.GetUniformLocation(fmt.Sprintf("LIGHT_ATTENUATION[%d]", lightI))
 				if shaderLightAttenuation >= 0 {
 					gl.Uniform1fv(shaderLightAttenuation, 1, &light.Attenuation)
 				}
-
-				shaderLightSpecularPower := shader.GetUniformLocation(fmt.Sprintf("LIGHT_SPECULAR_POWER[%d]", lightI))
-				if shaderLightSpecularPower >= 0 {
-					gl.Uniform1fv(shaderLightSpecularPower, 1, &light.SpecularPower)
-				}
-
 			} // lightI
 			shaderLightCount := shader.GetUniformLocation("LIGHT_COUNT")
 			if shaderLightCount >= 0 {

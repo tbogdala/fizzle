@@ -4,7 +4,9 @@
 package main
 
 import (
+	"fmt"
 	"math"
+	"os"
 	"runtime"
 	"time"
 
@@ -26,6 +28,7 @@ import (
     3) loads some shaders
     4) creates a cube
     5) in a loop, render the cube
+		6) when escape is pressed, exit the loop
 
   This example also does not use the 'example app' framework so that
   it can be as compact and illustrative of the minimal requirements
@@ -44,8 +47,8 @@ func init() {
 const (
 	width             = 800
 	height            = 600
-	diffuseShaderPath = "./assets/forwardshaders/diffuse"
 	radsPerSec        = math.Pi / 4.0
+	diffuseShaderPath = "./assets/forwardshaders/diffuse"
 )
 
 // main is the entry point for the application.
@@ -63,25 +66,29 @@ func main() {
 
 	// put a light in there
 	light := fizzle.NewLight()
-	light.Position = mgl.Vec3{-10.0, 10.0, -10}
-	light.DiffuseColor = mgl.Vec4{1.0, 0.98, 0.98, 1.0}
-	light.Direction = mgl.Vec3{1.0, -1.0, 1.0}
-	light.Intensity = 0.80
+	light.Position = mgl.Vec3{-10.0, 5.0, 10}
+	light.DiffuseColor = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
+	light.SpecularColor = mgl.Vec4{0.4, 0.4, 0.4, 1.0}
+	light.Direction = mgl.Vec3{1.0, -0.5, -1.0}
+	light.DiffuseIntensity = 0.80
+	light.AmbientIntensity = 0.20
 	light.Attenuation = 1.0
-	light.SpecularPower = 0.4
 	renderer.ActiveLights[0] = light
 
 	// load the text shader
 	diffuseShader, err := fizzle.LoadShaderProgramFromFiles(diffuseShaderPath, nil)
 	if err != nil {
-		panic("Failed to compile and link the diffuse shader program! " + err.Error())
+		fmt.Printf("Failed to compile and link the diffuse shader program!\n%v", err)
+		os.Exit(1)
 	}
 	defer diffuseShader.Destroy()
 
 	// create a 2x2x2 cube to render
 	cube := fizzle.CreateCube("diffuse", -1, -1, -1, 1, 1, 1)
 	cube.Core.Shader = diffuseShader
-	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.0, 0.0, 1.0}
+	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.9, 0.9, 1.0}
+	cube.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	cube.Core.Shininess = 0.8
 
 	// setup the camera to look at the cube
 	camera := fizzle.NewCamera(mgl.Vec3{0.0, 2.0, 10.0})
@@ -109,8 +116,6 @@ func main() {
 
 		// make the projection and view matrixes
 		perspective := mgl.Perspective(mgl.DegToRad(60.0), float32(width)/float32(height), 1.0, 100.0)
-		//view := mgl.Translate3D(-cameraPos[0], -cameraPos[1], -cameraPos[2])
-		//view := mgl.QuatLookAtV(cameraPos, mgl.Vec3{0, 0, 0}, mgl.Vec3{0, 1, 0}).Mat4()
 		view := camera.GetViewMatrix()
 
 		// draw the cube

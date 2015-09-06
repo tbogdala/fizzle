@@ -16,8 +16,12 @@ type RenderableCore struct {
 	Shader   *RenderShader
 	Skeleton *Skeleton
 
-	Tex0         uint32
-	DiffuseColor mgl.Vec4
+	Tex0          uint32
+	DiffuseColor  mgl.Vec4
+	SpecularColor mgl.Vec4
+
+	// Shininess is the exponent used while calculating specular highlights
+	Shininess float32
 
 	Vao            uint32
 	VaoInitialized bool
@@ -93,6 +97,8 @@ func NewRenderable() *Renderable {
 func NewRenderableCore() *RenderableCore {
 	rc := new(RenderableCore)
 	rc.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	rc.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	rc.Shininess = 0.01
 	gl.GenVertexArrays(1, &rc.Vao)
 	return rc
 }

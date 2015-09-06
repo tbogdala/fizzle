@@ -26,14 +26,17 @@ type Light struct {
 	// DiffuseColor is the color the light emmits
 	DiffuseColor mgl.Vec4
 
-	// Intensity is how strong the light should be
-	Intensity float32
+	// SpecularColor is the color of the specular highlight
+	SpecularColor mgl.Vec4
+
+	// Intensity is how strong the diffuse light should be
+	DiffuseIntensity float32
+
+	// Intensity is how strong the ambient light should be
+	AmbientIntensity float32
 
 	// Attenuation is the coefficient for the attenuation factor
 	Attenuation float32
-
-	// SpecularPower determines the size of the specular highlight
-	SpecularPower float32
 }
 
 // NewLight creates a new light object and returns it
