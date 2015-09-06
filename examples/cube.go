@@ -75,7 +75,7 @@ func main() {
 	light.Attenuation = 1.0
 	renderer.ActiveLights[0] = light
 
-	// load the text shader
+	// load the diffuse shader
 	diffuseShader, err := fizzle.LoadShaderProgramFromFiles(diffuseShaderPath, nil)
 	if err != nil {
 		fmt.Printf("Failed to compile and link the diffuse shader program!\n%v", err)
