@@ -118,6 +118,12 @@ func (dr *DeferredRenderer) GetAspectRatio() float32 {
 	return float32(dr.width) / float32(dr.height)
 }
 
+// EndRenderFrame swaps the buffers and calls GLFW to poll for input.
+func (dr *DeferredRenderer) EndRenderFrame() {
+	dr.MainWindow.SwapBuffers()
+	glfw.PollEvents()
+}
+
 // Init sets up the DeferredRenderer by creating all of the framebuffers and
 // creating the compositing plane.
 func (dr *DeferredRenderer) Init(width, height int32) error {

@@ -20,6 +20,7 @@ type Renderer interface {
 
 	DrawRenderable(r *Renderable, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4)
 	DrawRenderableWithShader(r *Renderable, shader *RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4)
+	EndRenderFrame()
 }
 
 // RenderBinder is the type of the function called when binding shader variables

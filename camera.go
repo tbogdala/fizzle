@@ -23,6 +23,7 @@ type Camera struct {
 	// store the pitch and yaw as angles to convert into
 	// quaternions on change. this allows for movement directed
 	// by yaw, but not affected by pitch.
+	// NOTE: specified in radians.
 	yaw   float32
 	pitch float32
 
@@ -58,6 +59,13 @@ func (c *Camera) UpdatePosition(dX, dY, dZ float32) {
 	c.position[0] += dX
 	c.position[1] += dY
 	c.position[2] += dZ
+}
+
+// SetYawAndPitch sets the yaw and pitch radians directly for the camera
+func (c *Camera) SetYawAndPitch(yaw, pitch float32) {
+	c.yaw = yaw
+	c.pitch = pitch
+	c.generateRotation()
 }
 
 // UpdateYaw adds a delta to the camera yaw and regenerates the rotation quaternion.

@@ -118,6 +118,12 @@ func (fr *ForwardRenderer) GetAspectRatio() float32 {
 	return float32(fr.width) / float32(fr.height)
 }
 
+// EndRenderFrame swaps the buffers and calls GLFW to poll for input.
+func (fr *ForwardRenderer) EndRenderFrame() {
+	fr.MainWindow.SwapBuffers()
+	glfw.PollEvents()
+}
+
 // GetActiveLightCount counts the number of *Light set in
 // the ForwardRenderer's ActiveLights array until a nil is hit.
 // NOTE: Obviously requires ActiveLights to be packed sequentially.
