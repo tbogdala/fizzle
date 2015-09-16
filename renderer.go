@@ -102,11 +102,6 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 					gl.Uniform4fv(shaderLightDiffuse, 1, &light.DiffuseColor[0])
 				}
 
-				shaderLightSpecular := shader.GetUniformLocation(fmt.Sprintf("LIGHT_SPECULAR[%d]", lightI))
-				if shaderLightSpecular >= 0 {
-					gl.Uniform4fv(shaderLightSpecular, 1, &light.SpecularColor[0])
-				}
-
 				shaderLightIntensity := shader.GetUniformLocation(fmt.Sprintf("LIGHT_DIFFUSE_INTENSITY[%d]", lightI))
 				if shaderLightIntensity >= 0 {
 					gl.Uniform1fv(shaderLightIntensity, 1, &light.DiffuseIntensity)

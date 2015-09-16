@@ -26,9 +26,6 @@ type Light struct {
 	// DiffuseColor is the color the light emmits
 	DiffuseColor mgl.Vec4
 
-	// SpecularColor is the color of the specular highlight
-	SpecularColor mgl.Vec4
-
 	// Intensity is how strong the diffuse light should be
 	DiffuseIntensity float32
 

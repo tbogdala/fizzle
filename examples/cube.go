@@ -68,7 +68,6 @@ func main() {
 	light := fizzle.NewLight()
 	light.Position = mgl.Vec3{-10.0, 5.0, 10}
 	light.DiffuseColor = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
-	light.SpecularColor = mgl.Vec4{0.4, 0.4, 0.4, 1.0}
 	light.Direction = mgl.Vec3{1.0, -0.5, -1.0}
 	light.DiffuseIntensity = 0.80
 	light.AmbientIntensity = 0.20
