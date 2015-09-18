@@ -46,6 +46,11 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 		gl.UniformMatrix4fv(shaderMv, 1, false, &mv[0])
 	}
 
+	shaderV := shader.GetUniformLocation("V_MATRIX")
+	if shaderV >= 0 {
+		gl.UniformMatrix4fv(shaderV, 1, false, &view[0])
+	}
+
 	shaderM := shader.GetUniformLocation("M_MATRIX")
 	if shaderM >= 0 {
 		gl.UniformMatrix4fv(shaderM, 1, false, &model[0])
@@ -85,11 +90,9 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 			for lightI := 0; lightI < int(lightCount); lightI++ {
 				light := forwardRenderer.ActiveLights[lightI]
 
-				// NOTE: this gets bound in eye-space coordinates
 				shaderLightPosition := shader.GetUniformLocation(fmt.Sprintf("LIGHT_POSITION[%d]", lightI))
 				if shaderLightPosition >= 0 {
-					lightPosEyeSpace := view.Mul4x1(mgl.Vec4{light.Position[0], light.Position[1], light.Position[2], 1.0})
-					gl.Uniform3fv(shaderLightPosition, 1, &lightPosEyeSpace[0])
+					gl.Uniform3fv(shaderLightPosition, 1, &light.Position[0])
 				}
 
 				shaderLightDirection := shader.GetUniformLocation(fmt.Sprintf("LIGHT_DIRECTION[%d]", lightI))
