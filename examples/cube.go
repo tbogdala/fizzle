@@ -26,9 +26,10 @@ import (
     1) creates a GFLW window for rendering
     2) creates a renderer
     3) loads some shaders
-    4) creates a cube
-    5) in a loop, render the cube
+    4) creates a cube and a sphere
+    5) in a loop, render the cube or sphere
 		6) when escape is pressed, exit the loop
+		7) when spacebar is pressed toggle which shape to draw
 
   This example also does not use the 'example app' framework so that
   it can be as compact and illustrative of the minimal requirements
@@ -51,6 +52,11 @@ const (
 	diffuseShaderPath = "./assets/forwardshaders/diffuse"
 )
 
+var (
+	// renderCube indicates if the cube should be drawn or the sphere
+	renderCube bool = true
+)
+
 // main is the entry point for the application.
 func main() {
 	// start off by initializing the GL and GLFW libraries and creating a window.
@@ -66,7 +72,7 @@ func main() {
 
 	// put a light in there
 	light := fizzle.NewLight()
-	light.Position = mgl.Vec3{-10.0, 5.0, 10}
+	//light.Position = mgl.Vec3{-10.0, 5.0, 10}
 	light.DiffuseColor = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
 	light.Direction = mgl.Vec3{1.0, -0.5, -1.0}
 	light.DiffuseIntensity = 0.80
@@ -87,10 +93,19 @@ func main() {
 	cube.Core.Shader = diffuseShader
 	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.9, 0.9, 1.0}
 	cube.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	cube.Core.Shininess = 0.8
+	cube.Core.Shininess = 4.8
+
+	// create a sphere to render
+	sphere := fizzle.CreateSphere("diffuse", 1, 16, 16)
+	sphere.Core.Shader = diffuseShader
+	sphere.Core.DiffuseColor = mgl.Vec4{0.9, 0.9, 0.9, 1.0}
+	sphere.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	sphere.Core.Shininess = 4.8
+
+	renderCube = true
 
 	// setup the camera to look at the cube
-	camera := fizzle.NewCamera(mgl.Vec3{0.0, 2.0, 10.0})
+	camera := fizzle.NewCamera(mgl.Vec3{0.0, 1.0, 5.0})
 	camera.LookAtDirect(mgl.Vec3{0, 0, 0})
 
 	// set some OpenGL flags
@@ -104,9 +119,10 @@ func main() {
 		thisFrame := time.Now()
 		frameDelta := float32(thisFrame.Sub(lastFrame).Seconds())
 
-		// rotate the cube around the Y axis at a speed of radsPerSec
+		// rotate the cube and sphere around the Y axis at a speed of radsPerSec
 		rotDelta := mgl.QuatRotate(radsPerSec*frameDelta, mgl.Vec3{0.0, 1.0, 0.0})
 		cube.LocalRotation = cube.LocalRotation.Mul(rotDelta)
+		sphere.LocalRotation = sphere.LocalRotation.Mul(rotDelta)
 
 		// clear the screen
 		gl.Viewport(0, 0, int32(width), int32(height))
@@ -117,8 +133,12 @@ func main() {
 		perspective := mgl.Perspective(mgl.DegToRad(60.0), float32(width)/float32(height), 1.0, 100.0)
 		view := camera.GetViewMatrix()
 
-		// draw the cube
-		renderer.DrawRenderable(cube, nil, perspective, view)
+		// draw the cube or the sphere
+		if renderCube {
+			renderer.DrawRenderable(cube, nil, perspective, view)
+		} else {
+			renderer.DrawRenderable(sphere, nil, perspective, view)
+		}
 
 		// draw the screen
 		mainWindow.SwapBuffers()
@@ -171,5 +191,14 @@ func initGraphics(title string, w int, h int) *glfw.Window {
 func keyCallback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 	if key == glfw.KeyEscape && action == glfw.Press {
 		w.SetShouldClose(true)
+	}
+
+	if key == glfw.KeySpace && action == glfw.Press {
+		// spacebar toggles the drawing of the cube or the sphere
+		if renderCube {
+			renderCube = false
+		} else {
+			renderCube = true
+		}
 	}
 }
