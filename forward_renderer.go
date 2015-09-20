@@ -59,9 +59,9 @@ type ForwardRenderer struct {
 	// endtering the geometry draw function.
 	//AfterDrawFn DeferredAfterDraw
 
-	// OnScreenSizeChangedFn is the function called by the renderer after
+	// OnScreenSizeChanged is the function called by the renderer after
 	// a screen size change is detected.
-	//OnScreenSizeChangedFn ScreenSizeChanged
+	OnScreenSizeChanged func(fr *ForwardRenderer, width int32, height int32)
 
 	// MainWindow the window used to show the rendered graphics.
 	MainWindow *glfw.Window
@@ -84,6 +84,7 @@ func NewForwardRenderer(window *glfw.Window) *ForwardRenderer {
 	fr := new(ForwardRenderer)
 	fr.shaders = make(map[string]*RenderShader)
 	fr.MainWindow = window
+	fr.OnScreenSizeChanged = func(r *ForwardRenderer, width int32, height int32) {}
 	return fr
 }
 
@@ -95,6 +96,9 @@ func (fr *ForwardRenderer) Destroy() {
 // window changes size.
 func (fr *ForwardRenderer) ChangeResolution(width, height int32) {
 	fr.Init(width, height)
+	if fr.OnScreenSizeChanged != nil {
+		fr.OnScreenSizeChanged(fr, width, height)
+	}
 }
 
 // GetResolution returns the current dimensions of the renderer.

@@ -44,25 +44,25 @@ type DeferredRenderer struct {
 	Normals        uint32
 	CompositePlane *Renderable
 
-	// GeometryPassFn is the function called to render geometry to the
+	// GeometryPass is the function called to render geometry to the
 	// framebuffers in the deferred renderer.
-	GeometryPassFn DeferredGeometryPass
+	GeometryPass DeferredGeometryPass
 
-	// CompositePassFn is the function called to render the framebuffers
+	// CompositePass is the function called to render the framebuffers
 	// to the screen in the deferred renderer.
-	CompositePassFn DeferredCompositePass
+	CompositePass DeferredCompositePass
 
-	// BeforeDrawFn is the function called by the renderer before
+	// BeforeDraw is the function called by the renderer before
 	// endtering the geometry draw function.
-	BeforeDrawFn DeferredBeforeDraw
+	BeforeDraw DeferredBeforeDraw
 
-	// AfterDrawFn is the function called by the renderer after
+	// AfterDraw is the function called by the renderer after
 	// endtering the geometry draw function.
-	AfterDrawFn DeferredAfterDraw
+	AfterDraw DeferredAfterDraw
 
-	// OnScreenSizeChangedFn is the function called by the renderer after
+	// OnScreenSizeChanged is the function called by the renderer after
 	// a screen size change is detected.
-	OnScreenSizeChangedFn ScreenSizeChanged
+	OnScreenSizeChanged ScreenSizeChanged
 
 	// MainWindow the window used to show the rendered composite plane to.
 	MainWindow *glfw.Window
@@ -82,11 +82,11 @@ func NewDeferredRenderer(window *glfw.Window) *DeferredRenderer {
 	dr := new(DeferredRenderer)
 	dr.shaders = make(map[string]*RenderShader)
 	dr.MainWindow = window
-	dr.OnScreenSizeChangedFn = func(r *DeferredRenderer, width int32, height int32) {}
-	dr.BeforeDrawFn = func(r *DeferredRenderer, deltaFrameTime float32) {}
-	dr.AfterDrawFn = func(r *DeferredRenderer, deltaFrameTime float32) {}
-	dr.GeometryPassFn = func(dr *DeferredRenderer, deltaFrameTime float32) {}
-	dr.CompositePassFn = func(dr *DeferredRenderer, deltaFrameTime float32) {}
+	dr.OnScreenSizeChanged = func(r *DeferredRenderer, width int32, height int32) {}
+	dr.BeforeDraw = func(r *DeferredRenderer, deltaFrameTime float32) {}
+	dr.AfterDraw = func(r *DeferredRenderer, deltaFrameTime float32) {}
+	dr.GeometryPass = func(dr *DeferredRenderer, deltaFrameTime float32) {}
+	dr.CompositePass = func(dr *DeferredRenderer, deltaFrameTime float32) {}
 
 	return dr
 }
@@ -106,6 +106,9 @@ func (dr *DeferredRenderer) Destroy() {
 func (dr *DeferredRenderer) ChangeResolution(width, height int32) {
 	dr.Destroy()
 	dr.Init(width, height)
+	if dr.OnScreenSizeChanged != nil {
+		dr.OnScreenSizeChanged(dr, width, height)
+	}
 }
 
 // GetResolution returns the current dimensions of the renderer.
@@ -424,12 +427,11 @@ func (dr *DeferredRenderer) RenderLoop() {
 			fmt.Printf("Updating resoluation to %d,%d\n", currentWidth, currentHeight)
 			dr.ChangeResolution(currentWidth, currentHeight)
 			dr.width, dr.height = currentWidth, currentHeight
-			dr.OnScreenSizeChangedFn(dr, currentWidth, currentHeight)
 		}
 
 		////////////////////////////////////////////////////////////////////////////
 		// BEFORE DRAW
-		dr.BeforeDrawFn(dr, deltaFrameTime)
+		dr.BeforeDraw(dr, deltaFrameTime)
 
 		////////////////////////////////////////////////////////////////////////////
 		// GEOMETRY PASS
@@ -446,7 +448,7 @@ func (dr *DeferredRenderer) RenderLoop() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		// do the geometry pass on the renderables
-		dr.GeometryPassFn(dr, deltaFrameTime)
+		dr.GeometryPass(dr, deltaFrameTime)
 
 		gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)
 		gl.DepthMask(false)
@@ -459,7 +461,7 @@ func (dr *DeferredRenderer) RenderLoop() {
 		gl.BlendEquation(gl.FUNC_ADD)
 		gl.BlendFunc(gl.ONE, gl.ONE)
 
-		dr.CompositePassFn(dr, deltaFrameTime)
+		dr.CompositePass(dr, deltaFrameTime)
 
 		gl.BindVertexArray(0)
 
@@ -468,7 +470,7 @@ func (dr *DeferredRenderer) RenderLoop() {
 
 		////////////////////////////////////////////////////////////////////////////
 		// AFTER DRAW
-		dr.AfterDrawFn(dr, deltaFrameTime)
+		dr.AfterDraw(dr, deltaFrameTime)
 
 		dr.lastFrameTime = currentFrameTime
 	}
