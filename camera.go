@@ -61,6 +61,13 @@ func (c *Camera) UpdatePosition(dX, dY, dZ float32) {
 	c.position[2] += dZ
 }
 
+// SetPosition sets the position of the camera with an absolute coordinate.
+func (c *Camera) SetPosition(x, y, z float32) {
+	c.position[0] = x
+	c.position[1] = y
+	c.position[2] = z
+}
+
 // SetYawAndPitch sets the yaw and pitch radians directly for the camera
 func (c *Camera) SetYawAndPitch(yaw, pitch float32) {
 	c.yaw = yaw
