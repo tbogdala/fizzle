@@ -19,7 +19,7 @@ Requirements
 * [GLFW][glfw-go] (v3.1) - native library and go binding for window creation
 * [Go GL][go-gl] - pre-generated OpenGL bindings using their glow project
 * [Mathgl][mgl] - for 3d math
-* [Freetype-go][ftgo] - for dynamic font texture generation
+* [Freetype][ftgo] - for dynamic font texture generation
 * [Groggy][groggy] - for flexible logging
 * [Gombz][gombz] - provides a serializable data structure for 3d models and animations
 

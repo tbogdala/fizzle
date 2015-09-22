@@ -32,7 +32,7 @@ const (
 	height         = 600
 	textShaderPath = "./assets/forwardshaders/colortext"
 
-	fontScale    = int32(24)
+	fontScale    = 24
 	fontGlyphs   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890. :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
 	fontFilepath = "assets/HammersmithOne.ttf"
 )

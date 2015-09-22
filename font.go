@@ -6,7 +6,8 @@ package fizzle
 /*
 Based primarily on gltext found at https://github.com/go-gl/gltext
 But also based on examples from the freetype-go project:
-  code.google.com/p/freetype-go/freetype
+
+	https://github.com/golang/freetype
 
 This implementation differs in the way the images are rendered and then
 copied into an OpenGL texture. In addition to that, this module can
@@ -15,7 +16,6 @@ mapped to the appropriate glyphs.
 */
 
 import (
-	"errors"
 	"fmt"
 	"image"
 	"image/draw"
@@ -23,7 +23,8 @@ import (
 	"os"
 
 	gl "github.com/go-gl/gl/v3.3-core/gl"
-	ft "github.com/tbogdala/freetype-go/freetype"
+	ft "github.com/golang/freetype"
+	"golang.org/x/image/math/fixed"
 )
 
 // runeData stores information pulled from the freetype parsing of glyphs.
@@ -50,8 +51,9 @@ type GLFont struct {
 
 // NewGLFont takes a fontFilepath and uses the Go freetype library to parse it
 // and render the specified glyphs to a texture that is then buffered into OpenGL.
-func NewGLFont(fontFilepath string, scale int32, glyphs string) (f *GLFont, e error) {
+func NewGLFont(fontFilepath string, scaleInt int, glyphs string) (f *GLFont, e error) {
 	f = new(GLFont)
+	scale := fixed.I(scaleInt)
 
 	// allocate the location map
 	f.locations = make(map[rune]runeData)
@@ -80,8 +82,9 @@ func NewGLFont(fontFilepath string, scale int32, glyphs string) (f *GLFont, e er
 
 	// width and height are getting +2 here since the glyph will be buffered by a
 	// pixel in the texture
-	glyphWidth := int(glyphBounds.XMax-glyphBounds.XMin) + 4
-	glyphHeight := int(glyphBounds.YMax-glyphBounds.YMin) + 4
+	glyphDimensions := glyphBounds.Max.Sub(glyphBounds.Min)
+	glyphWidth := int(glyphDimensions.X>>6) + 4
+	glyphHeight := int(glyphDimensions.Y>>6) + 4
 
 	// create the buffer image used to draw the glyphs
 	glyphRect := image.Rect(0, 0, glyphWidth, glyphHeight)
@@ -93,7 +96,7 @@ func NewGLFont(fontFilepath string, scale int32, glyphs string) (f *GLFont, e er
 	for (fontTexSize * fontTexSize) < minAreaNeeded {
 		fontTexSize *= 2
 		if fontTexSize > 2048 {
-			return f, errors.New("Font texture was going to exceed 2048x2048 and that's currently not supported.")
+			return f, fmt.Errorf("Font texture was going to exceed 2048x2048 and that's currently not supported.")
 		}
 	}
 
@@ -108,13 +111,15 @@ func NewGLFont(fontFilepath string, scale int32, glyphs string) (f *GLFont, e er
 	c := ft.NewContext()
 	c.SetDPI(72)
 	c.SetFont(ttfData)
-	c.SetFontSize(float64(scale))
+	c.SetFontSize(float64(scaleInt))
 	c.SetClip(glyphImg.Bounds())
 	c.SetDst(glyphImg)
 	c.SetSrc(image.White)
 
+	// NOTE: always disabled for now since it causes a stack overflow error
+	//c.SetHinting(font.HintingFull)
+
 	var fx, fy int
-	fixedPoint := int(c.PointToFix32(float64(scale)) >> 8)
 	for _, ch := range glyphs {
 		index := ttfData.Index(ch)
 		metricH := ttfData.HMetric(scale, index)
@@ -125,14 +130,17 @@ func NewGLFont(fontFilepath string, scale int32, glyphs string) (f *GLFont, e er
 
 		f.locations[ch] = runeData{
 			fxGW, fyGH,
-			int(metricH.AdvanceWidth), int(metricH.LeftSideBearing),
-			int(metricV.AdvanceHeight), int(metricV.TopSideBearing),
+			int(metricH.AdvanceWidth) >> 6, int(metricH.LeftSideBearing) >> 6,
+			int(metricV.AdvanceHeight) >> 6, int(metricV.TopSideBearing) >> 6,
 			float32(fxGW) / float32(fontTexSize), float32(fyGH+glyphHeight) / float32(fontTexSize),
 			float32(fxGW+glyphWidth) / float32(fontTexSize), float32(fyGH) / float32(fontTexSize),
 		}
 
-		pt := ft.Pt(1, 1+fixedPoint)
-		c.DrawString(string(ch), pt)
+		pt := ft.Pt(1, 1+int(c.PointToFixed(float64(scaleInt))>>6))
+		_, err := c.DrawString(string(ch), pt)
+		if err != nil {
+			return f, fmt.Errorf("Freetype returned an error while drawing a glyph: %v.", err)
+		}
 
 		// copy the glyph image into the font image
 		for subY := 0; subY < glyphHeight; subY++ {
