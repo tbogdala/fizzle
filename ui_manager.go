@@ -102,6 +102,12 @@ func (ui *UIManager) Destroy() {
 	ui.widgets = []UIWidget{}
 }
 
+// Add puts the widget into the internal slice of widgets to use in the
+// user interface.
+func (ui *UIManager) Add(w UIWidget) {
+	ui.widgets = append(ui.widgets, w)
+}
+
 // AdviseResolution will change the resolution the UIManager uses to draw
 // widgets and will also adjust the layouts of any exiting wigets.
 func (ui *UIManager) AdviseResolution(w int32, h int32) {

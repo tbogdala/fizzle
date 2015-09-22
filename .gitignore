@@ -1,3 +1,6 @@
 examples/cube
+examples/joystick
+examples/*.exe
+examples/*.dll
 *.exe
 *.dll

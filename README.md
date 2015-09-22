@@ -32,7 +32,7 @@ The dependency Go libraries can be installed with the following commands.
 go get github.com/go-gl/glfw/v3.1/glfw
 go get github.com/go-gl/gl/v3.3-core/gl
 go get github.com/go-gl/mathgl/mgl32
-go get code.google.com/p/freetype-go/freetype
+go get github.com/golang/freetype
 go get github.com/tbogdala/groggy
 go get github.com/tbogdala/gombz
 ```
@@ -73,5 +73,5 @@ Fizzle is released under the BSD license. See the [LICENSE][license-link] file f
 [glfw-go]: https://github.com/go-gl/glfw
 [go-gl]: https://github.com/go-gl/glow
 [mgl]: https://github.com/go-gl/mathgl
-[ftgo]: code.google.com/p/freetype-go/freetype
+[ftgo]: https://github.com/golang/freetype
 [license-link]: https://raw.githubusercontent.com/tbogdala/fizzle/master/LICENSE
