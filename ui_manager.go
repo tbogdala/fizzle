@@ -13,6 +13,7 @@ const (
 	UIAnchorTopLeft
 	UIAnchorTopMiddle
 	UIAnchorTopRight
+	UIAnchorMiddle
 	UIAnchorMiddleLeft
 	UIAnchorMiddleRight
 	UIAnchorBottomLeft
@@ -42,6 +43,21 @@ type UILayout struct {
 type UILabel struct {
 	// Text is the text string that was used to create the renderable.
 	Text string
+
+	// Layout specifies the way the label should be positioned on screen.
+	Layout UILayout
+
+	// Renderable is the drawable object
+	Renderable *Renderable
+
+	// manager is a pointer back to the owner UIManager.
+	manager *UIManager
+}
+
+// UIImage is an image widget which shows a texture in the user interface.
+type UIImage struct {
+	// Texture is the OpenGL texture id to use to draw this widget
+	Texture uint32
 
 	// Layout specifies the way the label should be positioned on screen.
 	Layout UILayout
@@ -145,13 +161,17 @@ func (ui *UIManager) LayoutWidgets() {
 			renderable.Location[0] = maxX - renderable.BoundingRect.DeltaX() + layout.Offset[0]
 			renderable.Location[1] = maxY - renderable.BoundingRect.DeltaY() + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
+		case UIAnchorMiddle:
+			renderable.Location[0] = maxX/2.0 - renderable.BoundingRect.DeltaX()/2.0 + layout.Offset[0]
+			renderable.Location[1] = maxY/2.0 - renderable.BoundingRect.DeltaY()/2.0 + layout.Offset[1]
+			renderable.Location[2] = layout.Offset[2]
 		case UIAnchorMiddleLeft:
 			renderable.Location[0] = minX + layout.Offset[0]
-			renderable.Location[1] = maxY/2.0 + layout.Offset[1]
+			renderable.Location[1] = maxY/2.0 - renderable.BoundingRect.DeltaY()/2.0 + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		case UIAnchorMiddleRight:
 			renderable.Location[0] = maxX - renderable.BoundingRect.DeltaX() + layout.Offset[0]
-			renderable.Location[1] = maxY/2.0 + layout.Offset[1]
+			renderable.Location[1] = maxY/2.0 - renderable.BoundingRect.DeltaY()/2.0 + layout.Offset[1]
 			renderable.Location[2] = layout.Offset[2]
 		case UIAnchorBottomLeft:
 			renderable.Location[0] = minX + layout.Offset[0]
@@ -231,4 +251,47 @@ func (l *UILabel) GetLayout() *UILayout {
 // GetRenderable returns the Renderable object for the label widget
 func (l *UILabel) GetRenderable() *Renderable {
 	return l.Renderable
+}
+
+// -------------------------------------------------------------------------
+// IMAGE WIDGET
+
+// CreateImage creates the image widget and renderable.
+func (ui *UIManager) CreateImage(anchor int, offset mgl.Vec3, texId uint32, width float32, height float32, shader *RenderShader) *UIImage {
+	img := new(UIImage)
+	img.Texture = texId
+	img.Layout.Anchor = anchor
+	img.Layout.Offset = offset
+	img.Renderable = CreatePlaneXY("color_textured", 0, 0, width, height)
+	img.Renderable.Core.Shader = shader
+	img.Renderable.Core.Tex0 = texId
+	img.Renderable.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	img.manager = ui
+
+	// add it to the widget list before returning
+	ui.widgets = append(ui.widgets, img)
+
+	return img
+}
+
+// Destroy releases the OpenGL data specific to the widget
+// but DOES NOT remove the widget from the parent UIManager.
+func (img *UIImage) Destroy() {
+	img.Renderable.Destroy()
+}
+
+// Draw renders the widget onto the screen. Layout should have already
+// modified the positioning of the renderable.
+func (img *UIImage) Draw(renderer Renderer, binder RenderBinder, projection mgl.Mat4, view mgl.Mat4) {
+	renderer.DrawRenderable(img.Renderable, binder, projection, view)
+}
+
+// GetLayout returns a pointer to the layout object of the widget.
+func (img *UIImage) GetLayout() *UILayout {
+	return &img.Layout
+}
+
+// GetRenderable returns the Renderable object for the label widget
+func (img *UIImage) GetRenderable() *Renderable {
+	return img.Renderable
 }

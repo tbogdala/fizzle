@@ -472,38 +472,6 @@ func createTangents(verts []float32, indexes []uint32, uvs []float32) []float32 
 			tangents[index*3+1] = tangent[1]
 			tangents[index*3+2] = tangent[2]
 		}
-
-		/*
-			dir := float32(1.0)
-			if deltaUv2[0]*deltaUv1[1] - deltaUv2[1]*deltaUv1[0] < 0.0 {
-				dir = -1.0
-			}
-			fmt.Printf("dir is %f\n", dir)
-
-			var tangent mgl.Vec3
-			tangent[0] = deltaPos2[0]*deltaUv1[1] - deltaPos1[0]*deltaUv2[1] * dir
-			tangent[1] = deltaPos2[1]*deltaUv1[1] - deltaPos1[1]*deltaUv2[1] * dir
-			tangent[2] = deltaPos2[2]*deltaUv1[1] - deltaPos1[2]*deltaUv2[1] * dir
-			//tangent = tangent.Normalize()
-			fmt.Printf("tangent is %v\n", tangent)
-
-			// set the tangent array data for each vertex's tangent
-			for f:=0; f<3; f++ {
-				index :=  indexes[i+f]
-				fmt.Printf("setting tangent at starting at %d\n",index*3)
-				normal := mgl.Vec3{normals[index*3+0],normals[index*3+1],normals[index*3+2]}
-				nDotT := tangent.Dot(normal)
-				n2 := normal.Mul(nDotT)
-				localTangent := tangent.Sub(n2)
-				localTangent = localTangent.Normalize()
-
-				tangents[index*3+0] = localTangent[0]
-				tangents[index*3+1] = localTangent[1]
-				tangents[index*3+2] = localTangent[2]
-				fmt.Printf("setting tangents %v\n", localTangent)
-			}
-			fmt.Printf("final setting tangents %v\n", tangents)
-		*/
 	}
 
 	return tangents

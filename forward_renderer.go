@@ -124,21 +124,24 @@ func (l *Light) CreateShadowMap(textureSize int32, near float32, far float32, di
 	// setup the projection
 	l.ShadowMap.Near = near
 	l.ShadowMap.Far = far
-	l.ShadowMap.Projection = mgl.Frustum(-1.0, 1.0, -1.0, 1.0, near, far)
+
+	// Frustum is okay for directional lights
+	// FIXME: this will likely need to be customizable
+	factor := float32(0.5)
+	l.ShadowMap.Projection = mgl.Frustum(-factor, factor, -factor, factor, near, far)
+
 	l.ShadowMap.TextureSize = textureSize
 	l.ShadowMap.Direction = dir
 
 	// create the shadow map texture
-	borderColor := mgl.Vec4{1.0, 0.0, 0.0, 1.0}
 	gl.GenTextures(1, &l.ShadowMap.Texture)
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, l.ShadowMap.Texture)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32, textureSize, textureSize, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_BYTE, nil)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32, textureSize, textureSize, 0, gl.DEPTH_COMPONENT, gl.FLOAT, nil)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_BORDER)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_BORDER)
-	gl.TexParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, &borderColor[0])
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL)
 

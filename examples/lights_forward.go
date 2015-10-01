@@ -14,7 +14,6 @@ import (
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 
-	//	"github.com/tbogdala/gombz"
 	"github.com/tbogdala/fizzle"
 )
 
@@ -33,12 +32,13 @@ func init() {
 }
 
 const (
-	width                      = 800
-	height                     = 600
+	width                      = 1280
+	height                     = 720
 	shadowTexSize              = 1024
 	fov                        = 70.0
 	radsPerSec                 = math.Pi / 4.0
 	diffuseTexBumpedShaderPath = "./assets/forwardshaders/diffuse_texbumped_shadows"
+	shadowmapTextureShaderPath = "./assets/forwardshaders/shadowmap_texture"
 	shadowmapShaderPath        = "./assets/forwardshaders/shadowmap_generator"
 
 	testDiffusePath = "./assets/textures/TestCube_D.png"
@@ -62,6 +62,12 @@ func main() {
 	camera := fizzle.NewCamera(mgl.Vec3{0.0, 5.0, 5.0})
 	camera.SetYawAndPitch(0.0, mgl.DegToRad(60))
 
+	// setup the user interface manager which can be used to display
+	// user interface widgets
+	uiMan := fizzle.NewUIManager()
+	uiMan.AdviseResolution(width, height)
+	renderer.UIManager = uiMan
+
 	// load the diffuse, textured and normal mapped shader
 	diffuseTexBumpedShader, err := fizzle.LoadShaderProgramFromFiles(diffuseTexBumpedShaderPath, nil)
 	if err != nil {
@@ -69,6 +75,14 @@ func main() {
 		os.Exit(1)
 	}
 	defer diffuseTexBumpedShader.Destroy()
+
+	// load the diffuse, textured and normal mapped shader
+	shadowmapTextureShader, err := fizzle.LoadShaderProgramFromFiles(shadowmapTextureShaderPath, nil)
+	if err != nil {
+		fmt.Printf("Failed to compile and link the color texture shader program!\n%v", err)
+		os.Exit(1)
+	}
+	defer shadowmapTextureShader.Destroy()
 
 	// loadup the shadowmap shaders
 	shadowmapShader, err := fizzle.LoadShaderProgramFromFiles(shadowmapShaderPath, nil)
@@ -129,13 +143,19 @@ func main() {
 	light.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{-5.0, -3.0, -5.0})
 
 	// add light #2
-	light = fizzle.NewLight()
-	light.Position = mgl.Vec3{-2.0, 3.0, 3.0}
-	light.DiffuseColor = mgl.Vec4{0.9, 0.0, 0.0, 1.0}
-	light.DiffuseIntensity = 1.00
-	light.AmbientIntensity = 0.00
-	light.Attenuation = 0.2
-	renderer.ActiveLights[1] = light
+	light2 := fizzle.NewLight()
+	light2.Position = mgl.Vec3{-2.0, 3.0, 3.0}
+	light2.DiffuseColor = mgl.Vec4{0.9, 0.0, 0.0, 1.0}
+	light2.DiffuseIntensity = 1.00
+	light2.AmbientIntensity = 0.00
+	light2.Attenuation = 0.2
+	renderer.ActiveLights[1] = light2
+
+	// make a UI image to show the shadowmap texture, scaled down
+	uiMan.CreateImage(fizzle.UIAnchorMiddleRight, mgl.Vec3{-20.0, 0.0, 0.0}, light.ShadowMap.Texture, 256, 256, shadowmapTextureShader)
+
+	// layout any widgets that have been added
+	uiMan.LayoutWidgets()
 
 	// set some OpenGL flags
 	gl.Enable(gl.CULL_FACE)
@@ -150,7 +170,7 @@ func main() {
 		thisFrame := time.Now()
 		frameDelta := float32(thisFrame.Sub(lastFrame).Seconds())
 
-		// rotate the cube and sphere around the Y axis at a speed of 0.5*math.Pi / sec
+		// rotate the cube around the Y axis at a speed of 0.5*math.Pi / sec
 		rotDelta := mgl.QuatRotate(0.5*math.Pi*frameDelta, mgl.Vec3{0.0, 1.0, 0.0})
 		testCube.LocalRotation = testCube.LocalRotation.Mul(rotDelta)
 
@@ -185,6 +205,17 @@ func main() {
 		// draw the stuff
 		renderer.DrawRenderable(testCube, nil, perspective, view)
 		renderer.DrawRenderable(floorPlane, nil, perspective, view)
+
+		// Finish with the user interface
+		//
+		// however, to to our drawing of the texture of the shadow map, we need to change some texture parameters
+		gl.BindTexture(gl.TEXTURE_2D, renderer.ActiveLights[0].ShadowMap.Texture)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.NONE)
+		gl.BindTexture(gl.TEXTURE_2D, 0)
+		uiMan.Draw(renderer, nil)
+		gl.BindTexture(gl.TEXTURE_2D, renderer.ActiveLights[0].ShadowMap.Texture)
+		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE)
+		gl.BindTexture(gl.TEXTURE_2D, 0)
 
 		// draw the screen
 		mainWindow.SwapBuffers()
