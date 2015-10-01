@@ -434,14 +434,12 @@ func CreatePlaneXZ(shader string, x0, z0, x1, z1 float32) *Renderable {
 	return createPlane(shader, x0, z0, x1, z1, verts, indexes, uvs, normals)
 }
 
-func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, indexes [6]uint32, uvs [8]float32, normals [12]float32) *Renderable {
-	const floatSize = 4
-	const uintSize = 4
-
-	// construct the tangents for the faces
-	// NOTE: this is a general implementation that assumes there's no shared
-	// vertices between faces.
+// createTangents constructs the tangents for the faces.
+// NOTE: this is a general implementation that assumes there's no shared
+// vertices between faces.
+func createTangents(verts []float32, indexes []uint32, uvs []float32) []float32 {
 	tangents := make([]float32, len(verts))
+
 	for i := 0; i < len(indexes); i += 3 {
 		index0 := indexes[i+0]
 		index1 := indexes[i+1]
@@ -507,6 +505,16 @@ func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, index
 			fmt.Printf("final setting tangents %v\n", tangents)
 		*/
 	}
+
+	return tangents
+}
+
+func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, indexes [6]uint32, uvs [8]float32, normals [12]float32) *Renderable {
+	const floatSize = 4
+	const uintSize = 4
+
+	// calculate the tangents based on the vertices and UVs.
+	tangents := createTangents(verts[:], indexes[:], uvs[:])
 
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
@@ -589,6 +597,9 @@ func CreateCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Rend
 		0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, // v6,v5,v4,v7 (back)
 	}
 
+	// calculate the tangents based on the vertices and UVs.
+	tangents := createTangents(verts[:], indexes[:], uvs[:])
+
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
 	r.ShaderName = shader
@@ -613,6 +624,11 @@ func CreateCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Rend
 	gl.GenBuffers(1, &r.Core.NormsVBO)
 	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
 	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(normals), gl.Ptr(&normals[0]), gl.STATIC_DRAW)
+
+	// create a VBO to hold the tangent data
+	gl.GenBuffers(1, &r.Core.TangentsVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(tangents), gl.Ptr(&tangents[0]), gl.STATIC_DRAW)
 
 	// create a VBO to hold the face indexes
 	gl.GenBuffers(1, &r.Core.ElementsVBO)
@@ -724,6 +740,9 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 		}
 	}
 
+	// calculate the tangents based on the vertices and UVs.
+	tangents := createTangents(verts[:], indexes[:], uvs[:])
+
 	r := NewRenderable()
 	r.ShaderName = shader
 	r.FaceCount = uint32(rings * sectors * 2)
@@ -747,6 +766,11 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 	gl.GenBuffers(1, &r.Core.NormsVBO)
 	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
 	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(normals), gl.Ptr(&normals[0]), gl.STATIC_DRAW)
+
+	// create a VBO to hold the tangent data
+	gl.GenBuffers(1, &r.Core.TangentsVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(tangents), gl.Ptr(&tangents[0]), gl.STATIC_DRAW)
 
 	// create a VBO to hold the face indexes
 	gl.GenBuffers(1, &r.Core.ElementsVBO)

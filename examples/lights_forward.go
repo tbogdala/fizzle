@@ -87,25 +87,6 @@ func main() {
 
 	// create the floor plane
 	floorPlane := fizzle.CreatePlaneXZ("diffuse_texbumped", -0.5, 0.5, 0.5, -0.5)
-	/*
-		floorPlane.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-		floorPlane.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
-		floorPlane.Core.Shininess = 3.0
-		floorPlane.Core.Tex0 = diffuseTex
-		floorPlane.Core.Tex1 = normalsTex
-		floorPlane.Core.Shader = diffuseTexBumpedShader
-	*/
-
-	// load the floor plane from a model file
-	/*
-		planeFile := "assets/models/xz_plane.gombz"
-		floorPlaneMesh, err := gombz.DecodeFile(planeFile)
-		if err != nil {
-			fmt.Printf("Failed to load the decode the gombz mesh file %s!\n%v", planeFile, err)
-			os.Exit(1)
-		}
-		floorPlane := fizzle.CreateFromGombz(floorPlaneMesh)
-	*/
 	floorPlane.Scale = mgl.Vec3{10, 10, 10}
 	floorPlane.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	floorPlane.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
@@ -113,6 +94,16 @@ func main() {
 	floorPlane.Core.Tex0 = diffuseTex
 	floorPlane.Core.Tex1 = normalsTex
 	floorPlane.Core.Shader = diffuseTexBumpedShader
+
+	// create the test cube to rotate
+	testCube := fizzle.CreateCube("diffuse_texbumped", -0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+	testCube.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	testCube.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
+	testCube.Location = mgl.Vec3{-2.5, 1.0, 0.0}
+	testCube.Core.Shininess = 6.0
+	testCube.Core.Tex0 = diffuseTex
+	testCube.Core.Tex1 = normalsTex
+	testCube.Core.Shader = diffuseTexBumpedShader
 
 	// add light #1
 	light := fizzle.NewLight()
@@ -122,6 +113,15 @@ func main() {
 	light.AmbientIntensity = 0.20
 	light.Attenuation = 0.2
 	renderer.ActiveLights[0] = light
+
+	// add light #2
+	light = fizzle.NewLight()
+	light.Position = mgl.Vec3{-2.0, 3.0, 3.0}
+	light.DiffuseColor = mgl.Vec4{0.9, 0.0, 0.0, 1.0}
+	light.DiffuseIntensity = 1.00
+	light.AmbientIntensity = 0.00
+	light.Attenuation = 0.2
+	renderer.ActiveLights[1] = light
 
 	// set some OpenGL flags
 	gl.Enable(gl.CULL_FACE)
@@ -139,7 +139,7 @@ func main() {
 
 		// rotate the cube and sphere around the Y axis at a speed of radsPerSec
 		rotDelta := mgl.QuatRotate(0.5*math.Pi*frameDelta, mgl.Vec3{0.0, 1.0, 0.0})
-		floorPlane.LocalRotation = floorPlane.LocalRotation.Mul(rotDelta)
+		testCube.LocalRotation = testCube.LocalRotation.Mul(rotDelta)
 
 		// clear the screen
 		gl.Viewport(0, 0, int32(width), int32(height))
@@ -151,6 +151,7 @@ func main() {
 		view := camera.GetViewMatrix()
 
 		// draw the stuff
+		renderer.DrawRenderable(testCube, nil, perspective, view)
 		renderer.DrawRenderable(floorPlane, nil, perspective, view)
 
 		// draw the screen
