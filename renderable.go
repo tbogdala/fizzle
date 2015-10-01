@@ -4,10 +4,10 @@
 package fizzle
 
 import (
-	"math"
-
 	gl "github.com/go-gl/gl/v3.3-core/gl"
 	mgl "github.com/go-gl/mathgl/mgl32"
+	"github.com/tbogdala/gombz"
+	"math"
 )
 
 // RenderableCore contains data that is needed to draw an object on the screen.
@@ -17,6 +17,7 @@ type RenderableCore struct {
 	Skeleton *Skeleton
 
 	Tex0          uint32
+	Tex1          uint32
 	DiffuseColor  mgl.Vec4
 	SpecularColor mgl.Vec4
 
@@ -248,6 +249,133 @@ func GetBoundingRect(verts []float32) (r Rectangle3D) {
 	return r
 }
 
+func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
+	// calculate the memory size of floats used to calculate total memory size of float arrays
+	const floatSize = 4
+	const uintSize = 4
+
+	// create the new renderable
+	r := NewRenderable()
+	r.Core = NewRenderableCore()
+
+	// setup a skeleton if the mesh has bones associated with it
+	if srcMesh.BoneCount > 0 {
+		r.Core.Skeleton = NewSkeleton(srcMesh.Bones, srcMesh.Animations)
+	}
+
+	// set some basic properties up
+	r.FaceCount = srcMesh.FaceCount
+
+	// create a buffer to hold all the data that is the same size as VertexCount
+	vertBuffer := make([]float32, srcMesh.VertexCount*3)
+
+	// setup verts and track the bounding rectangle
+	for i, v := range srcMesh.Vertices {
+		offset := i * 3
+		vertBuffer[offset] = v[0]
+		vertBuffer[offset+1] = v[1]
+		vertBuffer[offset+2] = v[2]
+	}
+	gl.GenBuffers(1, &r.Core.VertVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(vertBuffer), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+
+	// calculate the bounding rectangle for the mesh
+	r.BoundingRect = GetBoundingRect(vertBuffer)
+
+	// setup normals
+	if len(srcMesh.Normals) > 0 {
+		for i, n := range srcMesh.Normals {
+			offset := i * 3
+			vertBuffer[offset] = n[0]
+			vertBuffer[offset+1] = n[1]
+			vertBuffer[offset+2] = n[2]
+		}
+		gl.GenBuffers(1, &r.Core.NormsVBO)
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
+		gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(vertBuffer), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+	}
+
+	// setup tangents
+	if len(srcMesh.Tangents) > 0 {
+		for i, t := range srcMesh.Tangents {
+			offset := i * 3
+			vertBuffer[offset] = t[0]
+			vertBuffer[offset+1] = t[1]
+			vertBuffer[offset+2] = t[2]
+		}
+		gl.GenBuffers(1, &r.Core.TangentsVBO)
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
+		gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(vertBuffer), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+	}
+
+	// setup UVs
+	if len(srcMesh.UVChannels[0]) > 0 {
+		uvChan := srcMesh.UVChannels[0]
+		for i := uint32(0); i < srcMesh.VertexCount; i++ {
+			uv := uvChan[i]
+			offset := i * 2
+			vertBuffer[offset] = uv[0]
+			vertBuffer[offset+1] = uv[1]
+		}
+		gl.GenBuffers(1, &r.Core.UvVBO)
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
+		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*srcMesh.VertexCount*2), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+	}
+
+	// setup vertex weight Ids for bones
+	var weightBuffer []float32
+	if len(srcMesh.VertexWeightIds) > 0 {
+		if weightBuffer == nil {
+			weightBuffer = make([]float32, srcMesh.VertexCount*4)
+		}
+		for i, v := range srcMesh.VertexWeightIds {
+			offset := i * 4
+			weightBuffer[offset] = v[0]
+			weightBuffer[offset+1] = v[1]
+			weightBuffer[offset+2] = v[2]
+			weightBuffer[offset+3] = v[3]
+		}
+		gl.GenBuffers(1, &r.Core.BoneFidsVBO)
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneFidsVBO)
+		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*srcMesh.VertexCount*4), gl.Ptr(&weightBuffer[0]), gl.STATIC_DRAW)
+	}
+
+	// setup the vertex weights
+	if len(srcMesh.VertexWeights) > 0 {
+		if weightBuffer == nil {
+			weightBuffer = make([]float32, srcMesh.VertexCount*4)
+		}
+		for i, v := range srcMesh.VertexWeights {
+			offset := i * 4
+			weightBuffer[offset] = v[0]
+			weightBuffer[offset+1] = v[1]
+			weightBuffer[offset+2] = v[2]
+			weightBuffer[offset+3] = v[3]
+		}
+		gl.GenBuffers(1, &r.Core.BoneWeightsVBO)
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
+		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*srcMesh.VertexCount*4), gl.Ptr(&weightBuffer[0]), gl.STATIC_DRAW)
+	}
+
+	// setup the face indices
+	indexBuffer := make([]uint32, len(srcMesh.Faces)*3)
+	for i, f := range srcMesh.Faces {
+		offset := i * 3
+		indexBuffer[offset] = f[0]
+		indexBuffer[offset+1] = f[1]
+		indexBuffer[offset+2] = f[2]
+	}
+	gl.GenBuffers(1, &r.Core.ElementsVBO)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(indexBuffer), gl.Ptr(&indexBuffer[0]), gl.STATIC_DRAW)
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
+
+	return r
+}
+
 // CreatePlaneXY makes a 2d Renderable object on the XY plane for the given size,
 // where (x0,y0) is the lower left and (x1, y1) is the upper right coordinate.
 func CreatePlaneXY(shader string, x0, y0, x1, y1 float32) *Renderable {
@@ -310,6 +438,76 @@ func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, index
 	const floatSize = 4
 	const uintSize = 4
 
+	// construct the tangents for the faces
+	// NOTE: this is a general implementation that assumes there's no shared
+	// vertices between faces.
+	tangents := make([]float32, len(verts))
+	for i := 0; i < len(indexes); i += 3 {
+		index0 := indexes[i+0]
+		index1 := indexes[i+1]
+		index2 := indexes[i+2]
+
+		v0 := verts[(index0 * 3) : (index0*3)+3]
+		v1 := verts[(index1 * 3) : (index1*3)+3]
+		v2 := verts[(index2 * 3) : (index2*3)+3]
+
+		uv0 := uvs[(index0 * 2) : (index0*2)+2]
+		uv1 := uvs[(index1 * 2) : (index1*2)+2]
+		uv2 := uvs[(index2 * 2) : (index2*2)+2]
+
+		deltaPos1 := mgl.Vec3{v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]}
+		deltaPos2 := mgl.Vec3{v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]}
+		deltaUv1 := mgl.Vec2{uv1[0] - uv0[0], uv1[1] - uv0[1]}
+		deltaUv2 := mgl.Vec2{uv2[0] - uv0[0], uv2[1] - uv0[1]}
+
+		r := float32(1.0) / (deltaUv1[0]*deltaUv2[1] - deltaUv1[1]*deltaUv2[0])
+		d1 := deltaPos1.Mul(deltaUv2[1])
+		d2 := deltaPos2.Mul(deltaUv1[1])
+		tangent := d1.Sub(d2)
+		tangent = tangent.Mul(r).Normalize()
+
+		// set the tangent array data for each vertex's tangent
+		for f := 0; f < 3; f++ {
+			index := indexes[i+f]
+
+			tangents[index*3+0] = tangent[0]
+			tangents[index*3+1] = tangent[1]
+			tangents[index*3+2] = tangent[2]
+		}
+
+		/*
+			dir := float32(1.0)
+			if deltaUv2[0]*deltaUv1[1] - deltaUv2[1]*deltaUv1[0] < 0.0 {
+				dir = -1.0
+			}
+			fmt.Printf("dir is %f\n", dir)
+
+			var tangent mgl.Vec3
+			tangent[0] = deltaPos2[0]*deltaUv1[1] - deltaPos1[0]*deltaUv2[1] * dir
+			tangent[1] = deltaPos2[1]*deltaUv1[1] - deltaPos1[1]*deltaUv2[1] * dir
+			tangent[2] = deltaPos2[2]*deltaUv1[1] - deltaPos1[2]*deltaUv2[1] * dir
+			//tangent = tangent.Normalize()
+			fmt.Printf("tangent is %v\n", tangent)
+
+			// set the tangent array data for each vertex's tangent
+			for f:=0; f<3; f++ {
+				index :=  indexes[i+f]
+				fmt.Printf("setting tangent at starting at %d\n",index*3)
+				normal := mgl.Vec3{normals[index*3+0],normals[index*3+1],normals[index*3+2]}
+				nDotT := tangent.Dot(normal)
+				n2 := normal.Mul(nDotT)
+				localTangent := tangent.Sub(n2)
+				localTangent = localTangent.Normalize()
+
+				tangents[index*3+0] = localTangent[0]
+				tangents[index*3+1] = localTangent[1]
+				tangents[index*3+2] = localTangent[2]
+				fmt.Printf("setting tangents %v\n", localTangent)
+			}
+			fmt.Printf("final setting tangents %v\n", tangents)
+		*/
+	}
+
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
 	r.ShaderName = shader
@@ -331,6 +529,11 @@ func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, index
 	gl.GenBuffers(1, &r.Core.NormsVBO)
 	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
 	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(normals), gl.Ptr(&normals[0]), gl.STATIC_DRAW)
+
+	// create a VBO to hold the tangent data
+	gl.GenBuffers(1, &r.Core.TangentsVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(tangents), gl.Ptr(&tangents[0]), gl.STATIC_DRAW)
 
 	// create a VBO to hold the face indexes
 	gl.GenBuffers(1, &r.Core.ElementsVBO)

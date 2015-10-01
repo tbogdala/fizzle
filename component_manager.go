@@ -7,10 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 
-	"github.com/tbogdala/assimp-go"
 	"github.com/tbogdala/gombz"
 	"github.com/tbogdala/groggy"
 )
@@ -84,9 +82,13 @@ func (cm *ComponentManager) LoadComponentFromFile(filename string) (*Component, 
 		return nil, fmt.Errorf("Failed to read the component file specified.\n%s\n", err)
 	}
 
+	return cm.LoadComponentFromBytes(jsonBytes, filename, componentDirPath)
+}
+
+func (cm *ComponentManager) LoadComponentFromBytes(jsonBytes []byte, storageName string, componentDirPath string) (*Component, error) {
 	// attempt to decode the json
 	component := new(Component)
-	err = json.Unmarshal(jsonBytes, component)
+	err := json.Unmarshal(jsonBytes, component)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to decode the JSON in the component file specified.\n%s\n", err)
 	}
@@ -116,7 +118,7 @@ func (cm *ComponentManager) LoadComponentFromFile(filename string) (*Component, 
 
 	// place the new component into storage before parsing children
 	// to avoid a possible infinite loop
-	cm.storage[componentFileName] = component
+	cm.storage[storageName] = component
 
 	// For all of the child references, see if we have a component loaded
 	// for it already. If not, then load those components too.
@@ -132,7 +134,7 @@ func (cm *ComponentManager) LoadComponentFromFile(filename string) (*Component, 
 		}
 	}
 
-	groggy.Logsf("DEBUG", "Component \"%s\" has been loaded from %s", component.Name, filename)
+	groggy.Logsf("DEBUG", "Component \"%s\" has been loaded", component.Name)
 	return component, nil
 }
 
@@ -140,46 +142,16 @@ func loadMeshForComponent(component *Component, compMesh *ComponentMesh) error {
 	// setup a pointer back to the parent
 	compMesh.Parent = component
 
-	// now that we have the component json figured out, see if we can load the src
-	// file through assimp for all of the meshes
-	var srcMeshes []*gombz.Mesh
-	var err error
-	if len(compMesh.SrcFile) > 0 {
-		srcMeshes, err = assimp.ParseFile(compMesh.GetFullSrcFilePath())
-		if err != nil {
-			return fmt.Errorf("Failed to load the source file (%s) for the ComponentMesh.\n%v\n", compMesh.SrcFile, err)
-		}
-	}
-
-	// TODO: Eventually instead of returning here, it will just load the binary
-	// version. This logic isn't as useful in the component editor so it doesn't
-	// exist yet ...
-	// we return here if no meshes were returned in the parsed file
-	if len(srcMeshes) < 1 {
-		return nil
-	}
-
-	// send out a warning if we have more than one mesh returned from the assimp parsing.
-	numOfSrcMeshes := len(srcMeshes)
-	if numOfSrcMeshes > 1 {
-		groggy.Logsf("ERROR", "SrcFile mesh has %d meshes. Only one mesh is supported!", numOfSrcMeshes)
-	}
-	compMesh.SrcMesh = srcMeshes[0]
-
-	// force a write out of the compressed binary form of the model if the BinFile is set
 	if len(compMesh.BinFile) > 0 {
-		// do the encode
-		meshBytes, err := compMesh.SrcMesh.Encode()
+		binBytes, err := ioutil.ReadFile(compMesh.GetFullBinFilePath())
 		if err != nil {
-			groggy.Log("ERROR", "Failed to encode BinFile mesh")
-		} else {
-			// we've encoded, now write the file out
-			err = ioutil.WriteFile(compMesh.GetFullBinFilePath(), meshBytes, os.ModePerm)
-			if err != nil {
-				groggy.Logsf("ERROR", "Failed to write BinFile mesh: %s", compMesh.BinFile)
-			} else {
-				groggy.Logsf("INFO", "Wrote BinFile mesh: %s", compMesh.BinFile)
-			}
+			return fmt.Errorf("Failed to load the binary file (%s) for the ComponentMesh.\n%v\n", compMesh.BinFile, err)
+		}
+
+		// load the mesh from the binary file
+		compMesh.SrcMesh, err = gombz.DecodeMesh(binBytes)
+		if err != nil {
+			return fmt.Errorf("Failed to deocde the binary file (%s) for the ComponentMesh.\n%v\n", compMesh.BinFile, err)
 		}
 	}
 

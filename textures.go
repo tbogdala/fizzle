@@ -13,23 +13,27 @@ import (
 )
 
 func loadFile(filePath string) (rgba_flipped *image.NRGBA, e error) {
-		imgFile, err := os.Open(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to open the texture file: %v\n", err)
-		}
+	imgFile, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open the texture file: %v\n", err)
+	}
 
-		img, err := png.Decode(imgFile)
-		imgFile.Close()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to decode the texture: %v\n", err)
-		}
+	img, err := png.Decode(imgFile)
+	imgFile.Close()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to decode the texture: %v\n", err)
+	}
 
-		// if the source image doesn't have alpha, set it manually
-		b := img.Bounds()
-		rgba := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-		draw.Draw(rgba, rgba.Bounds(), img, b.Min, draw.Src)
+	// if the source image doesn't have alpha, set it manually
+	b := img.Bounds()
+	rgba := image.NewNRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(rgba, rgba.Bounds(), img, b.Min, draw.Src)
 
-		// flip the image vertically
+	return rgba, nil
+
+	// flip the image vertically
+	// NOTE: I guess we don't need to do this anymore ...
+	/*
 		rows := b.Max.Y
 		rgba_flipped = image.NewNRGBA(image.Rect(0, 0, b.Max.X, b.Max.Y))
 		for dy := 0; dy < rows; dy++ {
@@ -40,8 +44,8 @@ func loadFile(filePath string) (rgba_flipped *image.NRGBA, e error) {
 				copy(rgba_flipped.Pix[doffset:doffset+4], rgba.Pix[soffset:soffset+4])
 			}
 		}
-
 		return rgba_flipped, nil
+	*/
 }
 
 func LoadRGBAToTexture(rgba []byte, imageSize int32) uint32 {

@@ -6,7 +6,6 @@ package fizzle
 import (
 	"fmt"
 
-	gl "github.com/go-gl/gl/v3.3-core/gl"
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/gombz"
 	"github.com/tbogdala/groggy"
@@ -15,9 +14,6 @@ import (
 // ComponentMesh defines a mesh reference for a component and everything
 // needed to draw it.
 type ComponentMesh struct {
-	// SrcFile is a filepath should be relative to component file
-	SrcFile string
-
 	// BinFile is a filepath should be relative to component file
 	BinFile string
 
@@ -150,11 +146,6 @@ func (c *Component) GetRenderable(tm *TextureManager) *Renderable {
 	return group
 }
 
-// GetFullSrcFilePath returns the full file path for the mesh source file.
-func (cm *ComponentMesh) GetFullSrcFilePath() string {
-	return cm.Parent.componentDirPath + cm.SrcFile
-}
-
 // GetFullBinFilePath returns the full file path for the mesh binary file (gombz format).
 func (cm *ComponentMesh) GetFullBinFilePath() string {
 	return cm.Parent.componentDirPath + cm.BinFile
@@ -176,18 +167,8 @@ func (cm *ComponentMesh) GetVertices() ([]mgl.Vec3, error) {
 // createRenderableForMesh does the work of creating the Renderable and putting all of
 // the mesh data into VBOs.
 func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Renderable {
-	// calculate the memory size of floats used to calculate total memory size of float arrays
-	const floatSize = 4
-	const uintSize = 4
-
 	// create the new renderable
-	r := NewRenderable()
-	r.Core = NewRenderableCore()
-
-	// setup a skeleton if the mesh has bones associated with it
-	if compMesh.SrcMesh.BoneCount > 0 {
-		r.Core.Skeleton = NewSkeleton(compMesh.SrcMesh.Bones, compMesh.SrcMesh.Animations)
-	}
+	r := CreateFromGombz(compMesh.SrcMesh)
 
 	// assign the texture
 	if len(compMesh.Textures) > 0 {
@@ -197,117 +178,6 @@ func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Rende
 			groggy.Log("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Textures[0])
 		}
 	}
-
-	// set some basic properties up
-	r.FaceCount = compMesh.SrcMesh.FaceCount
-	r.Location = compMesh.Offset
-
-	// create a buffer to hold all the data that is the same size as VertexCount
-	vertBuffer := make([]float32, compMesh.SrcMesh.VertexCount*3)
-
-	// setup verts and track the bounding rectangle
-	for i, v := range compMesh.SrcMesh.Vertices {
-		offset := i * 3
-		vertBuffer[offset] = v[0]
-		vertBuffer[offset+1] = v[1]
-		vertBuffer[offset+2] = v[2]
-	}
-	gl.GenBuffers(1, &r.Core.VertVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(vertBuffer), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
-
-	// calculate the bounding rectangle for the mesh
-	r.BoundingRect = GetBoundingRect(vertBuffer)
-
-	// setup normals
-	if len(compMesh.SrcMesh.Normals) > 0 {
-		for i, n := range compMesh.SrcMesh.Normals {
-			offset := i * 3
-			vertBuffer[offset] = n[0]
-			vertBuffer[offset+1] = n[1]
-			vertBuffer[offset+2] = n[2]
-		}
-		gl.GenBuffers(1, &r.Core.NormsVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(vertBuffer), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
-	}
-
-	// setup tangents
-	if len(compMesh.SrcMesh.Tangents) > 0 {
-		for i, t := range compMesh.SrcMesh.Tangents {
-			offset := i * 3
-			vertBuffer[offset] = t[0]
-			vertBuffer[offset+1] = t[1]
-			vertBuffer[offset+2] = t[2]
-		}
-		gl.GenBuffers(1, &r.Core.TangentsVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(vertBuffer), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
-	}
-
-	// setup UVs
-	if len(compMesh.SrcMesh.UVChannels[0]) > 0 {
-		uvChan := compMesh.SrcMesh.UVChannels[0]
-		for i := uint32(0); i < compMesh.SrcMesh.VertexCount; i++ {
-			uv := uvChan[i]
-			offset := i * 2
-			vertBuffer[offset] = uv[0]
-			vertBuffer[offset+1] = uv[1]
-		}
-		gl.GenBuffers(1, &r.Core.UvVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*compMesh.SrcMesh.VertexCount*2), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
-	}
-
-	// setup vertex weight Ids for bones
-	var weightBuffer []float32
-	if len(compMesh.SrcMesh.VertexWeightIds) > 0 {
-		if weightBuffer == nil {
-			weightBuffer = make([]float32, compMesh.SrcMesh.VertexCount*4)
-		}
-		for i, v := range compMesh.SrcMesh.VertexWeightIds {
-			offset := i * 4
-			weightBuffer[offset] = v[0]
-			weightBuffer[offset+1] = v[1]
-			weightBuffer[offset+2] = v[2]
-			weightBuffer[offset+3] = v[3]
-		}
-		gl.GenBuffers(1, &r.Core.BoneFidsVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneFidsVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*compMesh.SrcMesh.VertexCount*4), gl.Ptr(&weightBuffer[0]), gl.STATIC_DRAW)
-	}
-
-	// setup the vertex weights
-	if len(compMesh.SrcMesh.VertexWeights) > 0 {
-		if weightBuffer == nil {
-			weightBuffer = make([]float32, compMesh.SrcMesh.VertexCount*4)
-		}
-		for i, v := range compMesh.SrcMesh.VertexWeights {
-			offset := i * 4
-			weightBuffer[offset] = v[0]
-			weightBuffer[offset+1] = v[1]
-			weightBuffer[offset+2] = v[2]
-			weightBuffer[offset+3] = v[3]
-		}
-		gl.GenBuffers(1, &r.Core.BoneWeightsVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*compMesh.SrcMesh.VertexCount*4), gl.Ptr(&weightBuffer[0]), gl.STATIC_DRAW)
-	}
-
-	// setup the face indices
-	indexBuffer := make([]uint32, len(compMesh.SrcMesh.Faces)*3)
-	for i, f := range compMesh.SrcMesh.Faces {
-		offset := i * 3
-		indexBuffer[offset] = f[0]
-		indexBuffer[offset+1] = f[1]
-		indexBuffer[offset+2] = f[2]
-	}
-	gl.GenBuffers(1, &r.Core.ElementsVBO)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(indexBuffer), gl.Ptr(&indexBuffer[0]), gl.STATIC_DRAW)
-
-	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
 
 	return r
 }

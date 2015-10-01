@@ -1,5 +1,6 @@
 examples/cube
 examples/joystick
+examples/lights_forward
 examples/*.exe
 examples/*.dll
 *.exe

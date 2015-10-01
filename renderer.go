@@ -71,11 +71,21 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 		gl.Uniform1f(shaderShiny, r.Core.Shininess)
 	}
 
+	texturesBound := int32(0)
 	shaderTex1 := shader.GetUniformLocation("MATERIAL_TEX_0")
 	if shaderTex1 >= 0 {
 		gl.ActiveTexture(gl.TEXTURE0)
 		gl.BindTexture(gl.TEXTURE_2D, r.Core.Tex0)
-		gl.Uniform1i(shaderTex1, 0)
+		gl.Uniform1i(shaderTex1, texturesBound)
+		texturesBound += 1
+	}
+
+	shaderTex2 := shader.GetUniformLocation("MATERIAL_TEX_1")
+	if shaderTex2 >= 0 {
+		gl.ActiveTexture(gl.TEXTURE1)
+		gl.BindTexture(gl.TEXTURE_2D, r.Core.Tex1)
+		gl.Uniform1i(shaderTex2, texturesBound)
+		texturesBound += 1
 	}
 
 	shaderBones := shader.GetUniformLocation("BONES")
@@ -151,6 +161,13 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
 		gl.EnableVertexAttribArray(uint32(shaderNormal))
 		gl.VertexAttribPointer(uint32(shaderNormal), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+	}
+
+	shaderTangent := shader.GetAttribLocation("VERTEX_TANGENT")
+	if shaderTangent >= 0 {
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
+		gl.EnableVertexAttribArray(uint32(shaderTangent))
+		gl.VertexAttribPointer(uint32(shaderTangent), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
 	}
 
 	shaderBoneFids := shader.GetAttribLocation("VERTEX_BONE_IDS")

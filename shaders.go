@@ -81,7 +81,7 @@ func (rs *RenderShader) AssertAttribsExist(names ...string) error {
 			return fmt.Errorf("ASSERT FAILED: Shader uniform %s doesn't exist.", name)
 		}
 	}
-	
+
 	return nil
 }
 
