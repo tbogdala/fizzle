@@ -32,6 +32,7 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 	gl.UseProgram(shader.Prog)
 	gl.BindVertexArray(r.Core.Vao)
 
+	texturesBound := int32(0)
 	model := r.GetTransformMat4()
 
 	shaderMvp := shader.GetUniformLocation("MVP_MATRIX")
@@ -71,10 +72,9 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 		gl.Uniform1f(shaderShiny, r.Core.Shininess)
 	}
 
-	texturesBound := int32(0)
 	shaderTex1 := shader.GetUniformLocation("MATERIAL_TEX_0")
 	if shaderTex1 >= 0 {
-		gl.ActiveTexture(gl.TEXTURE0)
+		gl.ActiveTexture(gl.TEXTURE0 + uint32(texturesBound))
 		gl.BindTexture(gl.TEXTURE_2D, r.Core.Tex0)
 		gl.Uniform1i(shaderTex1, texturesBound)
 		texturesBound += 1
@@ -82,7 +82,7 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 
 	shaderTex2 := shader.GetUniformLocation("MATERIAL_TEX_1")
 	if shaderTex2 >= 0 {
-		gl.ActiveTexture(gl.TEXTURE1)
+		gl.ActiveTexture(gl.TEXTURE0 + uint32(texturesBound))
 		gl.BindTexture(gl.TEXTURE_2D, r.Core.Tex1)
 		gl.Uniform1i(shaderTex2, texturesBound)
 		texturesBound += 1
@@ -93,9 +93,10 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 		gl.UniformMatrix4fv(shaderBones, int32(len(r.Core.Skeleton.Bones)), false, &(r.Core.Skeleton.PoseTransforms[0][0]))
 	}
 
-	// do some special binding for the differe Renderer types if necessary
+	// do some special binding for the different Renderer types if necessary
 	if forwardRenderer, okay := renderer.(*ForwardRenderer); okay {
 		var lightCount int32 = int32(forwardRenderer.GetActiveLightCount())
+		var shadowLightCount int32 = int32(forwardRenderer.GetActiveShadowLightCount())
 		if lightCount >= 1 {
 			for lightI := 0; lightI < int(lightCount); lightI++ {
 				light := forwardRenderer.ActiveLights[lightI]
@@ -129,13 +130,49 @@ func bindAndDraw(renderer Renderer, r *Renderable, shader *RenderShader,
 				if shaderLightAttenuation >= 0 {
 					gl.Uniform1fv(shaderLightAttenuation, 1, &light.Attenuation)
 				}
+
+				shaderShadowMaps := shader.GetUniformLocation(fmt.Sprintf("SHADOW_MAPS[%d]", lightI))
+				if shaderShadowMaps >= 0 {
+					/* There have been problems in the past on Intel drivers on Mac OS if all of the
+					   samplers are not bound to something. So this code will bind a 0 if the shadow map
+						 does not exist for that light. */
+					gl.ActiveTexture(gl.TEXTURE0 + uint32(texturesBound))
+					if light.ShadowMap != nil {
+						gl.BindTexture(gl.TEXTURE_2D, light.ShadowMap.Texture)
+					} else {
+						gl.BindTexture(gl.TEXTURE_2D, 0)
+					}
+					gl.Uniform1i(shaderShadowMaps, texturesBound)
+					texturesBound += 1
+				}
+
+				if light.ShadowMap != nil {
+					shaderShadowMatrix := shader.GetUniformLocation(fmt.Sprintf("SHADOW_MATRIX[%d]", lightI))
+					if shaderShadowMatrix >= 0 {
+						gl.UniformMatrix4fv(shaderShadowMatrix, 1, false, &light.ShadowMap.BiasedMatrix[0])
+					}
+				}
 			} // lightI
+
 			shaderLightCount := shader.GetUniformLocation("LIGHT_COUNT")
 			if shaderLightCount >= 0 {
 				gl.Uniform1iv(shaderLightCount, 1, &lightCount)
 			}
-		}
-	}
+
+			shaderShadowLightCount := shader.GetUniformLocation("SHADOW_COUNT")
+			if shaderShadowLightCount >= 0 {
+				gl.Uniform1iv(shaderShadowLightCount, 1, &shadowLightCount)
+			}
+
+			if forwardRenderer.currentShadowPassLight != nil {
+				shaderShadowVP := shader.GetUniformLocation("SHADOW_VP_MATRIX")
+				if shaderShadowVP >= 0 {
+					gl.UniformMatrix4fv(shaderShadowVP, 1, false, &forwardRenderer.currentShadowPassLight.ShadowMap.ViewProjMatrix[0])
+				}
+			}
+
+		} // lightcount
+	} // forwardRenderer
 
 	shaderCameraWorldPos := shader.GetUniformLocation("CAMERA_WORLD_POSITION")
 	if shaderCameraWorldPos >= 0 {

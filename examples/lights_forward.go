@@ -35,9 +35,11 @@ func init() {
 const (
 	width                      = 800
 	height                     = 600
+	shadowTexSize              = 1024
 	fov                        = 70.0
 	radsPerSec                 = math.Pi / 4.0
-	diffuseTexBumpedShaderPath = "./assets/forwardshaders/diffuse_texbumped"
+	diffuseTexBumpedShaderPath = "./assets/forwardshaders/diffuse_texbumped_shadows"
+	shadowmapShaderPath        = "./assets/forwardshaders/shadowmap_generator"
 
 	testDiffusePath = "./assets/textures/TestCube_D.png"
 	testNormalsPath = "./assets/textures/TestCube_N.png"
@@ -60,13 +62,21 @@ func main() {
 	camera := fizzle.NewCamera(mgl.Vec3{0.0, 5.0, 5.0})
 	camera.SetYawAndPitch(0.0, mgl.DegToRad(60))
 
-	// load the diffuse shader
+	// load the diffuse, textured and normal mapped shader
 	diffuseTexBumpedShader, err := fizzle.LoadShaderProgramFromFiles(diffuseTexBumpedShaderPath, nil)
 	if err != nil {
 		fmt.Printf("Failed to compile and link the diffuse shader program!\n%v", err)
 		os.Exit(1)
 	}
 	defer diffuseTexBumpedShader.Destroy()
+
+	// loadup the shadowmap shaders
+	shadowmapShader, err := fizzle.LoadShaderProgramFromFiles(shadowmapShaderPath, nil)
+	if err != nil {
+		fmt.Printf("Failed to compile and link the shadowmap generator shader program!\n%v", err)
+		os.Exit(1)
+	}
+	defer shadowmapShader.Destroy()
 
 	// load up some textures
 	textureMan := fizzle.NewTextureManager()
@@ -105,6 +115,9 @@ func main() {
 	testCube.Core.Tex1 = normalsTex
 	testCube.Core.Shader = diffuseTexBumpedShader
 
+	// enable shadow mapping in the renderer
+	renderer.SetupShadowMapRendering()
+
 	// add light #1
 	light := fizzle.NewLight()
 	light.Position = mgl.Vec3{5.0, 3.0, 5.0}
@@ -113,6 +126,7 @@ func main() {
 	light.AmbientIntensity = 0.20
 	light.Attenuation = 0.2
 	renderer.ActiveLights[0] = light
+	light.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{-5.0, -3.0, -5.0})
 
 	// add light #2
 	light = fizzle.NewLight()
@@ -135,13 +149,31 @@ func main() {
 		// calculate the difference in time to control rotation speed
 		thisFrame := time.Now()
 		frameDelta := float32(thisFrame.Sub(lastFrame).Seconds())
-		_ = frameDelta
 
-		// rotate the cube and sphere around the Y axis at a speed of radsPerSec
+		// rotate the cube and sphere around the Y axis at a speed of 0.5*math.Pi / sec
 		rotDelta := mgl.QuatRotate(0.5*math.Pi*frameDelta, mgl.Vec3{0.0, 1.0, 0.0})
 		testCube.LocalRotation = testCube.LocalRotation.Mul(rotDelta)
 
-		// clear the screen
+		// Shadow time!
+		renderer.StartShadowMapping()
+		lightCount := renderer.GetActiveLightCount()
+		if lightCount >= 1 {
+			for lightI := 0; lightI < lightCount; lightI++ {
+				// get lights with shadow maps
+				light := renderer.ActiveLights[lightI]
+				if light.ShadowMap == nil {
+					continue
+				}
+
+				// enable the light to cast shadows
+				renderer.EnableShadowMappingLight(light)
+				renderer.DrawRenderableWithShader(testCube, shadowmapShader, nil, light.ShadowMap.Projection, light.ShadowMap.View)
+				renderer.DrawRenderableWithShader(floorPlane, shadowmapShader, nil, light.ShadowMap.Projection, light.ShadowMap.View)
+			}
+		}
+		renderer.EndShadowMapping()
+
+		// clear the screen and reset our viewport
 		gl.Viewport(0, 0, int32(width), int32(height))
 		gl.ClearColor(0.05, 0.05, 0.05, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -173,7 +205,7 @@ func initGraphics(title string, w int, h int) *glfw.Window {
 	}
 
 	// request a OpenGL 3.3 core context
-	glfw.WindowHint(glfw.Samples, 0)
+	glfw.WindowHint(glfw.Samples, 4)
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
