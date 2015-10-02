@@ -34,7 +34,7 @@ func init() {
 const (
 	width                      = 1280
 	height                     = 720
-	shadowTexSize              = 1024
+	shadowTexSize              = 2048
 	fov                        = 70.0
 	radsPerSec                 = math.Pi / 4.0
 	diffuseTexBumpedShaderPath = "./assets/forwardshaders/diffuse_texbumped_shadows"
@@ -150,6 +150,7 @@ func main() {
 	light2.AmbientIntensity = 0.00
 	light2.Attenuation = 0.2
 	renderer.ActiveLights[1] = light2
+	light2.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{2.0, -3.0, -3.0})
 
 	// make a UI image to show the shadowmap texture, scaled down
 	uiMan.CreateImage(fizzle.UIAnchorMiddleRight, mgl.Vec3{-20.0, 0.0, 0.0}, light.ShadowMap.Texture, 256, 256, shadowmapTextureShader)
@@ -180,15 +181,15 @@ func main() {
 		if lightCount >= 1 {
 			for lightI := 0; lightI < lightCount; lightI++ {
 				// get lights with shadow maps
-				light := renderer.ActiveLights[lightI]
-				if light.ShadowMap == nil {
+				lightToCast := renderer.ActiveLights[lightI]
+				if lightToCast.ShadowMap == nil {
 					continue
 				}
 
 				// enable the light to cast shadows
-				renderer.EnableShadowMappingLight(light)
-				renderer.DrawRenderableWithShader(testCube, shadowmapShader, nil, light.ShadowMap.Projection, light.ShadowMap.View)
-				renderer.DrawRenderableWithShader(floorPlane, shadowmapShader, nil, light.ShadowMap.Projection, light.ShadowMap.View)
+				renderer.EnableShadowMappingLight(lightToCast)
+				renderer.DrawRenderableWithShader(testCube, shadowmapShader, nil, lightToCast.ShadowMap.Projection, lightToCast.ShadowMap.View)
+				renderer.DrawRenderableWithShader(floorPlane, shadowmapShader, nil, lightToCast.ShadowMap.Projection, lightToCast.ShadowMap.View)
 			}
 		}
 		renderer.EndShadowMapping()
