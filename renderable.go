@@ -709,7 +709,9 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 	}
 
 	// calculate the tangents based on the vertices and UVs.
-	tangents := createTangents(verts[:], indexes[:], uvs[:])
+	// FIXME: disabled for now, there's an error in this code somewhere
+	// where indexes end up eclipsing the number of vertices
+	//tangents := createTangents(verts[:], indexes[:], uvs[:])
 
 	r := NewRenderable()
 	r.ShaderName = shader
@@ -736,9 +738,11 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(normals), gl.Ptr(&normals[0]), gl.STATIC_DRAW)
 
 	// create a VBO to hold the tangent data
-	gl.GenBuffers(1, &r.Core.TangentsVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(tangents), gl.Ptr(&tangents[0]), gl.STATIC_DRAW)
+	/*
+		gl.GenBuffers(1, &r.Core.TangentsVBO)
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
+		gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(tangents), gl.Ptr(&tangents[0]), gl.STATIC_DRAW)
+	*/
 
 	// create a VBO to hold the face indexes
 	gl.GenBuffers(1, &r.Core.ElementsVBO)

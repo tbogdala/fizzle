@@ -59,7 +59,7 @@ func main() {
 	defer renderer.Destroy()
 
 	// setup the camera to look at the cube
-	camera := fizzle.NewCamera(mgl.Vec3{0.0, 5.0, 5.0})
+	camera := fizzle.NewYawPitchCamera(mgl.Vec3{0.0, 5.0, 5.0})
 	camera.SetYawAndPitch(0.0, mgl.DegToRad(60))
 
 	// setup the user interface manager which can be used to display
