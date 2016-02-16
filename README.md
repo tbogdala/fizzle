@@ -17,11 +17,16 @@ Requirements
 ------------
 
 * [GLFW][glfw-go] (v3.1) - native library and go binding for window creation
-* [Go GL][go-gl] - pre-generated OpenGL bindings using their glow project
 * [Mathgl][mgl] - for 3d math
 * [Freetype][ftgo] - for dynamic font texture generation
 * [Groggy][groggy] - for flexible logging
 * [Gombz][gombz] - provides a serializable data structure for 3d models and animations
+
+Additionally, a backend graphics provider needs to be used. At present, fizzle
+supports the following:
+
+* [Go GL][go-gl] - pre-generated OpenGL bindings using their glow project
+
 
 Installation
 ------------
@@ -30,11 +35,17 @@ The dependency Go libraries can be installed with the following commands.
 
 ```bash
 go get github.com/go-gl/glfw/v3.1/glfw
-go get github.com/go-gl/gl/v3.3-core/gl
 go get github.com/go-gl/mathgl/mgl32
 go get github.com/golang/freetype
 go get github.com/tbogdala/groggy
 go get github.com/tbogdala/gombz
+```
+
+An OpenGL library will also be required for desktop applications; install
+the OpenGL 3.3 library with the following command:
+
+```bash
+go get github.com/go-gl/gl/v3.3-core/gl
 ```
 
 This does assume that you have the native GLFW 3.1 library installed already
@@ -45,8 +56,14 @@ Current Features
 ----------------
 
 * deferred rendering engine
+* forward rendering engine
+* limited dynamic shadow support
 * able to define components using JSON files
 * support for freetype compatible fonts
+* skeletal animations
+* the basics of as UI system (Note: currently very primitive)
+* basic camera support
+
 
 TODO
 ----
