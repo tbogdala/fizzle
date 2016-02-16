@@ -5,6 +5,7 @@ package fizzle
 
 import (
 	mgl "github.com/go-gl/mathgl/mgl32"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 )
 
 // These are constants used in UILayout Anchor positions.
@@ -57,7 +58,7 @@ type UILabel struct {
 // UIImage is an image widget which shows a texture in the user interface.
 type UIImage struct {
 	// Texture is the OpenGL texture id to use to draw this widget
-	Texture uint32
+	Texture graphics.Texture
 
 	// Layout specifies the way the label should be positioned on screen.
 	Layout UILayout
@@ -257,7 +258,7 @@ func (l *UILabel) GetRenderable() *Renderable {
 // IMAGE WIDGET
 
 // CreateImage creates the image widget and renderable.
-func (ui *UIManager) CreateImage(anchor int, offset mgl.Vec3, texId uint32, width float32, height float32, shader *RenderShader) *UIImage {
+func (ui *UIManager) CreateImage(anchor int, offset mgl.Vec3, texId graphics.Texture, width float32, height float32, shader *RenderShader) *UIImage {
 	img := new(UIImage)
 	img.Texture = texId
 	img.Layout.Anchor = anchor

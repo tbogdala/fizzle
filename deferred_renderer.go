@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	gl "github.com/go-gl/gl/v3.3-core/gl"
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	"github.com/tbogdala/groggy"
 )
 
@@ -37,11 +37,11 @@ type DeferredCompositePass func(dr *DeferredRenderer, deltaFrameTime float32)
 // it creates several framebuffers for shaders to write to and has two main
 // rendering steps: 1) geometry and 2) compositing.
 type DeferredRenderer struct {
-	Frame          uint32
-	Depth          uint32
-	Diffuse        uint32
-	Positions      uint32
-	Normals        uint32
+	Frame          graphics.Buffer
+	Depth          graphics.Buffer
+	Diffuse        graphics.Texture
+	Positions      graphics.Texture
+	Normals        graphics.Texture
 	CompositePlane *Renderable
 
 	// GeometryPass is the function called to render geometry to the
@@ -93,11 +93,11 @@ func NewDeferredRenderer(window *glfw.Window) *DeferredRenderer {
 
 // Destroy releases all of the OpenGL buffers the DeferredRenderer is holding on to.
 func (dr *DeferredRenderer) Destroy() {
-	gl.DeleteRenderbuffers(1, &dr.Depth)
-	gl.DeleteRenderbuffers(1, &dr.Diffuse)
-	gl.DeleteRenderbuffers(1, &dr.Positions)
-	gl.DeleteRenderbuffers(1, &dr.Normals)
-	gl.DeleteFramebuffers(1, &dr.Frame)
+	gfx.DeleteRenderbuffer(dr.Depth)
+	gfx.DeleteTexture(dr.Diffuse)
+	gfx.DeleteTexture(dr.Positions)
+	gfx.DeleteTexture(dr.Normals)
+	gfx.DeleteFramebuffer(dr.Frame)
 	dr.CompositePlane.Core.DestroyCore()
 }
 
@@ -132,73 +132,71 @@ func (dr *DeferredRenderer) EndRenderFrame() {
 func (dr *DeferredRenderer) Init(width, height int32) error {
 	dr.width = width
 	dr.height = height
-	gl.GenFramebuffers(1, &dr.Frame)
+	dr.Frame = gfx.GenFramebuffer()
 
 	// setup the depth buffer
-	gl.GenRenderbuffers(1, &dr.Depth)
-	gl.BindRenderbuffer(gl.RENDERBUFFER, dr.Depth)
-	gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, width, height)
+	dr.Depth = gfx.GenRenderbuffer()
+	gfx.BindRenderbuffer(graphics.RENDERBUFFER, dr.Depth)
+	gfx.RenderbufferStorage(graphics.RENDERBUFFER, graphics.DEPTH_COMPONENT24, width, height)
 
 	// setup the diffuse texture
-	gl.GenTextures(1, &dr.Diffuse)
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, dr.Diffuse)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, nil)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	dr.Diffuse = gfx.GenTexture()
+	gfx.ActiveTexture(graphics.TEXTURE0)
+	gfx.BindTexture(graphics.TEXTURE_2D, dr.Diffuse)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA32F, width, height, 0, graphics.RGBA, graphics.FLOAT, nil)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.CLAMP_TO_EDGE)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.CLAMP_TO_EDGE)
 
 	// setup the positions texture
-	gl.GenTextures(1, &dr.Positions)
-	gl.ActiveTexture(gl.TEXTURE1)
-	gl.BindTexture(gl.TEXTURE_2D, dr.Positions)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, nil)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	dr.Positions = gfx.GenTexture()
+	gfx.ActiveTexture(graphics.TEXTURE1)
+	gfx.BindTexture(graphics.TEXTURE_2D, dr.Positions)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA32F, width, height, 0, graphics.RGBA, graphics.FLOAT, nil)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.CLAMP_TO_EDGE)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.CLAMP_TO_EDGE)
 
 	// setup the normals texture
-	gl.GenTextures(1, &dr.Normals)
-	gl.ActiveTexture(gl.TEXTURE2)
-	gl.BindTexture(gl.TEXTURE_2D, dr.Normals)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.FLOAT, nil)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	dr.Normals = gfx.GenTexture()
+	gfx.ActiveTexture(graphics.TEXTURE2)
+	gfx.BindTexture(graphics.TEXTURE_2D, dr.Normals)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA16F, width, height, 0, graphics.RGBA, graphics.FLOAT, nil)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.CLAMP_TO_EDGE)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.CLAMP_TO_EDGE)
 
 	// now bind all of these things to the framebuffer
-	gl.BindFramebuffer(gl.FRAMEBUFFER, dr.Frame)
-	gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, dr.Depth)
-	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, dr.Diffuse, 0)
-	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, dr.Positions, 0)
-	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, dr.Normals, 0)
+	gfx.BindFramebuffer(graphics.FRAMEBUFFER, dr.Frame)
+	gfx.FramebufferRenderbuffer(graphics.FRAMEBUFFER, graphics.DEPTH_ATTACHMENT, graphics.RENDERBUFFER, dr.Depth)
+	gfx.FramebufferTexture2D(graphics.FRAMEBUFFER, graphics.COLOR_ATTACHMENT0, graphics.TEXTURE_2D, dr.Diffuse, 0)
+	gfx.FramebufferTexture2D(graphics.FRAMEBUFFER, graphics.COLOR_ATTACHMENT1, graphics.TEXTURE_2D, dr.Positions, 0)
+	gfx.FramebufferTexture2D(graphics.FRAMEBUFFER, graphics.COLOR_ATTACHMENT2, graphics.TEXTURE_2D, dr.Normals, 0)
 
 	// how did it all go? lets find out ...
-	status := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
+	status := gfx.CheckFramebufferStatus(graphics.FRAMEBUFFER)
 	switch {
-	case status == gl.FRAMEBUFFER_UNSUPPORTED:
+	case status == graphics.FRAMEBUFFER_UNSUPPORTED:
 		return fmt.Errorf("Failed to create the deferred rendering pipeline because the framebuffer was unsupported.\n")
-	case status != gl.FRAMEBUFFER_COMPLETE:
+	case status != graphics.FRAMEBUFFER_COMPLETE:
 		return fmt.Errorf("Failed to create the deferred rendering pipeline. Code 0x%x\n", status)
 	}
 
-	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+	gfx.BindFramebuffer(graphics.FRAMEBUFFER, 0)
 
 	// create a plane for the composite pass
 	groggy.Logsf("DEBUG", "Creatiing composite plane %dx%d.", width, height)
 	cp := CreatePlaneXY("composite", 0, 0, float32(width), float32(height))
-	var cptex uint32
-	gl.GenTextures(1, &cptex)
-	cp.Core.Tex0 = cptex
-	gl.BindTexture(gl.TEXTURE_2D, cp.Core.Tex0)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
-	gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-	gl.BindTexture(gl.TEXTURE_2D, 0)
+	cp.Core.Tex0 = gfx.GenTexture()
+	gfx.BindTexture(graphics.TEXTURE_2D, cp.Core.Tex0)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.REPEAT)
+	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.REPEAT)
+	gfx.BindTexture(graphics.TEXTURE_2D, 0)
 	dr.CompositePlane = cp
 
 	return nil
@@ -207,8 +205,8 @@ func (dr *DeferredRenderer) Init(width, height int32) error {
 // InitShaders sets up the special shaders used in a deferred rendering pipeline.
 func (dr *DeferredRenderer) InitShaders(compositeBaseFilepath string, dirlightShaderFilepath string) error {
 	// Load the composite pass shader and assert variables exist
-	prog, err := LoadShaderProgramFromFiles(compositeBaseFilepath, func(p uint32) {
-		gl.BindFragDataLocation(p, 0, gl.Str("frag_color\x00"))
+	prog, err := LoadShaderProgramFromFiles(compositeBaseFilepath, func(p graphics.Program) {
+		gfx.BindFragDataLocation(p, 0, "frag_color")
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to compile and link the deferred render composite program! %v", err)
@@ -216,8 +214,8 @@ func (dr *DeferredRenderer) InitShaders(compositeBaseFilepath string, dirlightSh
 	dr.shaders["composite"] = prog
 
 	// Load the directional light shader and assert variables exist
-	prog, err = LoadShaderProgramFromFiles(dirlightShaderFilepath, func(p uint32) {
-		gl.BindFragDataLocation(p, 0, gl.Str("frag_color\x00"))
+	prog, err = LoadShaderProgramFromFiles(dirlightShaderFilepath, func(p graphics.Program) {
+		gfx.BindFragDataLocation(p, 0, "frag_color")
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to compile and link the deferred render composite program! %v", err)
@@ -235,41 +233,41 @@ func (dr *DeferredRenderer) CompositeDraw() {
 
 	r := dr.CompositePlane
 	shader := dr.shaders["composite"]
-	gl.UseProgram(shader.Prog)
-	gl.BindVertexArray(r.Core.Vao)
+	gfx.UseProgram(shader.Prog)
+	gfx.BindVertexArray(r.Core.Vao)
 
 	model := r.GetTransformMat4()
 
 	shaderMvp := shader.GetUniformLocation("MVP_MATRIX")
 	if shaderMvp >= 0 {
 		mvp := ortho.Mul4(model)
-		gl.UniformMatrix4fv(shaderMvp, 1, false, &mvp[0])
+		gfx.UniformMatrix4fv(shaderMvp, 1, false, &mvp[0])
 	}
 
 	shaderPosition := shader.GetAttribLocation("VERTEX_POSITION")
 	if shaderPosition >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-		gl.EnableVertexAttribArray(uint32(shaderPosition))
-		gl.VertexAttribPointer(uint32(shaderPosition), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+		gfx.EnableVertexAttribArray(uint32(shaderPosition))
+		gfx.VertexAttribPointer(uint32(shaderPosition), 3, graphics.FLOAT, false, 0, gfx.PtrOffset(0))
 	}
 
 	shaderVertUv := shader.GetAttribLocation("VERTEX_UV_0")
 	if shaderVertUv >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-		gl.EnableVertexAttribArray(uint32(shaderVertUv))
-		gl.VertexAttribPointer(uint32(shaderVertUv), 2, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.UvVBO)
+		gfx.EnableVertexAttribArray(uint32(shaderVertUv))
+		gfx.VertexAttribPointer(uint32(shaderVertUv), 2, graphics.FLOAT, false, 0, gfx.PtrOffset(0))
 	}
 
 	shaderTex0 := shader.GetUniformLocation("DIFFUSE_TEX")
 	if shaderTex0 >= 0 {
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, dr.Diffuse)
-		gl.Uniform1i(shaderTex0, 0)
+		gfx.ActiveTexture(graphics.TEXTURE0)
+		gfx.BindTexture(graphics.TEXTURE_2D, dr.Diffuse)
+		gfx.Uniform1i(shaderTex0, 0)
 	}
 
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.DrawElements(gl.TRIANGLES, int32(r.FaceCount*3), gl.UNSIGNED_INT, gl.PtrOffset(0))
-	gl.BindVertexArray(0)
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.DrawElements(graphics.TRIANGLES, int32(r.FaceCount*3), graphics.UNSIGNED_INT, gfx.PtrOffset(0))
+	gfx.BindVertexArray(0)
 }
 
 // DrawDirectionalLight draws the composite plane while lighting everything with
@@ -280,81 +278,81 @@ func (dr *DeferredRenderer) DrawDirectionalLight(eye mgl.Vec3, dir mgl.Vec3, col
 
 	r := dr.CompositePlane
 	shader := dr.shaders["directional_light"]
-	gl.UseProgram(shader.Prog)
-	gl.BindVertexArray(r.Core.Vao)
+	gfx.UseProgram(shader.Prog)
+	gfx.BindVertexArray(r.Core.Vao)
 
 	model := r.GetTransformMat4()
 
 	shaderMvp := shader.GetUniformLocation("MVP_MATRIX")
 	if shaderMvp >= 0 {
 		mvp := ortho.Mul4(model)
-		gl.UniformMatrix4fv(shaderMvp, 1, false, &mvp[0])
+		gfx.UniformMatrix4fv(shaderMvp, 1, false, &mvp[0])
 	}
 
 	shaderPosition := shader.GetAttribLocation("VERTEX_POSITION")
 	if shaderPosition >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-		gl.EnableVertexAttribArray(uint32(shaderPosition))
-		gl.VertexAttribPointer(uint32(shaderPosition), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+		gfx.EnableVertexAttribArray(uint32(shaderPosition))
+		gfx.VertexAttribPointer(uint32(shaderPosition), 3, graphics.FLOAT, false, 0, gfx.PtrOffset(0))
 	}
 
 	shaderVertUv := shader.GetAttribLocation("VERTEX_UV_0")
 	if shaderVertUv >= 0 {
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-		gl.EnableVertexAttribArray(uint32(shaderVertUv))
-		gl.VertexAttribPointer(uint32(shaderVertUv), 2, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.UvVBO)
+		gfx.EnableVertexAttribArray(uint32(shaderVertUv))
+		gfx.VertexAttribPointer(uint32(shaderVertUv), 2, graphics.FLOAT, false, 0, gfx.PtrOffset(0))
 	}
 
 	shaderEyePosition := shader.GetAttribLocation("EYE_WORLD_POSITION")
 	if shaderEyePosition >= 0 {
-		gl.Uniform3f(shaderEyePosition, eye[0], eye[1], eye[2])
+		gfx.Uniform3f(shaderEyePosition, eye[0], eye[1], eye[2])
 	}
 
 	shaderTex0 := shader.GetUniformLocation("DIFFUSE_TEX")
 	if shaderTex0 >= 0 {
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, dr.Diffuse)
-		gl.Uniform1i(shaderTex0, 0)
+		gfx.ActiveTexture(graphics.TEXTURE0)
+		gfx.BindTexture(graphics.TEXTURE_2D, dr.Diffuse)
+		gfx.Uniform1i(shaderTex0, 0)
 	}
 
 	shaderTex1 := shader.GetUniformLocation("POSITIONS_TEX")
 	if shaderTex1 >= 0 {
-		gl.ActiveTexture(gl.TEXTURE1)
-		gl.BindTexture(gl.TEXTURE_2D, dr.Positions)
-		gl.Uniform1i(shaderTex1, 1)
+		gfx.ActiveTexture(graphics.TEXTURE1)
+		gfx.BindTexture(graphics.TEXTURE_2D, dr.Positions)
+		gfx.Uniform1i(shaderTex1, 1)
 	}
 
 	shaderTex2 := shader.GetUniformLocation("NORMALS_TEX")
 	if shaderTex2 >= 0 {
-		gl.ActiveTexture(gl.TEXTURE2)
-		gl.BindTexture(gl.TEXTURE_2D, dr.Normals)
-		gl.Uniform1i(shaderTex2, 2)
+		gfx.ActiveTexture(graphics.TEXTURE2)
+		gfx.BindTexture(graphics.TEXTURE_2D, dr.Normals)
+		gfx.Uniform1i(shaderTex2, 2)
 	}
 
 	shaderLightDir := shader.GetUniformLocation("LIGHT_DIRECTION")
 	if shaderLightDir >= 0 {
-		gl.Uniform3f(shaderLightDir, dir[0], dir[1], dir[2])
+		gfx.Uniform3f(shaderLightDir, dir[0], dir[1], dir[2])
 	}
 	shaderLightColor := shader.GetUniformLocation("LIGHT_COLOR")
 	if shaderLightColor >= 0 {
-		gl.Uniform3f(shaderLightColor, color[0], color[1], color[2])
+		gfx.Uniform3f(shaderLightColor, color[0], color[1], color[2])
 	}
 	shaderLightAmbient := shader.GetUniformLocation("LIGHT_AMBIENT_INTENSITY")
 	if shaderLightAmbient >= 0 {
-		gl.Uniform1f(shaderLightAmbient, ambient)
+		gfx.Uniform1f(shaderLightAmbient, ambient)
 	}
 	shaderLightDiffuse := shader.GetUniformLocation("LIGHT_DIFFUSE_INTENSITY")
 	if shaderLightDiffuse >= 0 {
-		gl.Uniform1f(shaderLightDiffuse, diffuse)
+		gfx.Uniform1f(shaderLightDiffuse, diffuse)
 	}
 	shaderLightSpecPow := shader.GetUniformLocation("LIGHT_SPECULAR_POWER")
 	if shaderLightSpecPow >= 0 {
-		gl.Uniform1f(shaderLightSpecPow, specular)
+		gfx.Uniform1f(shaderLightSpecPow, specular)
 	}
 
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.DrawElements(gl.TRIANGLES, int32(r.FaceCount*3), gl.UNSIGNED_INT, gl.PtrOffset(0))
-	gl.BindVertexArray(0)
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.DrawElements(graphics.TRIANGLES, int32(r.FaceCount*3), graphics.UNSIGNED_INT, gfx.PtrOffset(0))
+	gfx.BindVertexArray(0)
 }
 
 // DrawRenderable draws a Renderable object with the supplied projection and view matrixes.
@@ -372,7 +370,7 @@ func (dr *DeferredRenderer) DrawRenderable(r *Renderable, binder RenderBinder, p
 		return
 	}
 
-	bindAndDraw(dr, r, r.Core.Shader, binder, perspective, view, gl.TRIANGLES)
+	bindAndDraw(dr, r, r.Core.Shader, binder, perspective, view, graphics.TRIANGLES)
 }
 
 // DrawRenderableWithShader draws a Renderable object with the supplied projection and view matrixes
@@ -391,10 +389,10 @@ func (dr *DeferredRenderer) DrawRenderableWithShader(r *Renderable, shader *Rend
 		return
 	}
 
-	bindAndDraw(dr, r, shader, binder, perspective, view, gl.TRIANGLES)
+	bindAndDraw(dr, r, shader, binder, perspective, view, graphics.TRIANGLES)
 }
 
-// DrawLines draws the Renderable using gl.LINES mode instead of gl.TRIANGLES.
+// DrawLines draws the Renderable using graphics.LINES mode instead of graphics.TRIANGLES.
 func (dr *DeferredRenderer) DrawLines(r *Renderable, shader *RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
@@ -409,7 +407,7 @@ func (dr *DeferredRenderer) DrawLines(r *Renderable, shader *RenderShader, binde
 		return
 	}
 
-	bindAndDraw(dr, r, shader, binder, perspective, view, gl.LINES)
+	bindAndDraw(dr, r, shader, binder, perspective, view, graphics.LINES)
 }
 
 // RenderLoop keeps running a render loop function until MainWindow is
@@ -436,34 +434,34 @@ func (dr *DeferredRenderer) RenderLoop() {
 		////////////////////////////////////////////////////////////////////////////
 		// GEOMETRY PASS
 		// setup the view matrixes
-		gl.DepthMask(true)
-		//gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) // necessary?
-		gl.Enable(gl.DEPTH_TEST)
-		gl.Disable(gl.BLEND)
+		gfx.DepthMask(true)
+		//gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT) // necessary?
+		gfx.Enable(graphics.DEPTH_TEST)
+		gfx.Disable(graphics.BLEND)
 
-		gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, dr.Frame)
-		gl.Viewport(0, 0, dr.width, dr.height)
-		buffsToClear := []uint32{gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2}
-		gl.DrawBuffers(3, &buffsToClear[0])
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gfx.BindFramebuffer(graphics.DRAW_FRAMEBUFFER, dr.Frame)
+		gfx.Viewport(0, 0, dr.width, dr.height)
+		buffsToClear := []uint32{graphics.COLOR_ATTACHMENT0, graphics.COLOR_ATTACHMENT1, graphics.COLOR_ATTACHMENT2}
+		gfx.DrawBuffers(buffsToClear)
+		gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT)
 
 		// do the geometry pass on the renderables
 		dr.GeometryPass(dr, deltaFrameTime)
 
-		gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)
-		gl.DepthMask(false)
-		gl.Disable(gl.DEPTH_TEST)
+		gfx.BindFramebuffer(graphics.DRAW_FRAMEBUFFER, 0)
+		gfx.DepthMask(false)
+		gfx.Disable(graphics.DEPTH_TEST)
 
 		////////////////////////////////////////////////////////////////////////////
 		// COMPOSITE PASS START
-		gl.Clear(gl.COLOR_BUFFER_BIT)
-		gl.Enable(gl.BLEND)
-		gl.BlendEquation(gl.FUNC_ADD)
-		gl.BlendFunc(gl.ONE, gl.ONE)
+		gfx.Clear(graphics.COLOR_BUFFER_BIT)
+		gfx.Enable(graphics.BLEND)
+		gfx.BlendEquation(graphics.FUNC_ADD)
+		gfx.BlendFunc(graphics.ONE, graphics.ONE)
 
 		dr.CompositePass(dr, deltaFrameTime)
 
-		gl.BindVertexArray(0)
+		gfx.BindVertexArray(0)
 
 		dr.MainWindow.SwapBuffers()
 		glfw.PollEvents()

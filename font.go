@@ -22,8 +22,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	gl "github.com/go-gl/gl/v3.3-core/gl"
 	ft "github.com/golang/freetype"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	"golang.org/x/image/math/fixed"
 )
 
@@ -40,7 +40,7 @@ type runeData struct {
 // with the specified set of glyphs. It can then be used to create
 // renderable string objects.
 type GLFont struct {
-	Texture     uint32
+	Texture     graphics.Texture
 	TextureSize int
 	Glyphs      string
 	GlyphHeight int
@@ -217,7 +217,7 @@ func setFaceInts(fa []uint32, faceIdx int, startIndex uint32) {
 // Destroy releases the OpenGL texture for the font but does
 // not release the associated shader.
 func (f *GLFont) Destroy() {
-	gl.DeleteTextures(1, &f.Texture)
+	gfx.DeleteTexture(f.Texture)
 }
 
 // CreateLabel makes a new renderable object from the supplied string
@@ -241,13 +241,13 @@ func (f *GLFont) CreateLabel(msg string) *Renderable {
 	stringIndexes := make([]uint32, msgLength*facesIntsPerChar)
 
 	// loop through the message
-	var pen_x float32
+	var penX float32
 	for chi, ch := range msg {
 		// get the rune data
 		chData := f.locations[ch]
 
 		// setup the coordinates for ther vetexes
-		x0 := pen_x
+		x0 := penX
 		y0 := 2.0 - (float32(f.GlyphHeight) - float32(chData.topSideBearing))
 		x1 := x0 + float32(f.GlyphWidth)
 		y1 := y0 + float32(f.GlyphHeight)
@@ -262,7 +262,7 @@ func (f *GLFont) CreateLabel(msg string) *Renderable {
 		setFaceInts(stringIndexes, chi*facesIntsPerChar, uint32(chi)*indexesPerChar)
 
 		// advance the pen
-		pen_x += float32(chData.advanceWidth)
+		penX += float32(chData.advanceWidth)
 	}
 
 	// create the renderable object
@@ -277,19 +277,19 @@ func (f *GLFont) CreateLabel(msg string) *Renderable {
 	const uintSize = 4
 
 	// create a VBO to hold the vertex data
-	gl.GenBuffers(1, &r.Core.VertVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(stringVerts), gl.Ptr(stringVerts), gl.STATIC_DRAW)
+	r.Core.VertVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(stringVerts), gfx.Ptr(stringVerts), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the uv data
-	gl.GenBuffers(1, &r.Core.UvVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(stringUVs), gl.Ptr(stringUVs), gl.STATIC_DRAW)
+	r.Core.UvVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.UvVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(stringUVs), gfx.Ptr(stringUVs), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the face indexes
-	gl.GenBuffers(1, &r.Core.ElementsVBO)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(stringIndexes), gl.Ptr(stringIndexes), gl.STATIC_DRAW)
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(stringIndexes), gfx.Ptr(stringIndexes), graphics.STATIC_DRAW)
 
 	return r
 }

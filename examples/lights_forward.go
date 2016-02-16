@@ -10,11 +10,12 @@ import (
 	"runtime"
 	"time"
 
-	gl "github.com/go-gl/gl/v3.3-core/gl"
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 
 	"github.com/tbogdala/fizzle"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
+	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
 )
 
 /*
@@ -159,10 +160,11 @@ func main() {
 	uiMan.LayoutWidgets()
 
 	// set some OpenGL flags
-	gl.Enable(gl.CULL_FACE)
-	gl.Enable(gl.DEPTH_TEST)
-	gl.Enable(gl.TEXTURE_2D)
-	gl.Enable(gl.BLEND)
+	gfx := fizzle.GetGraphics()
+	gfx.Enable(graphics.CULL_FACE)
+	gfx.Enable(graphics.DEPTH_TEST)
+	gfx.Enable(graphics.TEXTURE_2D)
+	gfx.Enable(graphics.BLEND)
 
 	// loop until something told the mainWindow that it should close
 	lastFrame := time.Now()
@@ -190,14 +192,15 @@ func main() {
 				renderer.EnableShadowMappingLight(lightToCast)
 				renderer.DrawRenderableWithShader(testCube, shadowmapShader, nil, lightToCast.ShadowMap.Projection, lightToCast.ShadowMap.View)
 				renderer.DrawRenderableWithShader(floorPlane, shadowmapShader, nil, lightToCast.ShadowMap.Projection, lightToCast.ShadowMap.View)
+
 			}
 		}
 		renderer.EndShadowMapping()
 
 		// clear the screen and reset our viewport
-		gl.Viewport(0, 0, int32(width), int32(height))
-		gl.ClearColor(0.05, 0.05, 0.05, 1.0)
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gfx.Viewport(0, 0, int32(width), int32(height))
+		gfx.ClearColor(0.05, 0.05, 0.05, 1.0)
+		gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT)
 
 		// make the projection and view matrixes
 		perspective := mgl.Perspective(mgl.DegToRad(fov), float32(width)/float32(height), 1.0, 100.0)
@@ -210,13 +213,13 @@ func main() {
 		// Finish with the user interface
 		//
 		// however, to to our drawing of the texture of the shadow map, we need to change some texture parameters
-		gl.BindTexture(gl.TEXTURE_2D, renderer.ActiveLights[0].ShadowMap.Texture)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.NONE)
-		gl.BindTexture(gl.TEXTURE_2D, 0)
+		gfx.BindTexture(graphics.TEXTURE_2D, renderer.ActiveLights[0].ShadowMap.Texture)
+		gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_COMPARE_MODE, graphics.NONE)
+		gfx.BindTexture(graphics.TEXTURE_2D, 0)
 		uiMan.Draw(renderer, nil)
-		gl.BindTexture(gl.TEXTURE_2D, renderer.ActiveLights[0].ShadowMap.Texture)
-		gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE)
-		gl.BindTexture(gl.TEXTURE_2D, 0)
+		gfx.BindTexture(graphics.TEXTURE_2D, renderer.ActiveLights[0].ShadowMap.Texture)
+		gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_COMPARE_MODE, graphics.COMPARE_REF_TO_TEXTURE)
+		gfx.BindTexture(graphics.TEXTURE_2D, 0)
 
 		// draw the screen
 		mainWindow.SwapBuffers()
@@ -253,11 +256,12 @@ func initGraphics(title string, w int, h int) *glfw.Window {
 	// disable v-sync for max draw rate
 	glfw.SwapInterval(0)
 
-	// make sure that all of the GL functions are initialized
-	err = gl.Init()
+	// initialize OpenGL
+	gfx, err := opengl.InitOpenGL()
 	if err != nil {
-		panic("Failed to initialize GL! " + err.Error())
+		panic("Failed to initialize OpenGL! " + err.Error())
 	}
+	fizzle.SetGraphics(gfx)
 
 	return mainWindow
 }

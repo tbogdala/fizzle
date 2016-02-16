@@ -5,14 +5,15 @@ package fizzle
 
 import (
 	"fmt"
-	gl "github.com/go-gl/gl/v3.3-core/gl"
 	"image"
 	"image/draw"
 	"image/png"
 	"os"
+
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 )
 
-func loadFile(filePath string) (rgba_flipped *image.NRGBA, e error) {
+func loadFile(filePath string) (rgbaFFlipped *image.NRGBA, e error) {
 	imgFile, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open the texture file: %v\n", err)
@@ -48,41 +49,42 @@ func loadFile(filePath string) (rgba_flipped *image.NRGBA, e error) {
 	*/
 }
 
-func LoadRGBAToTexture(rgba []byte, imageSize int32) uint32 {
-	var tex uint32
-	gl.GenTextures(1, &tex)
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, tex)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imageSize, imageSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba))
+// LoadRGBAToTexture takes a byte slice and throws it into an OpenGL texture.
+func LoadRGBAToTexture(rgba []byte, imageSize int32) graphics.Texture {
+	tex := gfx.GenTexture()
+	gfx.ActiveTexture(graphics.TEXTURE0)
+	gfx.BindTexture(graphics.TEXTURE_2D, tex)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.REPEAT)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.REPEAT)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA, imageSize, imageSize, 0, graphics.RGBA, graphics.UNSIGNED_BYTE, gfx.Ptr(rgba))
 	return tex
 }
 
-func LoadImageToTexture(filePath string) (glTex uint32, e error) {
-	gl.GenTextures(1, &glTex)
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, glTex)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
+// LoadImageToTexture loads an image from a file into an OpenGL texture.
+func LoadImageToTexture(filePath string) (graphics.Texture, error) {
+	tex := gfx.GenTexture()
+	gfx.ActiveTexture(graphics.TEXTURE0)
+	gfx.BindTexture(graphics.TEXTURE_2D, tex)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.REPEAT)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.REPEAT)
 
-	rgba_flipped, err := loadFile(filePath)
+	rgbaFlipped, err := loadFile(filePath)
 	if err != nil {
-		return glTex, err
+		return tex, err
 	}
 
-	imageSize := int32(rgba_flipped.Bounds().Max.X)
+	imageSize := int32(rgbaFlipped.Bounds().Max.X)
 
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imageSize, imageSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba_flipped.Pix))
-	return glTex, nil
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA, imageSize, imageSize, 0, graphics.RGBA, graphics.UNSIGNED_BYTE, gfx.Ptr(rgbaFlipped.Pix))
+	return tex, nil
 }
 
-// LoadImageToTexture loads an image file and buffers it into a new GL texture.
-func LoadImagesToTextureArray(filepaths map[string]string, size int32) (texArray uint32, texLoc map[string]int32, e error) {
+// LoadImagesToTextureArray loads image files and buffers them into a new GL texture.
+func LoadImagesToTextureArray(filepaths map[string]string, size int32) (texArray graphics.Texture, texLoc map[string]int32, e error) {
 	// I thought this could be used for mipmap generation, but it causes crashes on some
 	// Intel drivers.
 	const levels int32 = 1
@@ -91,31 +93,31 @@ func LoadImagesToTextureArray(filepaths map[string]string, size int32) (texArray
 	texLoc = make(map[string]int32)
 
 	// generate the texture array
-	gl.GenTextures(1, &texArray)
-	gl.BindTexture(gl.TEXTURE_2D_ARRAY, texArray)
+	texArray = gfx.GenTexture()
+	gfx.BindTexture(graphics.TEXTURE_2D_ARRAY, texArray)
 
 	// create the texture array with the specified number of levels that's big enough
 	// to fit all of the textures specified in the filepaths parameter.
-	gl.TexStorage3D(gl.TEXTURE_2D_ARRAY, levels, gl.RGBA8, size, size, int32(len(filepaths)))
+	gfx.TexStorage3D(graphics.TEXTURE_2D_ARRAY, levels, graphics.RGBA8, size, size, int32(len(filepaths)))
 
 	// for each texture listed in filepaths
 	var arrayIndex int32
 	for texName, filePath := range filepaths {
-		rgba_flipped, err := loadFile(filePath)
+		rgbaFlipped, err := loadFile(filePath)
 		if err != nil {
 			return texArray, texLoc, fmt.Errorf("Failed to load the PNG file into an image.\n%v\n", err)
 		}
 
 		const byteDepth int32 = 1
-		gl.TexSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, arrayIndex, size, size, byteDepth, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba_flipped.Pix))
+		gfx.TexSubImage3D(graphics.TEXTURE_2D_ARRAY, 0, 0, 0, arrayIndex, size, size, byteDepth, graphics.RGBA, graphics.UNSIGNED_BYTE, gfx.Ptr(rgbaFlipped.Pix))
 
 		// store the array index in a map so that we can access it correctly later
 		texLoc[texName] = arrayIndex
-		arrayIndex += 1
+		arrayIndex++
 	}
 
 	if levels != 1 {
-		gl.GenerateMipmap(gl.TEXTURE_2D_ARRAY)
+		gfx.GenerateMipmap(graphics.TEXTURE_2D_ARRAY)
 	}
 
 	return texArray, texLoc, nil

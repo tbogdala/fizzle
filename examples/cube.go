@@ -10,11 +10,12 @@ import (
 	"runtime"
 	"time"
 
-	gl "github.com/go-gl/gl/v3.3-core/gl"
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 
 	"github.com/tbogdala/fizzle"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
+	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
 )
 
 /*
@@ -109,8 +110,9 @@ func main() {
 	camera.LookAtDirect(mgl.Vec3{0, 0, 0})
 
 	// set some OpenGL flags
-	gl.Enable(gl.CULL_FACE)
-	gl.Enable(gl.DEPTH_TEST)
+	gfx := fizzle.GetGraphics()
+	gfx.Enable(graphics.CULL_FACE)
+	gfx.Enable(graphics.DEPTH_TEST)
 
 	// loop until something told the mainWindow that it should close
 	lastFrame := time.Now()
@@ -125,9 +127,9 @@ func main() {
 		sphere.LocalRotation = sphere.LocalRotation.Mul(rotDelta)
 
 		// clear the screen
-		gl.Viewport(0, 0, int32(width), int32(height))
-		gl.ClearColor(0.05, 0.05, 0.05, 1.0)
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gfx.Viewport(0, 0, int32(width), int32(height))
+		gfx.ClearColor(0.05, 0.05, 0.05, 1.0)
+		gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT)
 
 		// make the projection and view matrixes
 		perspective := mgl.Perspective(mgl.DegToRad(60.0), float32(width)/float32(height), 1.0, 100.0)
@@ -177,11 +179,12 @@ func initGraphics(title string, w int, h int) *glfw.Window {
 	// disable v-sync for max draw rate
 	glfw.SwapInterval(0)
 
-	// make sure that all of the GL functions are initialized
-	err = gl.Init()
+	// initialize OpenGL
+	gfx, err := opengl.InitOpenGL()
 	if err != nil {
-		panic("Failed to initialize GL! " + err.Error())
+		panic("Failed to initialize OpenGL! " + err.Error())
 	}
+	fizzle.SetGraphics(gfx)
 
 	return mainWindow
 }

@@ -13,6 +13,7 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 
 	"github.com/tbogdala/fizzle"
+	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
 )
 
 /*
@@ -103,7 +104,7 @@ func main() {
 		startHeight := float32(10.0 + nameWidget.Renderable.BoundingRect.DeltaY()*2.0)
 
 		// setup a column and make labels for the button states
-		var w *fizzle.UILabel = nil
+		var w *fizzle.UILabel
 		x := float32(10.0)
 		y := startHeight
 		for i, b := range buttons {
@@ -179,11 +180,12 @@ func initGraphics(title string, w int, h int) *glfw.Window {
 	}
 	mainWindow.MakeContextCurrent()
 
-	// make sure that all of the GL functions are initialized
-	err = gl.Init()
+	// initialize OpenGL
+	gfx, err := opengl.InitOpenGL()
 	if err != nil {
-		panic("Failed to initialize GL! " + err.Error())
+		panic("Failed to initialize OpenGL! " + err.Error())
 	}
+	fizzle.SetGraphics(gfx)
 
 	return mainWindow
 }

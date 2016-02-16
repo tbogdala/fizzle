@@ -5,21 +5,23 @@ package fizzle
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	gl "github.com/go-gl/gl/v3.3-core/gl"
-	"github.com/tbogdala/groggy"
 	"io/ioutil"
-	"strings"
+
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
+	"github.com/tbogdala/groggy"
 )
 
+// RenderShader is an OpenGL shader that is used for easier access
+// to uniforms and attributes at runtime.
 type RenderShader struct {
-	Prog      uint32
+	Prog      graphics.Program
 	uniCache  map[string]int32
 	attrCache map[string]int32
 }
 
-func NewRenderShader(p uint32) *RenderShader {
+// NewRenderShader creates a new RenderShader object with the OpenGL shader specified.
+func NewRenderShader(p graphics.Program) *RenderShader {
 	rs := new(RenderShader)
 	rs.Prog = p
 	rs.uniCache = make(map[string]int32)
@@ -27,6 +29,8 @@ func NewRenderShader(p uint32) *RenderShader {
 	return rs
 }
 
+// GetUniformLocation gets the location of a uniform variable, preferably from
+// an internal cached value stored in a map.
 func (rs *RenderShader) GetUniformLocation(name string) int32 {
 	// attempt to get it from the cache first
 	ul, found := rs.uniCache[name]
@@ -35,27 +39,30 @@ func (rs *RenderShader) GetUniformLocation(name string) int32 {
 	}
 
 	// pull the location from the shader and cache it
-	uniGLName := name + "\x00"
-	ul = gl.GetUniformLocation(rs.Prog, gl.Str(uniGLName))
+	ul = gfx.GetUniformLocation(rs.Prog, name)
 
 	// cache even if it returns -1 so that it doesn't repeatedly check
 	rs.uniCache[name] = ul
 	return ul
 }
 
+// AssertUniformsExist attempts to get uniforms for the names passed in and returns
+// an error value if a name doesn't exist.
 func (rs *RenderShader) AssertUniformsExist(names ...string) error {
 	const badUniformLocation int32 = -1
 
 	for _, name := range names {
 		ul := rs.GetUniformLocation(name)
 		if ul == badUniformLocation {
-			return fmt.Errorf("ASSERT FAILED: Shader uniform %s doesn't exist.", name)
+			return fmt.Errorf("ASSERT FAILED: Shader uniform %s doesn't exist", name)
 		}
 	}
 
 	return nil
 }
 
+// GetAttribLocation gets the location of a attribute variable, preferably from
+// an internal cached value stored in a map.
 func (rs *RenderShader) GetAttribLocation(name string) int32 {
 	// attempt to get it from the cache first
 	al, found := rs.attrCache[name]
@@ -64,33 +71,35 @@ func (rs *RenderShader) GetAttribLocation(name string) int32 {
 	}
 
 	// pull the location from the shader and cache it
-	attrGLName := name + "\x00"
-	al = gl.GetAttribLocation(rs.Prog, gl.Str(attrGLName))
+	al = gfx.GetAttribLocation(rs.Prog, name)
 
 	// cache even if it returns -1 so that it doesn't repeatedly check
 	rs.attrCache[name] = al
 	return al
 }
 
+// AssertAttribsExist attempts to get attributes for the names passed in and returns
+// an error value if a name doesn't exist.
 func (rs *RenderShader) AssertAttribsExist(names ...string) error {
 	const badAttributeLocation int32 = -1
 
 	for _, name := range names {
 		al := rs.GetAttribLocation(name)
 		if al == badAttributeLocation {
-			return fmt.Errorf("ASSERT FAILED: Shader uniform %s doesn't exist.", name)
+			return fmt.Errorf("ASSERT FAILED: Shader uniform %s doesn't exist", name)
 		}
 	}
 
 	return nil
 }
 
+// Destroy deallocates the shader from OpenGL
 func (rs *RenderShader) Destroy() {
-	gl.DeleteProgram(rs.Prog)
+	gfx.DeleteProgram(rs.Prog)
 }
 
 // PreLinkBinder is a prototype for a function to be called before a shader program is linked
-type PreLinkBinder func(p uint32)
+type PreLinkBinder func(p graphics.Program)
 
 // LoadShaderProgramFromFiles loads the glsl shaders from the files specified.
 func LoadShaderProgramFromFiles(baseFilename string, prelink PreLinkBinder) (*RenderShader, error) {
@@ -113,46 +122,30 @@ func LoadShaderProgramFromFiles(baseFilename string, prelink PreLinkBinder) (*Re
 // LoadShaderProgram loads shader objects, compiles and then attaches them to a new program
 func LoadShaderProgram(vertShader, fragShader string, prelink PreLinkBinder) (*RenderShader, error) {
 	// create the program
-	prog := gl.CreateProgram()
+	prog := gfx.CreateProgram()
 
 	// create the vertex shader
-	vs := gl.CreateShader(gl.VERTEX_SHADER)
-	cVertShader := gl.Str(vertShader + "\x00")
-	gl.ShaderSource(vs, 1, &cVertShader, nil)
-	gl.CompileShader(vs)
-
 	var status int32
-	gl.GetShaderiv(vs, gl.COMPILE_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetShaderiv(vs, gl.INFO_LOG_LENGTH, &logLength)
-		log := strings.Repeat("\x00", int(logLength+1))
-		gl.GetShaderInfoLog(vs, logLength, nil, gl.Str(log))
-
-		err := fmt.Sprintf("Failed to compile the vertex shader!\n%s", log)
-		fmt.Println(err)
-		return nil, errors.New(err)
+	vs := gfx.CreateShader(graphics.VERTEX_SHADER)
+	gfx.ShaderSource(vs, vertShader)
+	gfx.CompileShader(vs)
+	gfx.GetShaderiv(vs, graphics.COMPILE_STATUS, &status)
+	if status == graphics.FALSE {
+		log := gfx.GetShaderInfoLog(vs)
+		return nil, fmt.Errorf("Failed to compile the vertex shader:\n%s", log)
 	}
-	defer gl.DeleteShader(vs)
+	defer gfx.DeleteShader(vs)
 
 	// create the fragment shader
-	fs := gl.CreateShader(gl.FRAGMENT_SHADER)
-	cFragShader := gl.Str(fragShader + "\x00")
-	gl.ShaderSource(fs, 1, &cFragShader, nil)
-	gl.CompileShader(fs)
-
-	gl.GetShaderiv(fs, gl.COMPILE_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetShaderiv(fs, gl.INFO_LOG_LENGTH, &logLength)
-		log := strings.Repeat("\x00", int(logLength+1))
-		gl.GetShaderInfoLog(fs, logLength, nil, gl.Str(log))
-
-		err := fmt.Sprintf("Failed to compile the fragment shader!\n%s", log)
-		fmt.Println(err)
-		return nil, errors.New(err)
+	fs := gfx.CreateShader(graphics.FRAGMENT_SHADER)
+	gfx.ShaderSource(fs, fragShader)
+	gfx.CompileShader(fs)
+	gfx.GetShaderiv(fs, graphics.COMPILE_STATUS, &status)
+	if status == graphics.FALSE {
+		log := gfx.GetShaderInfoLog(fs)
+		return nil, fmt.Errorf("Failed to compile the fragment shader:\n%s", log)
 	}
-	defer gl.DeleteShader(fs)
+	defer gfx.DeleteShader(fs)
 
 	// call the prelinker if supplied
 	if prelink != nil {
@@ -160,23 +153,15 @@ func LoadShaderProgram(vertShader, fragShader string, prelink PreLinkBinder) (*R
 	}
 
 	// attach the shaders to the program and link
-	gl.AttachShader(prog, vs)
-	gl.AttachShader(prog, fs)
-	gl.LinkProgram(prog)
-
-	gl.GetProgramiv(prog, gl.LINK_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetProgramiv(prog, gl.INFO_LOG_LENGTH, &logLength)
-		log := strings.Repeat("\x00", int(logLength+1))
-		gl.GetProgramInfoLog(prog, logLength, nil, gl.Str(log))
-
-		error := fmt.Sprintf("Failed to link the program!\n%s", log)
-		fmt.Println(error)
-		return nil, errors.New(error)
+	gfx.AttachShader(prog, vs)
+	gfx.AttachShader(prog, fs)
+	gfx.LinkProgram(prog)
+	gfx.GetProgramiv(prog, graphics.LINK_STATUS, &status)
+	if status == graphics.FALSE {
+		log := gfx.GetProgramInfoLog(prog)
+		return nil, fmt.Errorf("Failed to link the program!\n%s", log)
 	}
 
 	rs := NewRenderShader(prog)
-
 	return rs, nil
 }

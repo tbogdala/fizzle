@@ -4,10 +4,11 @@
 package fizzle
 
 import (
-	gl "github.com/go-gl/gl/v3.3-core/gl"
-	mgl "github.com/go-gl/mathgl/mgl32"
-	"github.com/tbogdala/gombz"
 	"math"
+
+	mgl "github.com/go-gl/mathgl/mgl32"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
+	"github.com/tbogdala/gombz"
 )
 
 // RenderableCore contains data that is needed to draw an object on the screen.
@@ -16,8 +17,8 @@ type RenderableCore struct {
 	Shader   *RenderShader
 	Skeleton *Skeleton
 
-	Tex0          uint32
-	Tex1          uint32
+	Tex0          graphics.Texture
+	Tex1          graphics.Texture
 	DiffuseColor  mgl.Vec4
 	SpecularColor mgl.Vec4
 
@@ -27,15 +28,15 @@ type RenderableCore struct {
 	Vao            uint32
 	VaoInitialized bool
 
-	VertVBO        uint32
-	UvVBO          uint32
-	NormsVBO       uint32
-	TangentsVBO    uint32
-	ElementsVBO    uint32
-	BoneFidsVBO    uint32
-	BoneWeightsVBO uint32
-	ComboVBO1      uint32
-	ComboVBO2      uint32
+	VertVBO        graphics.Buffer
+	UvVBO          graphics.Buffer
+	NormsVBO       graphics.Buffer
+	TangentsVBO    graphics.Buffer
+	ElementsVBO    graphics.Buffer
+	BoneFidsVBO    graphics.Buffer
+	BoneWeightsVBO graphics.Buffer
+	ComboVBO1      graphics.Buffer
+	ComboVBO2      graphics.Buffer
 
 	IsDestroyed bool
 }
@@ -46,12 +47,17 @@ type Rectangle3D struct {
 	Top    mgl.Vec3
 }
 
+// DeltaX is the change of the X-axis component of Rectangle3D
 func (rect *Rectangle3D) DeltaX() float32 {
 	return rect.Top[0] - rect.Bottom[0]
 }
+
+// DeltaY is the change of the Y-axis component of Rectangle3D
 func (rect *Rectangle3D) DeltaY() float32 {
 	return rect.Top[1] - rect.Bottom[1]
 }
+
+// DeltaZ is the change of the Z-axis component of Rectangle3D
 func (rect *Rectangle3D) DeltaZ() float32 {
 	return rect.Top[2] - rect.Bottom[2]
 }
@@ -81,6 +87,7 @@ type Renderable struct {
 	Children []*Renderable
 }
 
+// NewRenderable creates a new Renderable object and a new RenderableCore
 func NewRenderable() *Renderable {
 	r := new(Renderable)
 	r.Location = mgl.Vec3{0.0, 0.0, 0.0}
@@ -95,12 +102,13 @@ func NewRenderable() *Renderable {
 	return r
 }
 
+// NewRenderableCore creates a new RenderableCore object
 func NewRenderableCore() *RenderableCore {
 	rc := new(RenderableCore)
 	rc.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	rc.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	rc.Shininess = 0.01
-	gl.GenVertexArrays(1, &rc.Vao)
+	rc.Vao = gfx.GenVertexArray()
 	return rc
 }
 
@@ -112,16 +120,16 @@ func (r *Renderable) Destroy() {
 // DestroyCore releases the OpenGL VBO and VAO objects but does not release
 // things that could be shared like Tex0.
 func (r *RenderableCore) DestroyCore() {
-	gl.DeleteBuffers(1, &r.VertVBO)
-	gl.DeleteBuffers(1, &r.UvVBO)
-	gl.DeleteBuffers(1, &r.ElementsVBO)
-	gl.DeleteBuffers(1, &r.TangentsVBO)
-	gl.DeleteBuffers(1, &r.NormsVBO)
-	gl.DeleteBuffers(1, &r.BoneFidsVBO)
-	gl.DeleteBuffers(1, &r.BoneWeightsVBO)
-	gl.DeleteBuffers(1, &r.ComboVBO1)
-	gl.DeleteBuffers(1, &r.ComboVBO2)
-	gl.DeleteBuffers(1, &r.Vao)
+	gfx.DeleteBuffer(r.VertVBO)
+	gfx.DeleteBuffer(r.UvVBO)
+	gfx.DeleteBuffer(r.ElementsVBO)
+	gfx.DeleteBuffer(r.TangentsVBO)
+	gfx.DeleteBuffer(r.NormsVBO)
+	gfx.DeleteBuffer(r.BoneFidsVBO)
+	gfx.DeleteBuffer(r.BoneWeightsVBO)
+	gfx.DeleteBuffer(r.ComboVBO1)
+	gfx.DeleteBuffer(r.ComboVBO2)
+	gfx.DeleteVertexArray(r.Vao)
 	r.IsDestroyed = true
 }
 
@@ -276,9 +284,9 @@ func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
 		vertBuffer[offset+1] = v[1]
 		vertBuffer[offset+2] = v[2]
 	}
-	gl.GenBuffers(1, &r.Core.VertVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(vertBuffer), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+	r.Core.VertVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(vertBuffer), gfx.Ptr(&vertBuffer[0]), graphics.STATIC_DRAW)
 
 	// calculate the bounding rectangle for the mesh
 	r.BoundingRect = GetBoundingRect(vertBuffer)
@@ -291,9 +299,9 @@ func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
 			vertBuffer[offset+1] = n[1]
 			vertBuffer[offset+2] = n[2]
 		}
-		gl.GenBuffers(1, &r.Core.NormsVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(vertBuffer), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+		r.Core.NormsVBO = gfx.GenBuffer()
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.NormsVBO)
+		gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(vertBuffer), gfx.Ptr(&vertBuffer[0]), graphics.STATIC_DRAW)
 	}
 
 	// setup tangents
@@ -304,9 +312,9 @@ func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
 			vertBuffer[offset+1] = t[1]
 			vertBuffer[offset+2] = t[2]
 		}
-		gl.GenBuffers(1, &r.Core.TangentsVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(vertBuffer), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+		r.Core.TangentsVBO = gfx.GenBuffer()
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.TangentsVBO)
+		gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(vertBuffer), gfx.Ptr(&vertBuffer[0]), graphics.STATIC_DRAW)
 	}
 
 	// setup UVs
@@ -318,9 +326,9 @@ func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
 			vertBuffer[offset] = uv[0]
 			vertBuffer[offset+1] = uv[1]
 		}
-		gl.GenBuffers(1, &r.Core.UvVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*srcMesh.VertexCount*2), gl.Ptr(&vertBuffer[0]), gl.STATIC_DRAW)
+		r.Core.UvVBO = gfx.GenBuffer()
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.UvVBO)
+		gfx.BufferData(graphics.ARRAY_BUFFER, int(floatSize*srcMesh.VertexCount*2), gfx.Ptr(&vertBuffer[0]), graphics.STATIC_DRAW)
 	}
 
 	// setup vertex weight Ids for bones
@@ -336,9 +344,9 @@ func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
 			weightBuffer[offset+2] = v[2]
 			weightBuffer[offset+3] = v[3]
 		}
-		gl.GenBuffers(1, &r.Core.BoneFidsVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneFidsVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*srcMesh.VertexCount*4), gl.Ptr(&weightBuffer[0]), gl.STATIC_DRAW)
+		r.Core.BoneFidsVBO = gfx.GenBuffer()
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.BoneFidsVBO)
+		gfx.BufferData(graphics.ARRAY_BUFFER, int(floatSize*srcMesh.VertexCount*4), gfx.Ptr(&weightBuffer[0]), graphics.STATIC_DRAW)
 	}
 
 	// setup the vertex weights
@@ -353,9 +361,9 @@ func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
 			weightBuffer[offset+2] = v[2]
 			weightBuffer[offset+3] = v[3]
 		}
-		gl.GenBuffers(1, &r.Core.BoneWeightsVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, int(floatSize*srcMesh.VertexCount*4), gl.Ptr(&weightBuffer[0]), gl.STATIC_DRAW)
+		r.Core.BoneWeightsVBO = gfx.GenBuffer()
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
+		gfx.BufferData(graphics.ARRAY_BUFFER, int(floatSize*srcMesh.VertexCount*4), gfx.Ptr(&weightBuffer[0]), graphics.STATIC_DRAW)
 	}
 
 	// setup the face indices
@@ -366,12 +374,12 @@ func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
 		indexBuffer[offset+1] = f[1]
 		indexBuffer[offset+2] = f[2]
 	}
-	gl.GenBuffers(1, &r.Core.ElementsVBO)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(indexBuffer), gl.Ptr(&indexBuffer[0]), gl.STATIC_DRAW)
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexBuffer), gfx.Ptr(&indexBuffer[0]), graphics.STATIC_DRAW)
 
-	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, 0)
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, 0)
 
 	return r
 }
@@ -492,29 +500,29 @@ func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, index
 	r.BoundingRect.Top = mgl.Vec3{x1, y1, 0.0}
 
 	// create a VBO to hold the vertex data
-	gl.GenBuffers(1, &r.Core.VertVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(verts), gl.Ptr(&verts[0]), gl.STATIC_DRAW)
+	r.Core.VertVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(verts), gfx.Ptr(&verts[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the uv data
-	gl.GenBuffers(1, &r.Core.UvVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(uvs), gl.Ptr(&uvs[0]), gl.STATIC_DRAW)
+	r.Core.UvVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.UvVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(uvs), gfx.Ptr(&uvs[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the normals data
-	gl.GenBuffers(1, &r.Core.NormsVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(normals), gl.Ptr(&normals[0]), gl.STATIC_DRAW)
+	r.Core.NormsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.NormsVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(normals), gfx.Ptr(&normals[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the tangent data
-	gl.GenBuffers(1, &r.Core.TangentsVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(tangents), gl.Ptr(&tangents[0]), gl.STATIC_DRAW)
+	r.Core.TangentsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.TangentsVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(tangents), gfx.Ptr(&tangents[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the face indexes
-	gl.GenBuffers(1, &r.Core.ElementsVBO)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gl.Ptr(&indexes[0]), gl.STATIC_DRAW)
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
 
 	return r
 }
@@ -579,35 +587,35 @@ func CreateCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Rend
 	const uintSize = 4
 
 	// create a VBO to hold the vertex data
-	gl.GenBuffers(1, &r.Core.VertVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(verts), gl.Ptr(&verts[0]), gl.STATIC_DRAW)
+	r.Core.VertVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(verts), gfx.Ptr(&verts[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the uv data
-	gl.GenBuffers(1, &r.Core.UvVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(uvs), gl.Ptr(&uvs[0]), gl.STATIC_DRAW)
+	r.Core.UvVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.UvVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(uvs), gfx.Ptr(&uvs[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the normals data
-	gl.GenBuffers(1, &r.Core.NormsVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(normals), gl.Ptr(&normals[0]), gl.STATIC_DRAW)
+	r.Core.NormsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.NormsVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(normals), gfx.Ptr(&normals[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the tangent data
-	gl.GenBuffers(1, &r.Core.TangentsVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(tangents), gl.Ptr(&tangents[0]), gl.STATIC_DRAW)
+	r.Core.TangentsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.TangentsVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(tangents), gfx.Ptr(&tangents[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the face indexes
-	gl.GenBuffers(1, &r.Core.ElementsVBO)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gl.Ptr(&indexes[0]), gl.STATIC_DRAW)
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
 
 	return r
 }
 
 // CreateWireframeCube makes a cube with vertex and element VBO objects designed to be
-// rendered as gl.LINES.
+// rendered as graphics.LINES.
 func CreateWireframeCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
 	// calculate the memory size of floats used to calculate total memory size of float arrays
 	const floatSize = 4
@@ -649,14 +657,14 @@ func CreateWireframeCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float
 	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
 
 	// create a VBO to hold the vertex data
-	gl.GenBuffers(1, &r.Core.VertVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(verts), gl.Ptr(&verts[0]), gl.STATIC_DRAW)
+	r.Core.VertVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(verts), gfx.Ptr(&verts[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the face indexes
-	gl.GenBuffers(1, &r.Core.ElementsVBO)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gl.Ptr(&indexes[0]), gl.STATIC_DRAW)
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
 
 	return r
 }
@@ -723,31 +731,31 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 	const uintSize = 4
 
 	// create a VBO to hold the vertex data
-	gl.GenBuffers(1, &r.Core.VertVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.VertVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(verts), gl.Ptr(&verts[0]), gl.STATIC_DRAW)
+	r.Core.VertVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(verts), gfx.Ptr(&verts[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the uv data
-	gl.GenBuffers(1, &r.Core.UvVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.UvVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(uvs), gl.Ptr(&uvs[0]), gl.STATIC_DRAW)
+	r.Core.UvVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.UvVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(uvs), gfx.Ptr(&uvs[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the normals data
-	gl.GenBuffers(1, &r.Core.NormsVBO)
-	gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.NormsVBO)
-	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(normals), gl.Ptr(&normals[0]), gl.STATIC_DRAW)
+	r.Core.NormsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.NormsVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(normals), gfx.Ptr(&normals[0]), graphics.STATIC_DRAW)
 
 	// create a VBO to hold the tangent data
 	/*
-		gl.GenBuffers(1, &r.Core.TangentsVBO)
-		gl.BindBuffer(gl.ARRAY_BUFFER, r.Core.TangentsVBO)
-		gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(tangents), gl.Ptr(&tangents[0]), gl.STATIC_DRAW)
+		r.Core.TangentsVBO = gfx.GenBuffer()
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.TangentsVBO)
+		gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(tangents), gfx.Ptr(&tangents[0]), graphics.STATIC_DRAW)
 	*/
 
 	// create a VBO to hold the face indexes
-	gl.GenBuffers(1, &r.Core.ElementsVBO)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gl.Ptr(&indexes[0]), gl.STATIC_DRAW)
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
 
 	return r
 }

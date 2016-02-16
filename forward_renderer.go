@@ -6,9 +6,9 @@ package fizzle
 import (
 	"time"
 
-	gl "github.com/go-gl/gl/v3.3-core/gl"
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 )
 
 const (
@@ -29,7 +29,7 @@ var (
 // NOTE: only point lights via a given direction are supported at present.
 type ShadowMap struct {
 	// Texture is the texture for the shadowmap
-	Texture uint32
+	Texture graphics.Texture
 
 	// TextureSize is the size of the texture in memory.
 	TextureSize int32
@@ -75,7 +75,7 @@ func NewShadowMap() *ShadowMap {
 // controlled by the Go GC.
 func (shady *ShadowMap) Destroy() {
 	// delete the texture associated with the shadow map
-	gl.DeleteTextures(1, &shady.Texture)
+	gfx.DeleteTexture(shady.Texture)
 }
 
 // Light is a basic light structure used in the forward renderer.
@@ -134,23 +134,23 @@ func (l *Light) CreateShadowMap(textureSize int32, near float32, far float32, di
 	l.ShadowMap.Direction = dir
 
 	// create the shadow map texture
-	gl.GenTextures(1, &l.ShadowMap.Texture)
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, l.ShadowMap.Texture)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32, textureSize, textureSize, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, nil)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	l.ShadowMap.Texture = gfx.GenTexture()
+	gfx.ActiveTexture(graphics.TEXTURE0)
+	gfx.BindTexture(graphics.TEXTURE_2D, l.ShadowMap.Texture)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.DEPTH_COMPONENT32, textureSize, textureSize, 0, graphics.DEPTH_COMPONENT, graphics.UNSIGNED_INT, nil)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
 
 	// set the border color and clamp to edge as white so that points outside the shadow map
 	// are projected to be not in shadow.
 	shadowmapBorder := mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	gl.TexParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, &shadowmapBorder[0])
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_BORDER)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_BORDER)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE)
+	gfx.TexParameterfv(graphics.TEXTURE_2D, graphics.TEXTURE_BORDER_COLOR, &shadowmapBorder[0])
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.CLAMP_TO_BORDER)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.CLAMP_TO_BORDER)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_COMPARE_MODE, graphics.COMPARE_REF_TO_TEXTURE)
 
 	// a safety unbind
-	gl.BindTexture(gl.TEXTURE_2D, 0)
+	gfx.BindTexture(graphics.TEXTURE_2D, 0)
 }
 
 // UpdateShadowMapData updates a shadow maps internal structures based on data
@@ -212,7 +212,7 @@ type ForwardRenderer struct {
 	lastFrameTime time.Time
 
 	// shadowFBO is the framebuffer used to render shadows
-	shadowFBO uint32
+	shadowFBO graphics.Buffer
 
 	// currentShadowPassLight is the light currently enabled for shadow mapping
 	currentShadowPassLight *Light
@@ -293,12 +293,12 @@ func (fr *ForwardRenderer) GetActiveShadowLightCount() int {
 // and must be called before rendering shadow maps.
 func (fr *ForwardRenderer) SetupShadowMapRendering() {
 	// create the FBO for the shadows
-	gl.GenFramebuffers(1, &fr.shadowFBO)
-	gl.BindFramebuffer(gl.FRAMEBUFFER, fr.shadowFBO)
+	fr.shadowFBO = gfx.GenFramebuffer()
+	gfx.BindFramebuffer(graphics.FRAMEBUFFER, fr.shadowFBO)
 
-	drawBuffers := [1]uint32{gl.NONE}
-	gl.DrawBuffers(1, &drawBuffers[0])
-	gl.ReadBuffer(gl.NONE)
+	drawBuffers := []uint32{graphics.NONE}
+	gfx.DrawBuffers(drawBuffers)
+	gfx.ReadBuffer(graphics.NONE)
 
 	/*
 		// we attach a shadowmap here just to check the framebuffer completion status
@@ -307,27 +307,27 @@ func (fr *ForwardRenderer) SetupShadowMapRendering() {
 		}
 	*/
 
-	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+	gfx.BindFramebuffer(graphics.FRAMEBUFFER, 0)
 }
 
 // StartShadowMapping binds the shadow map framebuffer for use by the lights
 // to render shadows.
 func (fr *ForwardRenderer) StartShadowMapping() {
-	gl.BindFramebuffer(gl.FRAMEBUFFER, fr.shadowFBO)
-	gl.Enable(gl.POLYGON_OFFSET_FILL)
-	gl.PolygonOffset(4.0, 4.0)
-	gl.Enable(gl.CULL_FACE)
-	gl.CullFace(gl.FRONT)
+	gfx.BindFramebuffer(graphics.FRAMEBUFFER, fr.shadowFBO)
+	gfx.Enable(graphics.POLYGON_OFFSET_FILL)
+	gfx.PolygonOffset(4.0, 4.0)
+	gfx.Enable(graphics.CULL_FACE)
+	gfx.CullFace(graphics.FRONT)
 	fr.currentShadowPassLight = nil
 }
 
 // EndShadowMapping unbinds the shadow map framebuffer and lets the renderer
 // proceed as normal.
 func (fr *ForwardRenderer) EndShadowMapping() {
-	gl.CullFace(gl.BACK)
-	gl.Disable(gl.CULL_FACE)
-	gl.Disable(gl.POLYGON_OFFSET_FILL)
-	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+	gfx.CullFace(graphics.BACK)
+	gfx.Disable(graphics.CULL_FACE)
+	gfx.Disable(graphics.POLYGON_OFFSET_FILL)
+	gfx.BindFramebuffer(graphics.FRAMEBUFFER, 0)
 	fr.currentShadowPassLight = nil
 }
 
@@ -338,9 +338,9 @@ func (fr *ForwardRenderer) EndShadowMapping() {
 func (fr *ForwardRenderer) EnableShadowMappingLight(l *Light) {
 	fr.currentShadowPassLight = l
 	l.UpdateShadowMapData()
-	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, l.ShadowMap.Texture, 0)
-	gl.Clear(gl.DEPTH_BUFFER_BIT)
-	gl.Viewport(0, 0, l.ShadowMap.TextureSize, l.ShadowMap.TextureSize)
+	gfx.FramebufferTexture2D(graphics.FRAMEBUFFER, graphics.DEPTH_ATTACHMENT, graphics.TEXTURE_2D, l.ShadowMap.Texture, 0)
+	gfx.Clear(graphics.DEPTH_BUFFER_BIT)
+	gfx.Viewport(0, 0, l.ShadowMap.TextureSize, l.ShadowMap.TextureSize)
 }
 
 // DrawRenderable draws a Renderable object with the supplied projection and view matrixes.
@@ -358,7 +358,7 @@ func (fr *ForwardRenderer) DrawRenderable(r *Renderable, binder RenderBinder, pe
 		return
 	}
 
-	bindAndDraw(fr, r, r.Core.Shader, binder, perspective, view, gl.TRIANGLES)
+	bindAndDraw(fr, r, r.Core.Shader, binder, perspective, view, graphics.TRIANGLES)
 }
 
 // DrawRenderableWithShader draws a Renderable object with the supplied projection and view matrixes
@@ -377,10 +377,10 @@ func (fr *ForwardRenderer) DrawRenderableWithShader(r *Renderable, shader *Rende
 		return
 	}
 
-	bindAndDraw(fr, r, shader, binder, perspective, view, gl.TRIANGLES)
+	bindAndDraw(fr, r, shader, binder, perspective, view, graphics.TRIANGLES)
 }
 
-// DrawLines draws the Renderable using gl.LINES mode instead of gl.TRIANGLES.
+// DrawLines draws the Renderable using graphics.LINES mode instead of graphics.TRIANGLES.
 func (fr *ForwardRenderer) DrawLines(r *Renderable, shader *RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
@@ -395,5 +395,5 @@ func (fr *ForwardRenderer) DrawLines(r *Renderable, shader *RenderShader, binder
 		return
 	}
 
-	bindAndDraw(fr, r, shader, binder, perspective, view, gl.LINES)
+	bindAndDraw(fr, r, shader, binder, perspective, view, graphics.LINES)
 }

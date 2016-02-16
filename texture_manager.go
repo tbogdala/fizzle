@@ -4,20 +4,20 @@
 package fizzle
 
 import (
-	gl "github.com/go-gl/gl/v3.3-core/gl"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 )
 
 // TextureManager provides an easy way to load textures to OpenGL and
 // to access the textures by name elsewhere.
 type TextureManager struct {
 	// storage keeps references to the OpenGL texture objects referenced by name.
-	storage map[string]uint32
+	storage map[string]graphics.Texture
 }
 
 // NewTextureManager creates a new TextureManager object with empty storage.
 func NewTextureManager() *TextureManager {
 	tm := new(TextureManager)
-	tm.storage = make(map[string]uint32)
+	tm.storage = make(map[string]graphics.Texture)
 	return tm
 }
 
@@ -25,14 +25,14 @@ func NewTextureManager() *TextureManager {
 // and resets the storage map.
 func (tm *TextureManager) Destroy() {
 	for _, t := range tm.storage {
-		gl.DeleteTextures(1, &t)
+		gfx.DeleteTexture(t)
 	}
-	tm.storage = make(map[string]uint32)
+	tm.storage = make(map[string]graphics.Texture)
 }
 
 // GetTexture attempts to access the texture by name in storage and returns
 // the OpenGL object and a bool indicating if the texture was found in storage.
-func (tm *TextureManager) GetTexture(keyToUse string) (uint32, bool) {
+func (tm *TextureManager) GetTexture(keyToUse string) (graphics.Texture, bool) {
 	// try loading from storage
 	glTexture, okay := tm.storage[keyToUse]
 	return glTexture, okay
@@ -40,7 +40,7 @@ func (tm *TextureManager) GetTexture(keyToUse string) (uint32, bool) {
 
 // LoadTexture loads a texture specified by path into OpenGL and then
 // stores the object in the storage map under the specified keyToUse.
-func (tm *TextureManager) LoadTexture(keyToUse string, path string) (uint32, error) {
+func (tm *TextureManager) LoadTexture(keyToUse string, path string) (graphics.Texture, error) {
 	// load the file into a GL texture
 	glTexture, err := LoadImageToTexture(path)
 	if err != nil {
