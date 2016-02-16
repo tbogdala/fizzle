@@ -1,17 +1,22 @@
 // Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
-package fizzle
+package renderer
 
 import (
+	"fmt"
 	"time"
 
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
+	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
+	renderer "github.com/tbogdala/fizzle/renderer"
+	ui "github.com/tbogdala/fizzle/ui"
 )
 
 const (
+	// MaxForwardLights is the maximum amount of lights supported by this renderer.
 	MaxForwardLights = 4
 )
 
@@ -60,22 +65,16 @@ type ShadowMap struct {
 	// ShadowBiasedMatrix is the shadow biased matrix to account for the difference between NDC and texture space.
 	// Updated with UpdateShadowMapData().
 	BiasedMatrix mgl.Mat4
-}
 
-// NewShadowMap creates a new shadow map object
-func NewShadowMap() *ShadowMap {
-	shady := new(ShadowMap)
-	shady.Up = mgl.Vec3{0.0, 1.0, 0.0}
-	shady.Projection = mgl.Ident4()
-	shady.View = mgl.Ident4()
-	return shady
+	// owner is the owning renderer
+	owner *ForwardRenderer
 }
 
 // Destroy deallocates any data being held onto by the ShadowMap that is not
 // controlled by the Go GC.
 func (shady *ShadowMap) Destroy() {
 	// delete the texture associated with the shadow map
-	gfx.DeleteTexture(shady.Texture)
+	shady.owner.GetGraphics().DeleteTexture(shady.Texture)
 }
 
 // Light is a basic light structure used in the forward renderer.
@@ -102,12 +101,9 @@ type Light struct {
 	// shadows casted by the light. This member is nil when
 	// the light does not cast shadows.
 	ShadowMap *ShadowMap
-}
 
-// NewLight creates a new light object and returns it
-func NewLight() *Light {
-	l := new(Light)
-	return l
+	// owner is the owning renderer
+	owner *ForwardRenderer
 }
 
 // CreateShadowMap allocates a texture and sets up the projections to draw
@@ -119,7 +115,7 @@ func (l *Light) CreateShadowMap(textureSize int32, near float32, far float32, di
 	}
 
 	// allocate a new structure
-	l.ShadowMap = NewShadowMap()
+	l.ShadowMap = l.owner.NewShadowMap()
 
 	// setup the projection
 	l.ShadowMap.Near = near
@@ -134,10 +130,11 @@ func (l *Light) CreateShadowMap(textureSize int32, near float32, far float32, di
 	l.ShadowMap.Direction = dir
 
 	// create the shadow map texture
+	gfx := l.owner.GetGraphics()
 	l.ShadowMap.Texture = gfx.GenTexture()
 	gfx.ActiveTexture(graphics.TEXTURE0)
 	gfx.BindTexture(graphics.TEXTURE_2D, l.ShadowMap.Texture)
-	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.DEPTH_COMPONENT32, textureSize, textureSize, 0, graphics.DEPTH_COMPONENT, graphics.UNSIGNED_INT, nil)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.DEPTH_COMPONENT32, textureSize, textureSize, 0, graphics.DEPTH_COMPONENT, graphics.UNSIGNED_INT, nil, 0)
 	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
 	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
 
@@ -199,7 +196,7 @@ type ForwardRenderer struct {
 	MainWindow *glfw.Window
 
 	// UIManager is the user interface manager assigned to the renderer.
-	UIManager *UIManager
+	UIManager *ui.UIManager
 
 	// ActiveLights are the current lights that should be used while
 	// drawing Renderables.
@@ -216,18 +213,39 @@ type ForwardRenderer struct {
 
 	// currentShadowPassLight is the light currently enabled for shadow mapping
 	currentShadowPassLight *Light
+
+	// gfx is the underlying graphics implementation for the renderer
+	gfx graphics.GraphicsProvider
 }
 
 // NewForwardRenderer creates a new forward rendering style render engine object.
-func NewForwardRenderer(window *glfw.Window) *ForwardRenderer {
+func NewForwardRenderer(window *glfw.Window, g graphics.GraphicsProvider) *ForwardRenderer {
 	fr := new(ForwardRenderer)
 	fr.MainWindow = window
+	fr.gfx = g
 	fr.OnScreenSizeChanged = func(r *ForwardRenderer, width int32, height int32) {}
 	return fr
 }
 
 // Destroy releases any data the renderer was holding that it 'owns'.
 func (fr *ForwardRenderer) Destroy() {
+}
+
+// NewShadowMap creates a new shadow map object
+func (fr *ForwardRenderer) NewShadowMap() *ShadowMap {
+	shady := new(ShadowMap)
+	shady.owner = fr
+	shady.Up = mgl.Vec3{0.0, 1.0, 0.0}
+	shady.Projection = mgl.Ident4()
+	shady.View = mgl.Ident4()
+	return shady
+}
+
+// NewLight creates a new light object and returns it
+func (fr *ForwardRenderer) NewLight() *Light {
+	l := new(Light)
+	l.owner = fr
+	return l
 }
 
 // ChangeResolution should be called when the underlying rendering
@@ -242,6 +260,16 @@ func (fr *ForwardRenderer) ChangeResolution(width, height int32) {
 // GetResolution returns the current dimensions of the renderer.
 func (fr *ForwardRenderer) GetResolution() (int32, int32) {
 	return fr.width, fr.height
+}
+
+// SetGraphics initializes then renderer with the graphics provider.
+func (fr *ForwardRenderer) SetGraphics(gp graphics.GraphicsProvider) {
+	fr.gfx = gp
+}
+
+// GetGraphics returns the renderer's the graphics provider.
+func (fr *ForwardRenderer) GetGraphics() graphics.GraphicsProvider {
+	return fr.gfx
 }
 
 // Init initializes the renderer.
@@ -293,12 +321,12 @@ func (fr *ForwardRenderer) GetActiveShadowLightCount() int {
 // and must be called before rendering shadow maps.
 func (fr *ForwardRenderer) SetupShadowMapRendering() {
 	// create the FBO for the shadows
-	fr.shadowFBO = gfx.GenFramebuffer()
-	gfx.BindFramebuffer(graphics.FRAMEBUFFER, fr.shadowFBO)
+	fr.shadowFBO = fr.gfx.GenFramebuffer()
+	fr.gfx.BindFramebuffer(graphics.FRAMEBUFFER, fr.shadowFBO)
 
 	drawBuffers := []uint32{graphics.NONE}
-	gfx.DrawBuffers(drawBuffers)
-	gfx.ReadBuffer(graphics.NONE)
+	fr.gfx.DrawBuffers(drawBuffers)
+	fr.gfx.ReadBuffer(graphics.NONE)
 
 	/*
 		// we attach a shadowmap here just to check the framebuffer completion status
@@ -307,27 +335,27 @@ func (fr *ForwardRenderer) SetupShadowMapRendering() {
 		}
 	*/
 
-	gfx.BindFramebuffer(graphics.FRAMEBUFFER, 0)
+	fr.gfx.BindFramebuffer(graphics.FRAMEBUFFER, 0)
 }
 
 // StartShadowMapping binds the shadow map framebuffer for use by the lights
 // to render shadows.
 func (fr *ForwardRenderer) StartShadowMapping() {
-	gfx.BindFramebuffer(graphics.FRAMEBUFFER, fr.shadowFBO)
-	gfx.Enable(graphics.POLYGON_OFFSET_FILL)
-	gfx.PolygonOffset(4.0, 4.0)
-	gfx.Enable(graphics.CULL_FACE)
-	gfx.CullFace(graphics.FRONT)
+	fr.gfx.BindFramebuffer(graphics.FRAMEBUFFER, fr.shadowFBO)
+	fr.gfx.Enable(graphics.POLYGON_OFFSET_FILL)
+	fr.gfx.PolygonOffset(4.0, 4.0)
+	fr.gfx.Enable(graphics.CULL_FACE)
+	fr.gfx.CullFace(graphics.FRONT)
 	fr.currentShadowPassLight = nil
 }
 
 // EndShadowMapping unbinds the shadow map framebuffer and lets the renderer
 // proceed as normal.
 func (fr *ForwardRenderer) EndShadowMapping() {
-	gfx.CullFace(graphics.BACK)
-	gfx.Disable(graphics.CULL_FACE)
-	gfx.Disable(graphics.POLYGON_OFFSET_FILL)
-	gfx.BindFramebuffer(graphics.FRAMEBUFFER, 0)
+	fr.gfx.CullFace(graphics.BACK)
+	fr.gfx.Disable(graphics.CULL_FACE)
+	fr.gfx.Disable(graphics.POLYGON_OFFSET_FILL)
+	fr.gfx.BindFramebuffer(graphics.FRAMEBUFFER, 0)
 	fr.currentShadowPassLight = nil
 }
 
@@ -338,13 +366,95 @@ func (fr *ForwardRenderer) EndShadowMapping() {
 func (fr *ForwardRenderer) EnableShadowMappingLight(l *Light) {
 	fr.currentShadowPassLight = l
 	l.UpdateShadowMapData()
-	gfx.FramebufferTexture2D(graphics.FRAMEBUFFER, graphics.DEPTH_ATTACHMENT, graphics.TEXTURE_2D, l.ShadowMap.Texture, 0)
-	gfx.Clear(graphics.DEPTH_BUFFER_BIT)
-	gfx.Viewport(0, 0, l.ShadowMap.TextureSize, l.ShadowMap.TextureSize)
+	fr.gfx.FramebufferTexture2D(graphics.FRAMEBUFFER, graphics.DEPTH_ATTACHMENT, graphics.TEXTURE_2D, l.ShadowMap.Texture, 0)
+	fr.gfx.Clear(graphics.DEPTH_BUFFER_BIT)
+	fr.gfx.Viewport(0, 0, l.ShadowMap.TextureSize, l.ShadowMap.TextureSize)
+}
+
+// do some special binding for the different Renderer types if necessary
+func (fr *ForwardRenderer) chainedBinder(renderer renderer.Renderer, r *fizzle.Renderable, shader *fizzle.RenderShader, texturesBound *int32) {
+	gfx := fr.gfx
+	var lightCount = int32(fr.GetActiveLightCount())
+	var shadowLightCount = int32(fr.GetActiveShadowLightCount())
+	if lightCount >= 1 {
+		for lightI := 0; lightI < int(lightCount); lightI++ {
+			light := fr.ActiveLights[lightI]
+
+			shaderLightPosition := shader.GetUniformLocation(fmt.Sprintf("LIGHT_POSITION[%d]", lightI))
+			if shaderLightPosition >= 0 {
+				gfx.Uniform3f(shaderLightPosition, light.Position[0], light.Position[1], light.Position[2])
+			}
+
+			shaderLightDirection := shader.GetUniformLocation(fmt.Sprintf("LIGHT_DIRECTION[%d]", lightI))
+			if shaderLightDirection >= 0 {
+				gfx.Uniform3f(shaderLightDirection, light.Direction[0], light.Direction[1], light.Direction[2])
+			}
+
+			shaderLightDiffuse := shader.GetUniformLocation(fmt.Sprintf("LIGHT_DIFFUSE[%d]", lightI))
+			if shaderLightDiffuse >= 0 {
+				gfx.Uniform4f(shaderLightDiffuse, light.DiffuseColor[0], light.DiffuseColor[1], light.DiffuseColor[2], light.DiffuseColor[3])
+			}
+
+			shaderLightIntensity := shader.GetUniformLocation(fmt.Sprintf("LIGHT_DIFFUSE_INTENSITY[%d]", lightI))
+			if shaderLightIntensity >= 0 {
+				gfx.Uniform1f(shaderLightIntensity, light.DiffuseIntensity)
+			}
+
+			shaderLightAmbientIntensity := shader.GetUniformLocation(fmt.Sprintf("LIGHT_AMBIENT_INTENSITY[%d]", lightI))
+			if shaderLightAmbientIntensity >= 0 {
+				gfx.Uniform1f(shaderLightAmbientIntensity, light.AmbientIntensity)
+			}
+
+			shaderLightAttenuation := shader.GetUniformLocation(fmt.Sprintf("LIGHT_ATTENUATION[%d]", lightI))
+			if shaderLightAttenuation >= 0 {
+				gfx.Uniform1f(shaderLightAttenuation, light.Attenuation)
+			}
+
+			shaderShadowMaps := shader.GetUniformLocation(fmt.Sprintf("SHADOW_MAPS[%d]", lightI))
+			if shaderShadowMaps >= 0 {
+				///* There have been problems in the past on Intel drivers on Mac OS if all of the
+				///  samplers are not bound to something. So this code will bind a 0 if the shadow map
+				///	 does not exist for that light. */
+				gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(*texturesBound)))
+				if light.ShadowMap != nil {
+					gfx.BindTexture(graphics.TEXTURE_2D, light.ShadowMap.Texture)
+				} else {
+					gfx.BindTexture(graphics.TEXTURE_2D, 0)
+				}
+				gfx.Uniform1i(shaderShadowMaps, *texturesBound)
+				*texturesBound++
+			}
+
+			if light.ShadowMap != nil {
+				shaderShadowMatrix := shader.GetUniformLocation(fmt.Sprintf("SHADOW_MATRIX[%d]", lightI))
+				if shaderShadowMatrix >= 0 {
+					gfx.UniformMatrix4fv(shaderShadowMatrix, 1, false, light.ShadowMap.BiasedMatrix)
+				}
+			}
+		} // lightI
+
+		shaderLightCount := shader.GetUniformLocation("LIGHT_COUNT")
+		if shaderLightCount >= 0 {
+			gfx.Uniform1i(shaderLightCount, lightCount)
+		}
+
+		shaderShadowLightCount := shader.GetUniformLocation("SHADOW_COUNT")
+		if shaderShadowLightCount >= 0 {
+			gfx.Uniform1i(shaderShadowLightCount, shadowLightCount)
+		}
+
+		if fr.currentShadowPassLight != nil {
+			shaderShadowVP := shader.GetUniformLocation("SHADOW_VP_MATRIX")
+			if shaderShadowVP >= 0 {
+				gfx.UniformMatrix4fv(shaderShadowVP, 1, false, fr.currentShadowPassLight.ShadowMap.ViewProjMatrix)
+			}
+		}
+
+	} // lightcount
 }
 
 // DrawRenderable draws a Renderable object with the supplied projection and view matrixes.
-func (fr *ForwardRenderer) DrawRenderable(r *Renderable, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
+func (fr *ForwardRenderer) DrawRenderable(r *fizzle.Renderable, binder renderer.RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -358,12 +468,17 @@ func (fr *ForwardRenderer) DrawRenderable(r *Renderable, binder RenderBinder, pe
 		return
 	}
 
-	bindAndDraw(fr, r, r.Core.Shader, binder, perspective, view, graphics.TRIANGLES)
+	binders := []renderer.RenderBinder{fr.chainedBinder}
+	if binder != nil {
+		binders = append(binders, binder)
+	}
+	renderer.BindAndDraw(fr, r, r.Core.Shader, binders, perspective, view, graphics.TRIANGLES)
 }
 
 // DrawRenderableWithShader draws a Renderable object with the supplied projection and view matrixes
 // and a different shader than what is set in the Renderable.
-func (fr *ForwardRenderer) DrawRenderableWithShader(r *Renderable, shader *RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
+func (fr *ForwardRenderer) DrawRenderableWithShader(r *fizzle.Renderable, shader *fizzle.RenderShader,
+	binder renderer.RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -377,11 +492,15 @@ func (fr *ForwardRenderer) DrawRenderableWithShader(r *Renderable, shader *Rende
 		return
 	}
 
-	bindAndDraw(fr, r, shader, binder, perspective, view, graphics.TRIANGLES)
+	binders := []renderer.RenderBinder{fr.chainedBinder}
+	if binder != nil {
+		binders = append(binders, binder)
+	}
+	renderer.BindAndDraw(fr, r, shader, binders, perspective, view, graphics.TRIANGLES)
 }
 
 // DrawLines draws the Renderable using graphics.LINES mode instead of graphics.TRIANGLES.
-func (fr *ForwardRenderer) DrawLines(r *Renderable, shader *RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
+func (fr *ForwardRenderer) DrawLines(r *fizzle.Renderable, shader *fizzle.RenderShader, binder renderer.RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -395,5 +514,9 @@ func (fr *ForwardRenderer) DrawLines(r *Renderable, shader *RenderShader, binder
 		return
 	}
 
-	bindAndDraw(fr, r, shader, binder, perspective, view, graphics.LINES)
+	binders := []renderer.RenderBinder{fr.chainedBinder}
+	if binder != nil {
+		binders = append(binders, binder)
+	}
+	renderer.BindAndDraw(fr, r, shader, binders, perspective, view, graphics.LINES)
 }

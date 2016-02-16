@@ -1,430 +1,431 @@
-// Copyright 2015, Timothy` Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy` Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
-package opengl
+package opengles2
+
+import "C"
 
 import (
 	"fmt"
-	"strings"
 	"unsafe"
 
-	gl "github.com/go-gl/gl/v3.3-core/gl"
 	mgl "github.com/go-gl/mathgl/mgl32"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
+	gl "golang.org/x/mobile/gl"
 )
 
-// GraphicsImpl is the graphics provider for the desktop
+// GraphicsImpl is the graphics provider for the mobile
 // implementation of OpenGL.
 type GraphicsImpl struct {
-	// currently nothing in use
+	// the context to use for the rendering
+	Ctx gl.Context
 }
 
-// InitOpenGL initializes the OpenGL graphics provider and
+// InitOpenGLES2 initializes the OpenGL ES 2 graphics provider and
 // sets it to be the current provider for the module.
-func InitOpenGL() (*GraphicsImpl, error) {
+func InitOpenGLES2() (*GraphicsImpl, error) {
 	gp := new(GraphicsImpl)
-
-	// make sure that all of the GL functions are initialized
-	err := gl.Init()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize GL! %v", err)
-	}
-
+	gp.Ctx, _ = gl.NewContext()
 	return gp, nil
 }
 
 // ActiveTexture selects the active texture unit
 func (impl *GraphicsImpl) ActiveTexture(t graphics.Texture) {
-	gl.ActiveTexture(uint32(t))
+	impl.Ctx.ActiveTexture(gl.Enum(t))
 }
 
 // AttachShader attaches a shader object to a program object
 func (impl *GraphicsImpl) AttachShader(p graphics.Program, s graphics.Shader) {
-	gl.AttachShader(uint32(p), uint32(s))
+	impl.Ctx.AttachShader(gl.Program{Init: true, Value: uint32(p)}, gl.Shader{Value: uint32(s)})
 }
 
 // BindBuffer binds a buffer to the OpenGL target specified by enum
 func (impl *GraphicsImpl) BindBuffer(target graphics.Enum, b graphics.Buffer) {
-	gl.BindBuffer(uint32(target), uint32(b))
+	impl.Ctx.BindBuffer(gl.Enum(target), gl.Buffer{Value: uint32(b)})
 }
 
 // BindFragDataLocation binds a user-defined varying out variable
-// to a fragment shader color number
+// to a fragment shader color number.
+// NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) BindFragDataLocation(p graphics.Program, color uint32, name string) {
-	// name has to be zero terminated for gl.Str()
-	glName := name + "\x00"
-	gl.BindFragDataLocation(uint32(p), color, gl.Str(glName))
+	// NO-OP
 }
 
 // BindFramebuffer binds a framebuffer to a framebuffer target
 func (impl *GraphicsImpl) BindFramebuffer(target graphics.Enum, fb graphics.Buffer) {
-	gl.BindFramebuffer(uint32(target), uint32(fb))
+	impl.Ctx.BindFramebuffer(gl.Enum(target), gl.Framebuffer{Value: uint32(fb)})
 }
 
 // BindRenderbuffer binds a renderbuffer to a renderbuffer target
 func (impl *GraphicsImpl) BindRenderbuffer(target graphics.Enum, renderbuffer graphics.Buffer) {
-	gl.BindRenderbuffer(uint32(target), uint32(renderbuffer))
+	impl.Ctx.BindRenderbuffer(gl.Enum(target), gl.Renderbuffer{Value: uint32(renderbuffer)})
 }
 
 // BindTexture binds a texture to the OpenGL target specified by enum
 func (impl *GraphicsImpl) BindTexture(target graphics.Enum, t graphics.Texture) {
-	gl.BindTexture(uint32(target), uint32(t))
+	impl.Ctx.BindTexture(gl.Enum(target), gl.Texture{Value: uint32(t)})
 }
 
 // BindVertexArray binds a vertex array object
+// NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) BindVertexArray(a uint32) {
-	gl.BindVertexArray(a)
+	// NO-OP
 }
 
 // BlendEquation specifies the equation used for both the RGB and
 // alpha blend equations
 func (impl *GraphicsImpl) BlendEquation(mode graphics.Enum) {
-	gl.BlendEquation(uint32(mode))
+	impl.Ctx.BlendEquation(gl.Enum(mode))
 }
 
 // BlendFunc specifies the pixel arithmetic for the blend fucntion
 func (impl *GraphicsImpl) BlendFunc(sFactor, dFactor graphics.Enum) {
-	gl.BlendFunc(uint32(sFactor), uint32(dFactor))
+	impl.Ctx.BlendFunc(gl.Enum(sFactor), gl.Enum(dFactor))
 }
 
 // BufferData creates a new data store for the bound buffer object.
 func (impl *GraphicsImpl) BufferData(target graphics.Enum, size int, data unsafe.Pointer, usage graphics.Enum) {
-	gl.BufferData(uint32(target), size, data, uint32(usage))
+	byteSlice := C.GoBytes(data, size)
+	impl.Ctx.BufferData(gl.Enum(target), byteSlice, gl.Enum(usage))
 }
 
 // CheckFramebufferStatus checks the completeness status of a framebuffer
 func (impl *GraphicsImpl) CheckFramebufferStatus(target graphics.Enum) graphics.Enum {
-	return graphics.Enum(gl.CheckFramebufferStatus(uint32(target)))
+	return graphics.Enum(impl.Ctx.CheckFramebufferStatus(gl.Enum(target)))
 }
 
 // Clear clears the window buffer specified in mask
 func (impl *GraphicsImpl) Clear(mask graphics.Enum) {
-	gl.Clear(uint32(mask))
+	impl.Ctx.Clear(gl.Enum(mask))
 }
 
 // ClearColor specifies the RGBA value used to clear the color buffers
 func (impl *GraphicsImpl) ClearColor(red, green, blue, alpha float32) {
-	gl.ClearColor(red, green, blue, alpha)
+	impl.Ctx.ClearColor(red, green, blue, alpha)
 }
 
 // CompileShader compiles the shader object
 func (impl *GraphicsImpl) CompileShader(s graphics.Shader) {
-	gl.CompileShader(uint32(s))
+	impl.Ctx.CompileShader(gl.Shader{Value: uint32(s)})
 }
 
 // CreateProgram creates a new shader program object
 func (impl *GraphicsImpl) CreateProgram() graphics.Program {
-	return graphics.Program(gl.CreateProgram())
+	return graphics.Program(impl.Ctx.CreateProgram().Value)
 }
 
 // CreateShader creates a new shader object
 func (impl *GraphicsImpl) CreateShader(ty graphics.Enum) graphics.Shader {
-	return graphics.Shader(gl.CreateShader(uint32(ty)))
+	return graphics.Shader(impl.Ctx.CreateShader(gl.Enum(ty)).Value)
 }
 
 // CullFace specifies whether to use front or back face culling
 func (impl *GraphicsImpl) CullFace(mode graphics.Enum) {
-	gl.CullFace(uint32(mode))
+	impl.Ctx.CullFace(gl.Enum(mode))
 }
 
 // DeleteBuffer deletes the OpenGL buffer object
 func (impl *GraphicsImpl) DeleteBuffer(b graphics.Buffer) {
-	uintV := uint32(b)
-	gl.DeleteBuffers(1, &uintV)
+	impl.Ctx.DeleteBuffer(gl.Buffer{Value: uint32(b)})
 }
 
 // DeleteFramebuffer deletes the framebuffer object
 func (impl *GraphicsImpl) DeleteFramebuffer(fb graphics.Buffer) {
-	uintV := uint32(fb)
-	gl.DeleteFramebuffers(1, &uintV)
+	impl.Ctx.DeleteFramebuffer(gl.Framebuffer{Value: uint32(fb)})
 }
 
 // DeleteProgram deletes the shader program object
 func (impl *GraphicsImpl) DeleteProgram(p graphics.Program) {
-	gl.DeleteProgram(uint32(p))
+	impl.Ctx.DeleteProgram(gl.Program{Value: uint32(p)})
 }
 
 // DeleteRenderbuffer deletes the renderbuffer object
 func (impl *GraphicsImpl) DeleteRenderbuffer(rb graphics.Buffer) {
-	uintV := uint32(rb)
-	gl.DeleteRenderbuffers(1, &uintV)
+	impl.Ctx.DeleteRenderbuffer(gl.Renderbuffer{Value: uint32(rb)})
 }
 
 // DeleteShader deletes the shader object
 func (impl *GraphicsImpl) DeleteShader(s graphics.Shader) {
-	gl.DeleteShader(uint32(s))
+	impl.Ctx.DeleteShader(gl.Shader{Value: uint32(s)})
 }
 
 // DeleteTexture deletes the specified texture
 func (impl *GraphicsImpl) DeleteTexture(v graphics.Texture) {
-	uintV := uint32(v)
-	gl.DeleteTextures(1, &uintV)
+	impl.Ctx.DeleteTexture(gl.Texture{Value: uint32(v)})
 }
 
 // DeleteVertexArray deletes an OpenGL VAO
+// NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) DeleteVertexArray(a uint32) {
-	uintV := uint32(a)
-	gl.DeleteVertexArrays(1, &uintV)
+	// NO-OP
 }
 
 // DepthMask enables or disables writing into the depth buffer
 func (impl *GraphicsImpl) DepthMask(flag bool) {
-	gl.DepthMask(flag)
+	impl.Ctx.DepthMask(flag)
 }
 
 // Disable disables various GL capabilities.
 func (impl *GraphicsImpl) Disable(e graphics.Enum) {
-	gl.Disable(uint32(e))
+	impl.Ctx.Disable(gl.Enum(e))
 }
 
 // DrawBuffers specifies a list of color buffers to be drawn into
+// NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) DrawBuffers(buffers []uint32) {
-	c := int32(len(buffers))
-	gl.DrawBuffers(c, &buffers[0])
+	// NO-OP
 }
 
 // DrawElements renders primitives from array data
 func (impl *GraphicsImpl) DrawElements(mode graphics.Enum, count int32, ty graphics.Enum, indices unsafe.Pointer) {
-	gl.DrawElements(uint32(mode), count, uint32(ty), indices)
+	impl.Ctx.DrawElements(gl.Enum(mode), int(count), gl.Enum(ty), int(uintptr(indices)))
 }
 
-// Enable enables various GL capabilities.
+// Enable enables various GL capabilities
 func (impl *GraphicsImpl) Enable(e graphics.Enum) {
-	gl.Enable(uint32(e))
+	impl.Ctx.Enable(gl.Enum(e))
 }
 
 // EnableVertexAttribArray enables a vertex attribute array
 func (impl *GraphicsImpl) EnableVertexAttribArray(a uint32) {
-	gl.EnableVertexAttribArray(a)
+	impl.Ctx.EnableVertexAttribArray(gl.Attrib{Value: uint(a)})
+}
+
+// Finish blocks until the effects of all previously called GL commands are complete
+func (impl *GraphicsImpl) Finish() {
+	impl.Ctx.Finish()
 }
 
 // FramebufferRenderbuffer attaches a renderbuffer as a logical buffer
 // of a framebuffer object
 func (impl *GraphicsImpl) FramebufferRenderbuffer(target, attachment, renderbuffertarget graphics.Enum, renderbuffer graphics.Buffer) {
-	gl.FramebufferRenderbuffer(uint32(target), uint32(attachment), uint32(renderbuffertarget), uint32(renderbuffer))
+	impl.Ctx.FramebufferRenderbuffer(gl.Enum(target),
+		gl.Enum(attachment),
+		gl.Enum(renderbuffertarget),
+		gl.Renderbuffer{Value: uint32(renderbuffer)})
 }
 
 // FramebufferTexture2D attaches a texture object to a framebuffer
 func (impl *GraphicsImpl) FramebufferTexture2D(target, attachment, textarget graphics.Enum, texture graphics.Texture, level int32) {
-	gl.FramebufferTexture2D(uint32(target), uint32(attachment), uint32(textarget), uint32(texture), level)
+	impl.Ctx.FramebufferTexture2D(gl.Enum(target),
+		gl.Enum(attachment),
+		gl.Enum(textarget),
+		gl.Texture{Value: uint32(texture)},
+		int(level))
 }
 
 // GenBuffer creates an OpenGL buffer object
 func (impl *GraphicsImpl) GenBuffer() graphics.Buffer {
-	var b uint32
-	gl.GenBuffers(1, &b)
-	return graphics.Buffer(b)
+	return graphics.Buffer(impl.Ctx.CreateBuffer().Value)
 }
 
 // GenerateMipmap generates mipmaps for a specified texture target
 func (impl *GraphicsImpl) GenerateMipmap(t graphics.Enum) {
-	gl.GenerateMipmap(uint32(t))
+	impl.Ctx.GenerateMipmap(gl.Enum(t))
 }
 
 // GenFramebuffer generates a OpenGL framebuffer object
 func (impl *GraphicsImpl) GenFramebuffer() graphics.Buffer {
-	var b uint32
-	gl.GenFramebuffers(1, &b)
-	return graphics.Buffer(b)
+	return graphics.Buffer(impl.Ctx.CreateFramebuffer().Value)
 }
 
 // GenRenderbuffer generates a OpenGL renderbuffer object
 func (impl *GraphicsImpl) GenRenderbuffer() graphics.Buffer {
-	var b uint32
-	gl.GenRenderbuffers(1, &b)
-	return graphics.Buffer(b)
+	return graphics.Buffer(impl.Ctx.CreateRenderbuffer().Value)
 }
 
 // GenTexture creates an OpenGL texture object
 func (impl *GraphicsImpl) GenTexture() graphics.Texture {
-	var t uint32
-	gl.GenTextures(1, &t)
-	return graphics.Texture(t)
+	return graphics.Texture(impl.Ctx.CreateTexture().Value)
 }
 
 // GenVertexArray creates an OpoenGL VAO
+// NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) GenVertexArray() uint32 {
-	var a uint32
-	gl.GenVertexArrays(1, &a)
-	return a
+	// NO-OP
+	return 0
 }
 
 // GetAttribLocation returns the location of a attribute variable
 func (impl *GraphicsImpl) GetAttribLocation(p graphics.Program, name string) int32 {
-	glName := name + "\x00"
-	return gl.GetAttribLocation(uint32(p), gl.Str(glName))
+	return int32(impl.Ctx.GetAttribLocation(gl.Program{Value: uint32(p)}, name).Value)
 }
 
 // GetError returns the next error
 func (impl *GraphicsImpl) GetError() uint32 {
-	return gl.GetError()
+	return uint32(impl.Ctx.GetError())
 }
 
 // GetProgramInfoLog returns the information log for a program object
 func (impl *GraphicsImpl) GetProgramInfoLog(p graphics.Program) string {
-	var logLength int32
-	impl.GetProgramiv(p, graphics.INFO_LOG_LENGTH, &logLength)
-
-	// make sure the string is zero'd out to start with
-	log := strings.Repeat("\x00", int(logLength+1))
-	gl.GetProgramInfoLog(uint32(p), logLength, nil, gl.Str(log))
-
-	return log
+	return impl.Ctx.GetProgramInfoLog(gl.Program{Value: uint32(p)})
 }
 
 // GetProgramiv returns a parameter from the program object
 func (impl *GraphicsImpl) GetProgramiv(p graphics.Program, pname graphics.Enum, params *int32) {
-	gl.GetProgramiv(uint32(p), uint32(pname), params)
+	*params = int32(impl.Ctx.GetProgrami(gl.Program{Value: uint32(p)}, gl.Enum(pname)))
 }
 
 // GetShaderInfoLog returns the information log for a shader object
 func (impl *GraphicsImpl) GetShaderInfoLog(s graphics.Shader) string {
-	var logLength int32
-	impl.GetShaderiv(s, graphics.INFO_LOG_LENGTH, &logLength)
-
-	// make sure the string is zero'd out to start with
-	log := strings.Repeat("\x00", int(logLength+1))
-	gl.GetShaderInfoLog(uint32(s), logLength, nil, gl.Str(log))
-
-	return log
+	return impl.Ctx.GetShaderInfoLog(gl.Shader{Value: uint32(s)})
 }
 
 // GetShaderiv returns a parameter from the shader object
 func (impl *GraphicsImpl) GetShaderiv(s graphics.Shader, pname graphics.Enum, params *int32) {
-	gl.GetShaderiv(uint32(s), uint32(pname), params)
+	*params = int32(impl.Ctx.GetShaderi(gl.Shader{Value: uint32(s)}, gl.Enum(pname)))
 }
 
 // GetUniformLocation returns the location of a uniform variable
 func (impl *GraphicsImpl) GetUniformLocation(p graphics.Program, name string) int32 {
-	glName := name + "\x00"
-	return gl.GetUniformLocation(uint32(p), gl.Str(glName))
+	return int32(impl.Ctx.GetUniformLocation(gl.Program{Value: uint32(p)}, name).Value)
 }
 
 // LinkProgram links a program object
 func (impl *GraphicsImpl) LinkProgram(p graphics.Program) {
-	gl.LinkProgram(uint32(p))
+	impl.Ctx.LinkProgram(gl.Program{Value: uint32(p)})
 }
 
 // PolygonOffset sets the scale and units used to calculate depth values
 func (impl *GraphicsImpl) PolygonOffset(factor float32, units float32) {
-	gl.PolygonOffset(factor, units)
+	impl.Ctx.PolygonOffset(factor, units)
 }
 
 // Ptr takes a slice or a pointer and returns an OpenGL compatbile address
 func (impl *GraphicsImpl) Ptr(data interface{}) unsafe.Pointer {
-	return gl.Ptr(data)
+	// This may not be quite right ... ... ...
+	return unsafe.Pointer(&data)
 }
 
 // PtrOffset takes a pointer offset and returns a GL-compatible pointer.
 // Useful for functions such as glVertexAttribPointer that take pointer
 // parameters indicating an offset rather than an absolute memory address.
 func (impl *GraphicsImpl) PtrOffset(offset int) unsafe.Pointer {
-	return gl.PtrOffset(offset)
+	// This may not be quite right ... ... ...
+	var ptr = (uintptr)(offset)
+	return unsafe.Pointer(ptr)
 }
 
 // ReadBuffer specifies the color buffer source for pixels
+// NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) ReadBuffer(src graphics.Enum) {
-	gl.ReadBuffer(uint32(src))
+	// NO-OP
 }
 
 // RenderbufferStorage establishes the format and dimensions of a renderbuffer
 func (impl *GraphicsImpl) RenderbufferStorage(target graphics.Enum, internalformat graphics.Enum, width int32, height int32) {
-	gl.RenderbufferStorage(uint32(target), uint32(internalformat), width, height)
+	impl.Ctx.RenderbufferStorage(gl.Enum(target), gl.Enum(internalformat), int(width), int(height))
 }
 
 // ShaderSource replaces the source code for a shader object.
 func (impl *GraphicsImpl) ShaderSource(s graphics.Shader, source string) {
-	glSource := gl.Str(source + "\x00")
-	gl.ShaderSource(uint32(s), 1, &glSource, nil)
+	impl.Ctx.ShaderSource(gl.Shader{Value: uint32(s)}, source)
 }
 
 // TexImage2D writes a 2D texture image.
 func (impl *GraphicsImpl) TexImage2D(target graphics.Enum, level, intfmt, width, height, border int32, format graphics.Enum, ty graphics.Enum, ptr unsafe.Pointer, dataLength int) {
-	gl.TexImage2D(uint32(target), level, intfmt, width, height, border, uint32(format), uint32(ty), ptr)
+	impl.Ctx.TexImage2D(gl.Enum(target),
+		int(level),
+		int(width),
+		int(height),
+		gl.Enum(format),
+		gl.Enum(ty),
+		C.GoBytes(ptr, dataLength))
 }
 
 // TexParameterf sets a float texture parameter
 func (impl *GraphicsImpl) TexParameterf(target, pname graphics.Enum, param float32) {
-	gl.TexParameterf(uint32(target), uint32(pname), param)
+	impl.Ctx.TexParameterf(gl.Enum(target), gl.Enum(pname), param)
 }
 
 // TexParameterfv sets a float texture parameter
 func (impl *GraphicsImpl) TexParameterfv(target, pname graphics.Enum, params *float32) {
-	gl.TexParameterfv(uint32(target), uint32(pname), params)
+	impl.Ctx.TexParameterfv(gl.Enum(target), gl.Enum(pname), []float32{*params})
 }
 
 // TexParameteri sets a float texture parameter
 func (impl *GraphicsImpl) TexParameteri(target, pname graphics.Enum, param int32) {
-	gl.TexParameteri(uint32(target), uint32(pname), param)
+	impl.Ctx.TexParameteri(gl.Enum(target), gl.Enum(pname), int(param))
 }
 
 // TexStorage3D simultaneously specifies storage for all levels of a three-dimensional,
 // two-dimensional array or cube-map array texture
+// NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) TexStorage3D(target graphics.Enum, level int32, intfmt uint32, width, height, depth int32) {
-	gl.TexStorage3D(uint32(target), level, intfmt, width, height, depth)
+	// NO-OP
 }
 
 // TexSubImage3D specifies a three-dimensonal texture subimage
+// NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) TexSubImage3D(target graphics.Enum, level, xoff, yoff, zoff, width, height, depth int32, fmt, ty graphics.Enum, ptr unsafe.Pointer) {
-	gl.TexSubImage3D(uint32(target), level, xoff, yoff, zoff, width, height, depth, uint32(fmt), uint32(ty), ptr)
+	// NO-OP
 }
 
 // Uniform1i specifies the value of a uniform variable for the current program object
 func (impl *GraphicsImpl) Uniform1i(location int32, v int32) {
-	gl.Uniform1i(location, v)
+	impl.Ctx.Uniform1i(gl.Uniform{Value: location}, int(v))
 }
 
 // Uniform1iv specifies the value of a uniform variable for the current program object
 func (impl *GraphicsImpl) Uniform1iv(location int32, values []int32) {
-	gl.Uniform1iv(location, int32(len(values)), &values[0])
+	impl.Ctx.Uniform1iv(gl.Uniform{Value: location}, values)
 }
 
 // Uniform1f specifies the value of a uniform variable for the current program object
 func (impl *GraphicsImpl) Uniform1f(location int32, v float32) {
-	gl.Uniform1f(location, v)
+	impl.Ctx.Uniform1f(gl.Uniform{Value: location}, v)
 }
 
 // Uniform1fv specifies the value of a uniform variable for the current program object
 func (impl *GraphicsImpl) Uniform1fv(location int32, values []float32) {
-	gl.Uniform1fv(location, int32(len(values)), &values[0])
+	impl.Ctx.Uniform1fv(gl.Uniform{Value: location}, values)
 }
 
 // Uniform3f specifies the value of a uniform variable for the current program object
 func (impl *GraphicsImpl) Uniform3f(location int32, v0, v1, v2 float32) {
-	gl.Uniform3f(location, v0, v1, v2)
+	impl.Ctx.Uniform3f(gl.Uniform{Value: location}, v0, v1, v2)
 }
 
 // Uniform3fv specifies the value of a uniform variable for the current program object
 func (impl *GraphicsImpl) Uniform3fv(location int32, values []float32) {
-	gl.Uniform3fv(location, int32(len(values)), &values[0])
+	impl.Ctx.Uniform3fv(gl.Uniform{Value: location}, values)
 }
 
 // Uniform4f specifies the value of a uniform variable for the current program object
 func (impl *GraphicsImpl) Uniform4f(location int32, v0, v1, v2, v3 float32) {
-	gl.Uniform4f(location, v0, v1, v2, v3)
+	impl.Ctx.Uniform4f(gl.Uniform{Value: location}, v0, v1, v2, v3)
 }
 
 // Uniform4fv specifies the value of a uniform variable for the current program object
 func (impl *GraphicsImpl) Uniform4fv(location int32, values []float32) {
-	gl.Uniform4fv(location, int32(len(values)), &values[0])
+	impl.Ctx.Uniform4fv(gl.Uniform{Value: location}, values)
 }
 
-// UniformMatrix4fv specifies the value of a uniform variable for the current program object
+// UniformMatrix4fv specifies the value of a uniform variable for the current program object.
 // NOTE: value should be a mgl.Mat4 or []mgl.Mat4, else it will panic.
 func (impl *GraphicsImpl) UniformMatrix4fv(location, count int32, transpose bool, value interface{}) {
 	switch t := value.(type) {
 	case mgl.Mat4:
-		gl.UniformMatrix4fv(location, count, transpose, &(t[0]))
+		fa := [16]float32(t)
+		impl.Ctx.UniformMatrix4fv(gl.Uniform{Value: location}, fa[:])
 	case []mgl.Mat4:
-		gl.UniformMatrix4fv(location, count, transpose, &(t[0][0]))
+		// sadly, we're going to have to build a master slice from the tiny slices
+		master := make([]float32, 0, 16*count)
+		for _, mat4 := range t {
+			fa := [16]float32(mat4)
+			for i := 0; i < 16; i++ {
+				master = append(master, fa[i])
+			}
+		}
+		impl.Ctx.UniformMatrix4fv(gl.Uniform{Value: location}, master)
 	default:
-		panic(fmt.Sprintf("Unhandled case of type for %T in opengl.UniformMatrix4fv()\n", value))
+		panic(fmt.Sprintf("Unhandled case of type for %T in opengles2.UniformMatrix4fv()\n", value))
 	}
 }
 
 // UseProgram installs a program object as part of the current rendering state
 func (impl *GraphicsImpl) UseProgram(p graphics.Program) {
-	gl.UseProgram(uint32(p))
+	impl.Ctx.UseProgram(gl.Program{Value: uint32(p)})
 }
 
 // VertexAttribPointer uses a bound buffer to define vertex attribute data.
@@ -433,11 +434,11 @@ func (impl *GraphicsImpl) UseProgram(p graphics.Program) {
 // between 1-4. The stride argument specifies the byte offset between
 // consecutive vertex attributes.
 func (impl *GraphicsImpl) VertexAttribPointer(dst uint32, size int32, ty graphics.Enum, normalized bool, stride int32, ptr unsafe.Pointer) {
-	gl.VertexAttribPointer(dst, size, uint32(ty), normalized, stride, ptr)
+	impl.Ctx.VertexAttribPointer(gl.Attrib{Value: uint(dst)}, int(size), gl.Enum(ty), normalized, int(stride), int(uintptr(ptr)))
 }
 
 // Viewport sets the viewport, an affine transformation that
 // normalizes device coordinates to window coordinates.
 func (impl *GraphicsImpl) Viewport(x, y, width, height int32) {
-	gl.Viewport(x, y, width, height)
+	impl.Ctx.Viewport(int(x), int(y), int(width), int(height))
 }

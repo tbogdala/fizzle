@@ -16,6 +16,8 @@ import (
 	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
+	forward "github.com/tbogdala/fizzle/renderer/forward"
+	ui "github.com/tbogdala/fizzle/ui"
 )
 
 /*
@@ -50,13 +52,13 @@ const (
 func main() {
 	// start off by initializing the GL and GLFW libraries and creating a window.
 	// the default window size we use is 800x600
-	mainWindow := initGraphics("Forward Lighting", width, height)
+	mainWindow, gfx := initGraphics("Forward Lighting", width, height)
 
 	// set the callback function for key input
 	mainWindow.SetKeyCallback(keyCallback)
 
 	// create a new renderer
-	renderer := fizzle.NewForwardRenderer(mainWindow)
+	renderer := forward.NewForwardRenderer(mainWindow, gfx)
 	defer renderer.Destroy()
 
 	// setup the camera to look at the cube
@@ -65,7 +67,7 @@ func main() {
 
 	// setup the user interface manager which can be used to display
 	// user interface widgets
-	uiMan := fizzle.NewUIManager()
+	uiMan := ui.NewUIManager()
 	uiMan.AdviseResolution(width, height)
 	renderer.UIManager = uiMan
 
@@ -134,7 +136,7 @@ func main() {
 	renderer.SetupShadowMapRendering()
 
 	// add light #1
-	light := fizzle.NewLight()
+	light := renderer.NewLight()
 	light.Position = mgl.Vec3{5.0, 3.0, 5.0}
 	light.DiffuseColor = mgl.Vec4{0.9, 0.9, 0.9, 1.0}
 	light.DiffuseIntensity = 5.00
@@ -144,7 +146,7 @@ func main() {
 	light.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{-5.0, -3.0, -5.0})
 
 	// add light #2
-	light2 := fizzle.NewLight()
+	light2 := renderer.NewLight()
 	light2.Position = mgl.Vec3{-2.0, 3.0, 3.0}
 	light2.DiffuseColor = mgl.Vec4{0.9, 0.0, 0.0, 1.0}
 	light2.DiffuseIntensity = 1.00
@@ -154,13 +156,12 @@ func main() {
 	light2.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{2.0, -3.0, -3.0})
 
 	// make a UI image to show the shadowmap texture, scaled down
-	uiMan.CreateImage(fizzle.UIAnchorMiddleRight, mgl.Vec3{-20.0, 0.0, 0.0}, light.ShadowMap.Texture, 256, 256, shadowmapTextureShader)
+	uiMan.CreateImage(ui.UIAnchorMiddleRight, mgl.Vec3{-20.0, 0.0, 0.0}, light.ShadowMap.Texture, 256, 256, shadowmapTextureShader)
 
 	// layout any widgets that have been added
 	uiMan.LayoutWidgets()
 
 	// set some OpenGL flags
-	gfx := fizzle.GetGraphics()
 	gfx.Enable(graphics.CULL_FACE)
 	gfx.Enable(graphics.DEPTH_TEST)
 	gfx.Enable(graphics.TEXTURE_2D)
@@ -232,7 +233,7 @@ func main() {
 
 // initGraphics creates an OpenGL window and initializes the required graphics libraries.
 // It will either succeed or panic.
-func initGraphics(title string, w int, h int) *glfw.Window {
+func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsProvider) {
 	// GLFW must be initialized before it's called
 	err := glfw.Init()
 	if err != nil {
@@ -263,7 +264,7 @@ func initGraphics(title string, w int, h int) *glfw.Window {
 	}
 	fizzle.SetGraphics(gfx)
 
-	return mainWindow
+	return mainWindow, gfx
 }
 
 // keyCallback is set as a callback in main() and is used to close the window

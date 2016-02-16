@@ -1,7 +1,7 @@
 // Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
-package fizzle
+package deferred
 
 import (
 	"fmt"
@@ -143,7 +143,7 @@ func (dr *DeferredRenderer) Init(width, height int32) error {
 	dr.Diffuse = gfx.GenTexture()
 	gfx.ActiveTexture(graphics.TEXTURE0)
 	gfx.BindTexture(graphics.TEXTURE_2D, dr.Diffuse)
-	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA32F, width, height, 0, graphics.RGBA, graphics.FLOAT, nil)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA32F, width, height, 0, graphics.RGBA, graphics.FLOAT, nil, 0)
 	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
 	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
 	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.CLAMP_TO_EDGE)
@@ -153,7 +153,7 @@ func (dr *DeferredRenderer) Init(width, height int32) error {
 	dr.Positions = gfx.GenTexture()
 	gfx.ActiveTexture(graphics.TEXTURE1)
 	gfx.BindTexture(graphics.TEXTURE_2D, dr.Positions)
-	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA32F, width, height, 0, graphics.RGBA, graphics.FLOAT, nil)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA32F, width, height, 0, graphics.RGBA, graphics.FLOAT, nil, 0)
 	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
 	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
 	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.CLAMP_TO_EDGE)
@@ -163,7 +163,7 @@ func (dr *DeferredRenderer) Init(width, height int32) error {
 	dr.Normals = gfx.GenTexture()
 	gfx.ActiveTexture(graphics.TEXTURE2)
 	gfx.BindTexture(graphics.TEXTURE_2D, dr.Normals)
-	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA16F, width, height, 0, graphics.RGBA, graphics.FLOAT, nil)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA16F, width, height, 0, graphics.RGBA, graphics.FLOAT, nil, 0)
 	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
 	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
 	gfx.TexParameterf(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.CLAMP_TO_EDGE)
@@ -241,7 +241,7 @@ func (dr *DeferredRenderer) CompositeDraw() {
 	shaderMvp := shader.GetUniformLocation("MVP_MATRIX")
 	if shaderMvp >= 0 {
 		mvp := ortho.Mul4(model)
-		gfx.UniformMatrix4fv(shaderMvp, 1, false, &mvp[0])
+		gfx.UniformMatrix4fv(shaderMvp, 1, false, mvp)
 	}
 
 	shaderPosition := shader.GetAttribLocation("VERTEX_POSITION")
@@ -286,7 +286,7 @@ func (dr *DeferredRenderer) DrawDirectionalLight(eye mgl.Vec3, dir mgl.Vec3, col
 	shaderMvp := shader.GetUniformLocation("MVP_MATRIX")
 	if shaderMvp >= 0 {
 		mvp := ortho.Mul4(model)
-		gfx.UniformMatrix4fv(shaderMvp, 1, false, &mvp[0])
+		gfx.UniformMatrix4fv(shaderMvp, 1, false, mvp)
 	}
 
 	shaderPosition := shader.GetAttribLocation("VERTEX_POSITION")

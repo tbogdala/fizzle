@@ -16,6 +16,7 @@ import (
 	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
+	forward "github.com/tbogdala/fizzle/renderer/forward"
 )
 
 /*
@@ -62,17 +63,17 @@ var (
 func main() {
 	// start off by initializing the GL and GLFW libraries and creating a window.
 	// the default window size we use is 800x600
-	mainWindow := initGraphics("Simple Cube", width, height)
+	mainWindow, gfx := initGraphics("Simple Cube", width, height)
 
 	// set the callback function for key input
 	mainWindow.SetKeyCallback(keyCallback)
 
 	// create a new renderer
-	renderer := fizzle.NewForwardRenderer(mainWindow)
+	renderer := forward.NewForwardRenderer(mainWindow, gfx)
 	defer renderer.Destroy()
 
 	// put a light in there
-	light := fizzle.NewLight()
+	light := renderer.NewLight()
 	//light.Position = mgl.Vec3{-10.0, 5.0, 10}
 	light.DiffuseColor = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
 	light.Direction = mgl.Vec3{1.0, -0.5, -1.0}
@@ -110,7 +111,6 @@ func main() {
 	camera.LookAtDirect(mgl.Vec3{0, 0, 0})
 
 	// set some OpenGL flags
-	gfx := fizzle.GetGraphics()
 	gfx.Enable(graphics.CULL_FACE)
 	gfx.Enable(graphics.DEPTH_TEST)
 
@@ -155,7 +155,7 @@ func main() {
 
 // initGraphics creates an OpenGL window and initializes the required graphics libraries.
 // It will either succeed or panic.
-func initGraphics(title string, w int, h int) *glfw.Window {
+func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsProvider) {
 	// GLFW must be initialized before it's called
 	err := glfw.Init()
 	if err != nil {
@@ -186,7 +186,7 @@ func initGraphics(title string, w int, h int) *glfw.Window {
 	}
 	fizzle.SetGraphics(gfx)
 
-	return mainWindow
+	return mainWindow, gfx
 }
 
 // keyCallback is set as a callback in main() and is used to close the window

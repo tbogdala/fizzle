@@ -142,8 +142,8 @@ type GraphicsProvider interface {
 	// GenBuffer creates an OpenGL buffer object
 	GenBuffer() Buffer
 
-	// GenerateMipmap generates mipmaps for a specified texture object
-	GenerateMipmap(t Texture)
+	// GenerateMipmap generates mipmaps for a specified texture target
+	GenerateMipmap(t Enum)
 
 	// GenFramebuffer generates a OpenGL framebuffer object
 	GenFramebuffer() Buffer
@@ -202,7 +202,7 @@ type GraphicsProvider interface {
 	ShaderSource(s Shader, source string)
 
 	// TexImage2D writes a 2D texture image.
-	TexImage2D(target Enum, level, intfmt, width, height, border int32, format Enum, ty Enum, ptr unsafe.Pointer)
+	TexImage2D(target Enum, level, intfmt, width, height, border int32, format Enum, ty Enum, ptr unsafe.Pointer, dataLength int)
 
 	// TexParameterf sets a float texture parameter
 	TexParameterf(target, pname Enum, param float32)
@@ -221,31 +221,32 @@ type GraphicsProvider interface {
 	TexSubImage3D(target Enum, level, xoff, yoff, zoff, width, height, depth int32, fmt, ty Enum, ptr unsafe.Pointer)
 
 	// Uniform1i specifies the value of a uniform variable for the current program object
-	Uniform1i(dst int32, v int32)
+	Uniform1i(location int32, v int32)
 
 	// Uniform1iv specifies the value of a uniform variable for the current program object
-	Uniform1iv(location, count int32, value *int32)
+	Uniform1iv(location int32, values []int32)
 
 	// Uniform1f specifies the value of a uniform variable for the current program object
-	Uniform1f(dst int32, v float32)
+	Uniform1f(location int32, v float32)
 
 	// Uniform1fv specifies the value of a uniform variable for the current program object
-	Uniform1fv(location, count int32, value *float32)
+	Uniform1fv(location int32, values []float32)
 
 	// Uniform3f specifies the value of a uniform variable for the current program object
 	Uniform3f(location int32, v0, v1, v2 float32)
 
 	// Uniform3fv specifies the value of a uniform variable for the current program object
-	Uniform3fv(location, count int32, value *float32)
+	Uniform3fv(location int32, value []float32)
 
 	// Uniform4f specifies the value of a uniform variable for the current program object
 	Uniform4f(location int32, v0, v1, v2, v3 float32)
 
 	// Uniform4fv specifies the value of a uniform variable for the current program object
-	Uniform4fv(location, count int32, value *float32)
+	Uniform4fv(location int32, value []float32)
 
 	// UniformMatrix4fv specifies the value of a uniform variable for the current program object
-	UniformMatrix4fv(location, count int32, transpose bool, value *float32)
+	// NOTE: value should be a mgl.Mat4 or []mgl.Mat4, else it will panic.
+	UniformMatrix4fv(location, count int32, transpose bool, value interface{})
 
 	// UseProgram installs a program object as part of the current rendering state
 	UseProgram(p Program)

@@ -1,11 +1,13 @@
 // Copyright 2015, Timothy` Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
-package fizzle
+package ui
 
 import (
 	mgl "github.com/go-gl/mathgl/mgl32"
+	fizzle "github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
+	renderer "github.com/tbogdala/fizzle/renderer"
 )
 
 // These are constants used in UILayout Anchor positions.
@@ -49,7 +51,7 @@ type UILabel struct {
 	Layout UILayout
 
 	// Renderable is the drawable object
-	Renderable *Renderable
+	Renderable *fizzle.Renderable
 
 	// manager is a pointer back to the owner UIManager.
 	manager *UIManager
@@ -64,7 +66,7 @@ type UIImage struct {
 	Layout UILayout
 
 	// Renderable is the drawable object
-	Renderable *Renderable
+	Renderable *fizzle.Renderable
 
 	// manager is a pointer back to the owner UIManager.
 	manager *UIManager
@@ -77,13 +79,13 @@ type UIWidget interface {
 	Destroy()
 
 	// Draw should render the widget to screen.
-	Draw(renderer Renderer, binder RenderBinder, projection mgl.Mat4, view mgl.Mat4)
+	Draw(renderer renderer.Renderer, binder renderer.RenderBinder, projection mgl.Mat4, view mgl.Mat4)
 
 	// GetLayout should return the UILayout for the widget that's used for positioning.
 	GetLayout() *UILayout
 
 	// GetRenderable should return the drawable Renderable object.
-	GetRenderable() *Renderable
+	GetRenderable() *fizzle.Renderable
 }
 
 // UIManager is the primary owner for all of the widgets created by it and
@@ -191,7 +193,7 @@ func (ui *UIManager) LayoutWidgets() {
 }
 
 // Draw renders all of widgets on the screen.
-func (ui *UIManager) Draw(renderer Renderer, binder RenderBinder) {
+func (ui *UIManager) Draw(renderer renderer.Renderer, binder renderer.RenderBinder) {
 	// calculate the perspective and view
 	ortho := mgl.Ortho(0, float32(ui.width), 0, float32(ui.height), minZDepth, maxZDepth)
 	view := mgl.Ident4()
@@ -218,7 +220,7 @@ func (ui *UIManager) RemoveWidget(widgetToRemove UIWidget) {
 // LABEL WIDGET
 
 // CreateLabel creates the label widget and the text renderable.
-func (ui *UIManager) CreateLabel(font *GLFont, anchor int, offset mgl.Vec3, msg string) *UILabel {
+func (ui *UIManager) CreateLabel(font *fizzle.GLFont, anchor int, offset mgl.Vec3, msg string) *UILabel {
 	label := new(UILabel)
 	label.Text = msg
 	label.Layout.Anchor = anchor
@@ -240,7 +242,7 @@ func (l *UILabel) Destroy() {
 
 // Draw renders the widget onto the screen. Layout should have already
 // modified the positioning of the renderable.
-func (l *UILabel) Draw(renderer Renderer, binder RenderBinder, projection mgl.Mat4, view mgl.Mat4) {
+func (l *UILabel) Draw(renderer renderer.Renderer, binder renderer.RenderBinder, projection mgl.Mat4, view mgl.Mat4) {
 	renderer.DrawRenderable(l.Renderable, binder, projection, view)
 }
 
@@ -250,7 +252,7 @@ func (l *UILabel) GetLayout() *UILayout {
 }
 
 // GetRenderable returns the Renderable object for the label widget
-func (l *UILabel) GetRenderable() *Renderable {
+func (l *UILabel) GetRenderable() *fizzle.Renderable {
 	return l.Renderable
 }
 
@@ -258,12 +260,12 @@ func (l *UILabel) GetRenderable() *Renderable {
 // IMAGE WIDGET
 
 // CreateImage creates the image widget and renderable.
-func (ui *UIManager) CreateImage(anchor int, offset mgl.Vec3, texId graphics.Texture, width float32, height float32, shader *RenderShader) *UIImage {
+func (ui *UIManager) CreateImage(anchor int, offset mgl.Vec3, texId graphics.Texture, width float32, height float32, shader *fizzle.RenderShader) *UIImage {
 	img := new(UIImage)
 	img.Texture = texId
 	img.Layout.Anchor = anchor
 	img.Layout.Offset = offset
-	img.Renderable = CreatePlaneXY("color_textured", 0, 0, width, height)
+	img.Renderable = fizzle.CreatePlaneXY("color_textured", 0, 0, width, height)
 	img.Renderable.Core.Shader = shader
 	img.Renderable.Core.Tex0 = texId
 	img.Renderable.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
@@ -283,7 +285,7 @@ func (img *UIImage) Destroy() {
 
 // Draw renders the widget onto the screen. Layout should have already
 // modified the positioning of the renderable.
-func (img *UIImage) Draw(renderer Renderer, binder RenderBinder, projection mgl.Mat4, view mgl.Mat4) {
+func (img *UIImage) Draw(renderer renderer.Renderer, binder renderer.RenderBinder, projection mgl.Mat4, view mgl.Mat4) {
 	renderer.DrawRenderable(img.Renderable, binder, projection, view)
 }
 
@@ -293,6 +295,6 @@ func (img *UIImage) GetLayout() *UILayout {
 }
 
 // GetRenderable returns the Renderable object for the label widget
-func (img *UIImage) GetRenderable() *Renderable {
+func (img *UIImage) GetRenderable() *fizzle.Renderable {
 	return img.Renderable
 }
