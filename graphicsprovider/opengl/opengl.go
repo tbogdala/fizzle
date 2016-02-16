@@ -183,8 +183,8 @@ func (impl *GraphicsImpl) DrawBuffers(buffers []uint32) {
 }
 
 // DrawElements renders primitives from array data
-func (impl *GraphicsImpl) DrawElements(mode graphics.Enum, count int32, xtype graphics.Enum, indices unsafe.Pointer) {
-	gl.DrawElements(uint32(mode), count, uint32(xtype), indices)
+func (impl *GraphicsImpl) DrawElements(mode graphics.Enum, count int32, ty graphics.Enum, indices unsafe.Pointer) {
+	gl.DrawElements(uint32(mode), count, uint32(ty), indices)
 }
 
 // Enable enables various GL capabilities.
@@ -205,7 +205,7 @@ func (impl *GraphicsImpl) FramebufferRenderbuffer(target, attachment, renderbuff
 
 // FramebufferTexture2D attaches a texture object to a framebuffer
 func (impl *GraphicsImpl) FramebufferTexture2D(target, attachment, textarget graphics.Enum, texture graphics.Texture, level int32) {
-	gl.FramebufferTexture2D(uint32(texture), uint32(attachment), uint32(textarget), uint32(texture), level)
+	gl.FramebufferTexture2D(uint32(target), uint32(attachment), uint32(textarget), uint32(texture), level)
 }
 
 // GenBuffer creates an OpenGL buffer object
