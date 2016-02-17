@@ -5,6 +5,7 @@ package opengles2
 
 import (
 	"fmt"
+	"reflect"
 	"unsafe"
 
 	mgl "github.com/go-gl/mathgl/mgl32"
@@ -300,10 +301,34 @@ func (impl *GraphicsImpl) PolygonOffset(factor float32, units float32) {
 	gles.PolygonOffset(factor, units)
 }
 
-// Ptr takes a slice or a pointer and returns an OpenGL compatbile address
+// Ptr takes a slice or pointer (to a singular scalar value or the first
+// element of an array or slice) and returns its GL-compatible address.
+// NOTE: Shamelessly ripped from: github.com/go-gl/gl/blob/master/v3.3-core/gl/conversions.go
+// Thanks, guys!
 func (impl *GraphicsImpl) Ptr(data interface{}) unsafe.Pointer {
-	// This may not be quite right ... ... ...
-	return unsafe.Pointer(&data)
+	if data == nil {
+		return unsafe.Pointer(nil)
+	}
+	var addr unsafe.Pointer
+	v := reflect.ValueOf(data)
+	switch v.Type().Kind() {
+	case reflect.Ptr:
+		e := v.Elem()
+		switch e.Kind() {
+		case
+			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+			reflect.Float32, reflect.Float64:
+			addr = unsafe.Pointer(e.UnsafeAddr())
+		}
+	case reflect.Uintptr:
+		addr = unsafe.Pointer(v.Pointer())
+	case reflect.Slice:
+		addr = unsafe.Pointer(v.Index(0).UnsafeAddr())
+	default:
+		panic(fmt.Sprintf("Unsupported type %s; must be a pointer, slice, or array", v.Type()))
+	}
+	return addr
 }
 
 // PtrOffset takes a pointer offset and returns a GL-compatible pointer.
@@ -311,8 +336,7 @@ func (impl *GraphicsImpl) Ptr(data interface{}) unsafe.Pointer {
 // parameters indicating an offset rather than an absolute memory address.
 func (impl *GraphicsImpl) PtrOffset(offset int) unsafe.Pointer {
 	// This may not be quite right ... ... ...
-	var ptr = (uintptr)(offset)
-	return unsafe.Pointer(ptr)
+	return unsafe.Pointer(uintptr(offset))
 }
 
 // ReadBuffer specifies the color buffer source for pixels
