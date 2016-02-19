@@ -4,8 +4,9 @@
 package fizzle
 
 import (
-	mgl "github.com/go-gl/mathgl/mgl32"
 	"math"
+
+	mgl "github.com/go-gl/mathgl/mgl32"
 )
 
 var (
@@ -53,7 +54,8 @@ type OrbitCamera struct {
 	position mgl.Vec3
 }
 
-// NewYawPitchCamera will create a new camera at a given position with no rotations applied.
+// NewOrbitCamera that looks at a target at a given vertAngle and at a given distance.
+// See the OrbitCamera struct for ascii art on this.
 func NewOrbitCamera(target mgl.Vec3, vertAngle float32, distance float32, rotation float32) *OrbitCamera {
 	cam := new(OrbitCamera)
 	cam.target = target
@@ -98,6 +100,44 @@ func (c *OrbitCamera) SetTarget(t mgl.Vec3) {
 // Rotate updates the rotation of the camera orbiting around the target.
 func (c *OrbitCamera) Rotate(delta float32) {
 	c.rotation += delta
+	c.generatePosition()
+}
+
+// RotateVertical updates the vertical rotation of the camera orbiting
+// around the target.
+func (c *OrbitCamera) RotateVertical(delta float32) {
+	newVal := c.vertAngle + delta
+
+	// only update if we're not flipping the camera over the center axis.
+	if newVal > math.Pi || newVal < 0.0 {
+		return
+	}
+
+	c.vertAngle += delta
+	c.generatePosition()
+}
+
+// AddDistance adds a value to the distance of the camera away from the target
+// and then updates the internal data.
+func (c *OrbitCamera) AddDistance(delta float32) {
+	c.distance += delta
+	c.generatePosition()
+}
+
+// GetDistance returns the distance of the camera away from the target.
+func (c *OrbitCamera) GetDistance() float32 {
+	return c.distance
+}
+
+// SetDistance sets the distance of the camera from the target and updates
+// the internal data.
+func (c *OrbitCamera) SetDistance(d float32) {
+	// make sure it's not negative, for sanity purposes
+	if d < 0 {
+		return
+	}
+
+	c.distance = d
 	c.generatePosition()
 }
 
