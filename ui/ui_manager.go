@@ -79,7 +79,7 @@ type UIWidget interface {
 	Destroy()
 
 	// Draw should render the widget to screen.
-	Draw(renderer renderer.Renderer, binder renderer.RenderBinder, projection mgl.Mat4, view mgl.Mat4)
+	Draw(renderer renderer.Renderer, binder renderer.RenderBinder, projection mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
 
 	// GetLayout should return the UILayout for the widget that's used for positioning.
 	GetLayout() *UILayout
@@ -200,7 +200,7 @@ func (ui *UIManager) Draw(renderer renderer.Renderer, binder renderer.RenderBind
 
 	// draw all of the widgets
 	for _, w := range ui.widgets {
-		w.Draw(renderer, binder, ortho, view)
+		w.Draw(renderer, binder, ortho, view, nil)
 	}
 }
 
@@ -242,8 +242,8 @@ func (l *UILabel) Destroy() {
 
 // Draw renders the widget onto the screen. Layout should have already
 // modified the positioning of the renderable.
-func (l *UILabel) Draw(renderer renderer.Renderer, binder renderer.RenderBinder, projection mgl.Mat4, view mgl.Mat4) {
-	renderer.DrawRenderable(l.Renderable, binder, projection, view)
+func (l *UILabel) Draw(renderer renderer.Renderer, binder renderer.RenderBinder, projection mgl.Mat4, view mgl.Mat4, camera fizzle.Camera) {
+	renderer.DrawRenderable(l.Renderable, binder, projection, view, camera)
 }
 
 // GetLayout returns a pointer to the layout object of the widget.
@@ -285,8 +285,8 @@ func (img *UIImage) Destroy() {
 
 // Draw renders the widget onto the screen. Layout should have already
 // modified the positioning of the renderable.
-func (img *UIImage) Draw(renderer renderer.Renderer, binder renderer.RenderBinder, projection mgl.Mat4, view mgl.Mat4) {
-	renderer.DrawRenderable(img.Renderable, binder, projection, view)
+func (img *UIImage) Draw(renderer renderer.Renderer, binder renderer.RenderBinder, projection mgl.Mat4, view mgl.Mat4, camera fizzle.Camera) {
+	renderer.DrawRenderable(img.Renderable, binder, projection, view, camera)
 }
 
 // GetLayout returns a pointer to the layout object of the widget.

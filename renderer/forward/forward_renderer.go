@@ -454,7 +454,7 @@ func (fr *ForwardRenderer) chainedBinder(renderer renderer.Renderer, r *fizzle.R
 }
 
 // DrawRenderable draws a Renderable object with the supplied projection and view matrixes.
-func (fr *ForwardRenderer) DrawRenderable(r *fizzle.Renderable, binder renderer.RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
+func (fr *ForwardRenderer) DrawRenderable(r *fizzle.Renderable, binder renderer.RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -463,7 +463,7 @@ func (fr *ForwardRenderer) DrawRenderable(r *fizzle.Renderable, binder renderer.
 	// if the renderable is a group, just try to draw the children
 	if r.IsGroup {
 		for _, child := range r.Children {
-			fr.DrawRenderable(child, binder, perspective, view)
+			fr.DrawRenderable(child, binder, perspective, view, camera)
 		}
 		return
 	}
@@ -472,13 +472,13 @@ func (fr *ForwardRenderer) DrawRenderable(r *fizzle.Renderable, binder renderer.
 	if binder != nil {
 		binders = append(binders, binder)
 	}
-	renderer.BindAndDraw(fr, r, r.Core.Shader, binders, perspective, view, graphics.TRIANGLES)
+	renderer.BindAndDraw(fr, r, r.Core.Shader, binders, perspective, view, camera, graphics.TRIANGLES)
 }
 
 // DrawRenderableWithShader draws a Renderable object with the supplied projection and view matrixes
 // and a different shader than what is set in the Renderable.
 func (fr *ForwardRenderer) DrawRenderableWithShader(r *fizzle.Renderable, shader *fizzle.RenderShader,
-	binder renderer.RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
+	binder renderer.RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -487,7 +487,7 @@ func (fr *ForwardRenderer) DrawRenderableWithShader(r *fizzle.Renderable, shader
 	// if the renderable is a group, just try to draw the children
 	if r.IsGroup {
 		for _, child := range r.Children {
-			fr.DrawRenderableWithShader(child, shader, binder, perspective, view)
+			fr.DrawRenderableWithShader(child, shader, binder, perspective, view, camera)
 		}
 		return
 	}
@@ -496,11 +496,12 @@ func (fr *ForwardRenderer) DrawRenderableWithShader(r *fizzle.Renderable, shader
 	if binder != nil {
 		binders = append(binders, binder)
 	}
-	renderer.BindAndDraw(fr, r, shader, binders, perspective, view, graphics.TRIANGLES)
+	renderer.BindAndDraw(fr, r, shader, binders, perspective, view, camera, graphics.TRIANGLES)
 }
 
 // DrawLines draws the Renderable using graphics.LINES mode instead of graphics.TRIANGLES.
-func (fr *ForwardRenderer) DrawLines(r *fizzle.Renderable, shader *fizzle.RenderShader, binder renderer.RenderBinder, perspective mgl.Mat4, view mgl.Mat4) {
+func (fr *ForwardRenderer) DrawLines(r *fizzle.Renderable, shader *fizzle.RenderShader, binder renderer.RenderBinder,
+	perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -509,7 +510,7 @@ func (fr *ForwardRenderer) DrawLines(r *fizzle.Renderable, shader *fizzle.Render
 	// if the renderable is a group, just try to draw the children
 	if r.IsGroup {
 		for _, child := range r.Children {
-			fr.DrawLines(child, shader, binder, perspective, view)
+			fr.DrawLines(child, shader, binder, perspective, view, camera)
 		}
 		return
 	}
@@ -518,5 +519,5 @@ func (fr *ForwardRenderer) DrawLines(r *fizzle.Renderable, shader *fizzle.Render
 	if binder != nil {
 		binders = append(binders, binder)
 	}
-	renderer.BindAndDraw(fr, r, shader, binders, perspective, view, graphics.LINES)
+	renderer.BindAndDraw(fr, r, shader, binders, perspective, view, camera, graphics.LINES)
 }

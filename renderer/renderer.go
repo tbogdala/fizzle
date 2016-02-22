@@ -19,8 +19,8 @@ type Renderer interface {
 	GetGraphics() graphics.GraphicsProvider
 	SetGraphics(gp graphics.GraphicsProvider)
 
-	DrawRenderable(r *fizzle.Renderable, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4)
-	DrawRenderableWithShader(r *fizzle.Renderable, shader *fizzle.RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4)
+	DrawRenderable(r *fizzle.Renderable, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
+	DrawRenderableWithShader(r *fizzle.Renderable, shader *fizzle.RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
 	EndRenderFrame()
 }
 
@@ -31,7 +31,7 @@ type RenderBinder func(renderer Renderer, r *fizzle.Renderable, shader *fizzle.R
 // BindAndDraw is a common shader variable binder meant to be called from the
 // renderer implementations.
 func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderShader,
-	binders []RenderBinder, perspective mgl.Mat4, view mgl.Mat4, mode uint32) {
+	binders []RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera, mode uint32) {
 	gfx := renderer.GetGraphics()
 	gfx.UseProgram(shader.Prog)
 	gfx.BindVertexArray(r.Core.Vao)
@@ -97,9 +97,12 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 		gfx.UniformMatrix4fv(shaderBones, int32(len(r.Core.Skeleton.Bones)), false, r.Core.Skeleton.PoseTransforms)
 	}
 
-	shaderCameraWorldPos := shader.GetUniformLocation("CAMERA_WORLD_POSITION")
-	if shaderCameraWorldPos >= 0 {
-		gfx.Uniform3f(shaderCameraWorldPos, -view[12], -view[13], -view[14])
+	if camera != nil {
+		shaderCameraWorldPos := shader.GetUniformLocation("CAMERA_WORLD_POSITION")
+		if shaderCameraWorldPos >= 0 {
+			cp := camera.GetPosition()
+			gfx.Uniform3f(shaderCameraWorldPos, cp[0], cp[1], cp[2])
+		}
 	}
 
 	shaderPosition := shader.GetAttribLocation("VERTEX_POSITION")
