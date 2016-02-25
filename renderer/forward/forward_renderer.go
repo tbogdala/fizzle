@@ -88,10 +88,13 @@ type Light struct {
 	// DiffuseColor is the color the light emmits
 	DiffuseColor mgl.Vec4
 
-	// Intensity is how strong the diffuse light should be
+	// DiffuseIntensity is how strong the diffuse light should be
 	DiffuseIntensity float32
 
-	// Intensity is how strong the ambient light should be
+	// SpecularIntensity is how strong the specular highlight should be
+	SpecularIntensity float32
+
+	// AmbientIntensity is how strong the ambient light should be
 	AmbientIntensity float32
 
 	// Attenuation is the coefficient for the attenuation factor
@@ -398,6 +401,11 @@ func (fr *ForwardRenderer) chainedBinder(renderer renderer.Renderer, r *fizzle.R
 			shaderLightIntensity := shader.GetUniformLocation(fmt.Sprintf("LIGHT_DIFFUSE_INTENSITY[%d]", lightI))
 			if shaderLightIntensity >= 0 {
 				gfx.Uniform1f(shaderLightIntensity, light.DiffuseIntensity)
+			}
+
+			shaderLightSpecularIntensity := shader.GetUniformLocation(fmt.Sprintf("LIGHT_SPECULAR_INTENSITY[%d]", lightI))
+			if shaderLightSpecularIntensity >= 0 {
+				gfx.Uniform1f(shaderLightSpecularIntensity, light.SpecularIntensity)
 			}
 
 			shaderLightAmbientIntensity := shader.GetUniformLocation(fmt.Sprintf("LIGHT_AMBIENT_INTENSITY[%d]", lightI))

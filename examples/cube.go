@@ -75,9 +75,10 @@ func main() {
 	// put a light in there
 	light := renderer.NewLight()
 	//light.Position = mgl.Vec3{-10.0, 5.0, 10}
-	light.DiffuseColor = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
+	light.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	light.Direction = mgl.Vec3{1.0, -0.5, -1.0}
-	light.DiffuseIntensity = 0.80
+	light.DiffuseIntensity = 0.70
+	light.SpecularIntensity = 0.10
 	light.AmbientIntensity = 0.20
 	light.Attenuation = 1.0
 	renderer.ActiveLights[0] = light
@@ -93,14 +94,14 @@ func main() {
 	// create a 2x2x2 cube to render
 	cube := fizzle.CreateCube("diffuse", -1, -1, -1, 1, 1, 1)
 	cube.Core.Shader = diffuseShader
-	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.9, 0.9, 1.0}
+	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	cube.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	cube.Core.Shininess = 4.8
 
 	// create a sphere to render
 	sphere := fizzle.CreateSphere("diffuse", 1, 16, 16)
 	sphere.Core.Shader = diffuseShader
-	sphere.Core.DiffuseColor = mgl.Vec4{0.9, 0.9, 0.9, 1.0}
+	sphere.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	sphere.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	sphere.Core.Shininess = 4.8
 
@@ -128,7 +129,7 @@ func main() {
 
 		// clear the screen
 		gfx.Viewport(0, 0, int32(width), int32(height))
-		gfx.ClearColor(0.05, 0.05, 0.05, 1.0)
+		gfx.ClearColor(0.25, 0.25, 0.25, 1.0)
 		gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT)
 
 		// make the projection and view matrixes
@@ -137,9 +138,9 @@ func main() {
 
 		// draw the cube or the sphere
 		if renderCube {
-			renderer.DrawRenderable(cube, nil, perspective, view)
+			renderer.DrawRenderable(cube, nil, perspective, view, camera)
 		} else {
-			renderer.DrawRenderable(sphere, nil, perspective, view)
+			renderer.DrawRenderable(sphere, nil, perspective, view, camera)
 		}
 
 		// draw the screen

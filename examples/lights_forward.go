@@ -191,8 +191,8 @@ func main() {
 
 				// enable the light to cast shadows
 				renderer.EnableShadowMappingLight(lightToCast)
-				renderer.DrawRenderableWithShader(testCube, shadowmapShader, nil, lightToCast.ShadowMap.Projection, lightToCast.ShadowMap.View)
-				renderer.DrawRenderableWithShader(floorPlane, shadowmapShader, nil, lightToCast.ShadowMap.Projection, lightToCast.ShadowMap.View)
+				renderer.DrawRenderableWithShader(testCube, shadowmapShader, nil, lightToCast.ShadowMap.Projection, lightToCast.ShadowMap.View, camera)
+				renderer.DrawRenderableWithShader(floorPlane, shadowmapShader, nil, lightToCast.ShadowMap.Projection, lightToCast.ShadowMap.View, camera)
 
 			}
 		}
@@ -208,8 +208,8 @@ func main() {
 		view := camera.GetViewMatrix()
 
 		// draw the stuff
-		renderer.DrawRenderable(testCube, nil, perspective, view)
-		renderer.DrawRenderable(floorPlane, nil, perspective, view)
+		renderer.DrawRenderable(testCube, nil, perspective, view, camera)
+		renderer.DrawRenderable(floorPlane, nil, perspective, view, camera)
 
 		// Finish with the user interface
 		//
