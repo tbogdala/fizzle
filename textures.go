@@ -13,6 +13,27 @@ import (
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 )
 
+// TextureArrayIndexes is the type for a map that has a 'user friendly' texture name to a
+// index for a given texture.
+type TextureArrayIndexes map[string]int32
+
+// TextureArray encapsulates the map of texture indexes within a texture array and
+// the texture array itself.
+type TextureArray struct {
+	// TextureIndexes is a map between the texture name to an index in the texture array object.
+	TextureIndexes TextureArrayIndexes
+
+	// Texture is the OpenGL texture object for all the loaded textures.
+	Texture graphics.Texture
+}
+
+// NewTextureArray creates a new TextureArray object with an empty map.
+func NewTextureArray() *TextureArray {
+	ta := new(TextureArray)
+	ta.TextureIndexes = make(TextureArrayIndexes)
+	return ta
+}
+
 func loadFile(filePath string) (rgbaFFlipped *image.NRGBA, e error) {
 	imgFile, err := os.Open(filePath)
 	if err != nil {
@@ -84,17 +105,20 @@ func LoadImageToTexture(filePath string) (graphics.Texture, error) {
 }
 
 // LoadImagesToTextureArray loads image files and buffers them into a new GL texture.
-func LoadImagesToTextureArray(filepaths map[string]string, size int32) (texArray graphics.Texture, texLoc map[string]int32, e error) {
+func LoadImagesToTextureArray(filepaths map[string]string, size int32) (*TextureArray, error) {
 	// I thought this could be used for mipmap generation, but it causes crashes on some
 	// Intel drivers.
 	const levels int32 = 1
 
+	// create the texture array object
+	texArray := NewTextureArray()
+
 	// make the map that will hold the locations for the textures in the array
-	texLoc = make(map[string]int32)
+	//texLoc = make(TextureArray)
 
 	// generate the texture array
-	texArray = gfx.GenTexture()
-	gfx.BindTexture(graphics.TEXTURE_2D_ARRAY, texArray)
+	texArray.Texture = gfx.GenTexture()
+	gfx.BindTexture(graphics.TEXTURE_2D_ARRAY, texArray.Texture)
 
 	// create the texture array with the specified number of levels that's big enough
 	// to fit all of the textures specified in the filepaths parameter.
@@ -105,14 +129,14 @@ func LoadImagesToTextureArray(filepaths map[string]string, size int32) (texArray
 	for texName, filePath := range filepaths {
 		rgbaFlipped, err := loadFile(filePath)
 		if err != nil {
-			return texArray, texLoc, fmt.Errorf("Failed to load the PNG file into an image.\n%v\n", err)
+			return texArray, fmt.Errorf("Failed to load the PNG file into an image.\n%v\n", err)
 		}
 
 		const byteDepth int32 = 1
 		gfx.TexSubImage3D(graphics.TEXTURE_2D_ARRAY, 0, 0, 0, arrayIndex, size, size, byteDepth, graphics.RGBA, graphics.UNSIGNED_BYTE, gfx.Ptr(rgbaFlipped.Pix))
 
 		// store the array index in a map so that we can access it correctly later
-		texLoc[texName] = arrayIndex
+		texArray.TextureIndexes[texName] = arrayIndex
 		arrayIndex++
 	}
 
@@ -120,5 +144,5 @@ func LoadImagesToTextureArray(filepaths map[string]string, size int32) (texArray
 		gfx.GenerateMipmap(graphics.TEXTURE_2D_ARRAY)
 	}
 
-	return texArray, texLoc, nil
+	return texArray, nil
 }

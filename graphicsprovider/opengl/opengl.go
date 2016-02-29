@@ -436,6 +436,12 @@ func (impl *GraphicsImpl) VertexAttribPointer(dst uint32, size int32, ty graphic
 	gl.VertexAttribPointer(dst, size, uint32(ty), normalized, stride, ptr)
 }
 
+// VertexAttribPointer uses a bound buffer to define vertex attribute data.
+// Only integer types are accepted by this function.
+func (impl *GraphicsImpl) VertexAttribIPointer(dst uint32, size int32, ty graphics.Enum, stride int32, ptr unsafe.Pointer) {
+	gl.VertexAttribIPointer(dst, size, uint32(ty), stride, ptr)
+}
+
 // Viewport sets the viewport, an affine transformation that
 // normalizes device coordinates to window coordinates.
 func (impl *GraphicsImpl) Viewport(x, y, width, height int32) {

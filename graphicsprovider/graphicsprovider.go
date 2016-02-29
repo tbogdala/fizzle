@@ -258,6 +258,10 @@ type GraphicsProvider interface {
 	// consecutive vertex attributes.
 	VertexAttribPointer(dst uint32, size int32, ty Enum, normalized bool, stride int32, ptr unsafe.Pointer)
 
+	// VertexAttribIPointer uses a bound buffer to define vertex attribute data.
+	// Only integer types are accepted by this function.
+	VertexAttribIPointer(dst uint32, size int32, ty Enum, stride int32, ptr unsafe.Pointer)
+
 	// Viewport sets the viewport, an affine transformation that
 	// normalizes device coordinates to window coordinates.
 	Viewport(x, y, width, height int32)
