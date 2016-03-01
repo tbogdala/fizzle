@@ -34,7 +34,7 @@ func NewTextureArray() *TextureArray {
 	return ta
 }
 
-func loadFile(filePath string) (rgbaFFlipped *image.NRGBA, e error) {
+func loadFile(filePath string) (*image.NRGBA, error) {
 	imgFile, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open the texture file: %v\n", err)
@@ -51,23 +51,18 @@ func loadFile(filePath string) (rgbaFFlipped *image.NRGBA, e error) {
 	rgba := image.NewNRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
 	draw.Draw(rgba, rgba.Bounds(), img, b.Min, draw.Src)
 
-	return rgba, nil
-
 	// flip the image vertically
-	// NOTE: I guess we don't need to do this anymore ...
-	/*
-		rows := b.Max.Y
-		rgba_flipped = image.NewNRGBA(image.Rect(0, 0, b.Max.X, b.Max.Y))
-		for dy := 0; dy < rows; dy++ {
-			sy := b.Max.Y - dy - 1
-			for dx := 0; dx < b.Max.X; dx++ {
-				soffset := sy*rgba.Stride + dx*4
-				doffset := dy*rgba_flipped.Stride + dx*4
-				copy(rgba_flipped.Pix[doffset:doffset+4], rgba.Pix[soffset:soffset+4])
-			}
+	rows := b.Max.Y
+	rgbaFlipped := image.NewNRGBA(image.Rect(0, 0, b.Max.X, b.Max.Y))
+	for dy := 0; dy < rows; dy++ {
+		sy := b.Max.Y - dy - 1
+		for dx := 0; dx < b.Max.X; dx++ {
+			soffset := sy*rgba.Stride + dx*4
+			doffset := dy*rgbaFlipped.Stride + dx*4
+			copy(rgbaFlipped.Pix[doffset:doffset+4], rgba.Pix[soffset:soffset+4])
 		}
-		return rgba_flipped, nil
-	*/
+	}
+	return rgbaFlipped, nil
 }
 
 // LoadRGBAToTexture takes a byte slice and throws it into an OpenGL texture.

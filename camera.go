@@ -149,7 +149,8 @@ func (c *OrbitCamera) GetViewMatrix() mgl.Mat4 {
 
 // YawPitchCamera keeps track of the view rotation and position and provides
 // utility methods to generate a view matrix.
-// It provide a free-moving camera that is adjusted by yaw and pitch.
+// It provides a free-moving camera that is adjusted by yaw and pitch which,
+// at default, looks down -Z with +Y as the up vector.
 type YawPitchCamera struct {
 	// store the pitch and yaw as angles to convert into
 	// quaternions on change. this allows for movement directed
