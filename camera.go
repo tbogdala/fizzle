@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	upVector   = mgl.Vec3{0.0, 1.0, 0.0}
-	sideVector = mgl.Vec3{1.0, 0.0, 0.0}
+	upVector      = mgl.Vec3{0.0, 1.0, 0.0}
+	forwardVector = mgl.Vec3{0.0, 0.0, -1.0}
+	sideVector    = mgl.Vec3{1.0, 0.0, 0.0}
 )
 
 // Camera is an interface defining a common interface between different styles of cameras.
@@ -229,6 +230,23 @@ func (c *YawPitchCamera) UpdatePitch(delta float32) {
 	c.generateRotation()
 }
 
+// GetForwardVector returns a unit vector rotated in the same direction that
+// the camera is rotated.
+func (c *YawPitchCamera) GetForwardVector() mgl.Vec3 {
+	// this depends on c.rotation being updated on parameter change
+	// with generateRotation()
+	return c.rotation.Conjugate().Rotate(forwardVector)
+}
+
+// GetSideVector returns a unit vector rotated in the same direction that
+// the camera is rotated, but perpendicular and oriented to the side.
+// If {0, 0, 1} is forward then the side will be {-1, 0, 0}.
+func (c *YawPitchCamera) GetSideVector() mgl.Vec3 {
+	// this depends on c.rotation being updated on parameter change
+	// with generateRotation()
+	return c.rotation.Conjugate().Rotate(sideVector)
+}
+
 // LookAtDirect calculates a view rotation using the current Camera
 // position so that it will look at the target coordinate.
 // Uses standard up axis of {0,1,0}.
@@ -252,7 +270,7 @@ func (c *YawPitchCamera) LookAt(target mgl.Vec3, distance float32) {
 	correctedYaw := float32(math.Atan2(float64(c.position[0]-target[0]), float64(c.position[2]-target[2])))
 
 	// update the rotation quaternion
-	camYawQ := mgl.QuatRotate(-1*correctedYaw, upVector)
+	camYawQ := mgl.QuatRotate(correctedYaw, upVector)
 	camPitchQ := mgl.QuatRotate(c.pitch, sideVector)
 	c.rotation = camPitchQ.Mul(camYawQ)
 }
@@ -262,4 +280,7 @@ func (c *YawPitchCamera) generateRotation() {
 	camYawQ := mgl.QuatRotate(c.yaw, upVector)
 	camPitchQ := mgl.QuatRotate(c.pitch, sideVector)
 	c.rotation = camPitchQ.Mul(camYawQ)
+
+	// some use of this rotation Quat depends on it being normalized.
+	c.rotation = c.rotation.Normalize()
 }
