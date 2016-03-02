@@ -1,7 +1,19 @@
 // Copyright 2016, Timothy` Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
-package opengles2
+package opengles31
+
+// NOTE: just started implementing some GLES3 features. This isn't complete yet.
+
+/*
+#cgo CFLAGS: -v
+#cgo LDFLAGS: -lGLESv3  -lEGL
+#include <stdlib.h>
+#include <GLES3/gl3.h>
+#include <GLES3/gl3ext.h>
+#include <GLES3/gl3platform.h>
+*/
+import "C"
 
 import (
 	"fmt"
@@ -379,13 +391,15 @@ func (impl *GraphicsImpl) TexParameteri(target, pname graphics.Enum, param int32
 // two-dimensional array or cube-map array texture
 // NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) TexStorage3D(target graphics.Enum, level int32, intfmt uint32, width, height, depth int32) {
-	// NO-OP
+	/* void TexStorage3D(enum target, sizei levels, enum internalformat, sizei width, sizei height, sizei depth); */
+	C.glTexStorage3D(C.GLenum(target), C.GLsizei(level), C.GLenum(intfmt), C.GLsizei(width), C.GLsizei(height), C.GLsizei(depth))
 }
 
 // TexSubImage3D specifies a three-dimensonal texture subimage
 // NOTE: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) TexSubImage3D(target graphics.Enum, level, xoff, yoff, zoff, width, height, depth int32, fmt, ty graphics.Enum, ptr unsafe.Pointer) {
-	// NO-OP
+	C.glTexSubImage3D(C.GLenum(target), C.GLint(level), C.GLint(xoff), C.GLint(yoff), C.GLint(zoff), C.GLsizei(width),
+		C.GLsizei(height), C.GLsizei(depth), C.GLenum(fmt), C.GLenum(ty), unsafe.Pointer(ptr))
 }
 
 // Uniform1i specifies the value of a uniform variable for the current program object
@@ -455,7 +469,7 @@ func (impl *GraphicsImpl) VertexAttribPointer(dst uint32, size int32, ty graphic
 	gles.VertexAttribPointer(dst, size, gles.Enum(ty), normalized, gles.Sizei(stride), ptr)
 }
 
-// VertexAttribIPointer uses a bound buffer to define vertex attribute data.
+// VertexAttribPointer uses a bound buffer to define vertex attribute data.
 // Only integer types are accepted by this function.
 // Note: not implemented in OpenGL ES 2
 func (impl *GraphicsImpl) VertexAttribIPointer(dst uint32, size int32, ty graphics.Enum, stride int32, ptr unsafe.Pointer) {
