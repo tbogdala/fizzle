@@ -334,8 +334,9 @@ func (impl *GraphicsImpl) RenderbufferStorage(target graphics.Enum, internalform
 
 // ShaderSource replaces the source code for a shader object.
 func (impl *GraphicsImpl) ShaderSource(s graphics.Shader, source string) {
-	glSource := gl.Str(source + "\x00")
-	gl.ShaderSource(uint32(s), 1, &glSource, nil)
+	glSource, free := gl.Strs(source + "\x00")
+	gl.ShaderSource(uint32(s), 1, glSource, nil)
+	free()
 }
 
 // TexImage2D writes a 2D texture image.
