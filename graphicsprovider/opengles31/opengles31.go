@@ -6,7 +6,6 @@ package opengles31
 // NOTE: just started implementing some GLES3 features. This isn't complete yet.
 
 /*
-#cgo CFLAGS: -v
 #cgo LDFLAGS: -lGLESv3  -lEGL
 #include <stdlib.h>
 #include <GLES3/gl3.h>

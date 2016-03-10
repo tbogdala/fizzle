@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
@@ -195,9 +194,6 @@ type ForwardRenderer struct {
 	// a screen size change is detected.
 	OnScreenSizeChanged func(fr *ForwardRenderer, width int32, height int32)
 
-	// MainWindow the window used to show the rendered graphics.
-	MainWindow *glfw.Window
-
 	// UIManager is the user interface manager assigned to the renderer.
 	UIManager *ui.UIManager
 
@@ -222,9 +218,8 @@ type ForwardRenderer struct {
 }
 
 // NewForwardRenderer creates a new forward rendering style render engine object.
-func NewForwardRenderer(window *glfw.Window, g graphics.GraphicsProvider) *ForwardRenderer {
+func NewForwardRenderer(g graphics.GraphicsProvider) *ForwardRenderer {
 	fr := new(ForwardRenderer)
-	fr.MainWindow = window
 	fr.gfx = g
 	fr.OnScreenSizeChanged = func(r *ForwardRenderer, width int32, height int32) {}
 	return fr
@@ -288,10 +283,9 @@ func (fr *ForwardRenderer) GetAspectRatio() float32 {
 	return float32(fr.width) / float32(fr.height)
 }
 
-// EndRenderFrame swaps the buffers and calls GLFW to poll for input.
+// EndRenderFrame is the function called at end of the frame.
 func (fr *ForwardRenderer) EndRenderFrame() {
-	fr.MainWindow.SwapBuffers()
-	glfw.PollEvents()
+	// nothing to do
 }
 
 // GetActiveLightCount counts the number of *Light set in
