@@ -69,7 +69,7 @@ func main() {
 	mainWindow.SetKeyCallback(keyCallback)
 
 	// create a new renderer
-	renderer := forward.NewForwardRenderer(mainWindow, gfx)
+	renderer := forward.NewForwardRenderer(gfx)
 	defer renderer.Destroy()
 
 	// put a light in there
