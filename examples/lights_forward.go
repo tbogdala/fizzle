@@ -15,7 +15,8 @@ import (
 
 	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
-	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
+	opengl "github.com/tbogdala/fizzle/graphicsprovider/opengl"
+	input "github.com/tbogdala/fizzle/input/glfwinput"
 	forward "github.com/tbogdala/fizzle/renderer/forward"
 	ui "github.com/tbogdala/fizzle/ui"
 )
@@ -48,14 +49,22 @@ const (
 	testNormalsPath = "./assets/textures/TestCube_N.png"
 )
 
+var (
+	// mainWindow is the main window of the application
+	mainWindow *glfw.Window
+)
+
 // main is the entry point for the application.
 func main() {
 	// start off by initializing the GL and GLFW libraries and creating a window.
 	// the default window size we use is 800x600
-	mainWindow, gfx := initGraphics("Forward Lighting", width, height)
+	w, gfx := initGraphics("Forward Lighting", width, height)
+	mainWindow = w
 
 	// set the callback function for key input
-	mainWindow.SetKeyCallback(keyCallback)
+	kbModel := input.NewKeyboardModel(mainWindow)
+	kbModel.BindTrigger(glfw.KeyEscape, setShouldClose)
+	kbModel.SetupCallbacks()
 
 	// create a new renderer
 	renderer := forward.NewForwardRenderer(gfx)
@@ -267,10 +276,7 @@ func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsPr
 	return mainWindow, gfx
 }
 
-// keyCallback is set as a callback in main() and is used to close the window
-// when the escape key is hit.
-func keyCallback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	if key == glfw.KeyEscape && action == glfw.Press {
-		w.SetShouldClose(true)
-	}
+// setShouldClose should be called to close the window and kill the app.
+func setShouldClose() {
+	mainWindow.SetShouldClose(true)
 }

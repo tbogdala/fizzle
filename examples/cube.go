@@ -13,9 +13,10 @@ import (
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 
-	"github.com/tbogdala/fizzle"
+	fizzle "github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
-	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
+	opengl "github.com/tbogdala/fizzle/graphicsprovider/opengl"
+	input "github.com/tbogdala/fizzle/input/glfwinput"
 	forward "github.com/tbogdala/fizzle/renderer/forward"
 )
 
@@ -56,17 +57,23 @@ const (
 
 var (
 	// renderCube indicates if the cube should be drawn or the sphere
-	renderCube bool = true
+	renderCube = true
+
+	mainWindow *glfw.Window
 )
 
 // main is the entry point for the application.
 func main() {
 	// start off by initializing the GL and GLFW libraries and creating a window.
 	// the default window size we use is 800x600
-	mainWindow, gfx := initGraphics("Simple Cube", width, height)
+	w, gfx := initGraphics("Simple Cube", width, height)
+	mainWindow = w
 
-	// set the callback function for key input
-	mainWindow.SetKeyCallback(keyCallback)
+	// set the callback functions for key input
+	kbModel := input.NewKeyboardModel(mainWindow)
+	kbModel.BindTrigger(glfw.KeyEscape, setShouldClose)
+	kbModel.BindTrigger(glfw.KeySpace, toggleModel)
+	kbModel.SetupCallbacks()
 
 	// create a new renderer
 	renderer := forward.NewForwardRenderer(gfx)
@@ -121,6 +128,9 @@ func main() {
 		// calculate the difference in time to control rotation speed
 		thisFrame := time.Now()
 		frameDelta := float32(thisFrame.Sub(lastFrame).Seconds())
+
+		// handle any keyboard input
+		kbModel.CheckKeyPresses()
 
 		// rotate the cube and sphere around the Y axis at a speed of radsPerSec
 		rotDelta := mgl.QuatRotate(radsPerSec*frameDelta, mgl.Vec3{0.0, 1.0, 0.0})
@@ -190,19 +200,17 @@ func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsPr
 	return mainWindow, gfx
 }
 
-// keyCallback is set as a callback in main() and is used to close the window
-// when the escape key is hit.
-func keyCallback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	if key == glfw.KeyEscape && action == glfw.Press {
-		w.SetShouldClose(true)
-	}
+// setShouldClose should be called to close the window and kill the app.
+func setShouldClose() {
+	mainWindow.SetShouldClose(true)
+}
 
-	if key == glfw.KeySpace && action == glfw.Press {
-		// spacebar toggles the drawing of the cube or the sphere
-		if renderCube {
-			renderCube = false
-		} else {
-			renderCube = true
-		}
+// toggleModel sets whether or not the cube or the sphere should be rendered.
+func toggleModel() {
+	// spacebar toggles the drawing of the cube or the sphere
+	if renderCube {
+		renderCube = false
+	} else {
+		renderCube = true
 	}
 }
