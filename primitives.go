@@ -343,13 +343,12 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 
 	const piDiv2 = math.Pi / 2.0
 
-	indexes := make([]uint32, 0, rings*sectors)
-
 	R := float64(1.0 / float32(rings-1))
 	S := float64(1.0 / float32(sectors-1))
 
 	// create the buffer to hold all of the interleaved data
-	numOfVerts := rings * sectors
+	numOfVerts := (rings + 1) * (sectors + 1)
+	indexes := make([]uint32, 0, rings*sectors*6)
 	vnutBuffer := make([]float32, 0, numOfVerts*(3+2+3))
 
 	for ri := 0; ri < int(rings); ri++ {
@@ -372,6 +371,11 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 			vnutBuffer = append(vnutBuffer, float32(si)*float32(S))
 			vnutBuffer = append(vnutBuffer, float32(ri)*float32(R))
 
+		}
+	}
+
+	for ri := 0; ri < int(rings-1); ri++ {
+		for si := 0; si < int(sectors-1); si++ {
 			currentRow := ri * sectors
 			nextRow := (ri + 1) * sectors
 
@@ -379,9 +383,13 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 			indexes = append(indexes, uint32(nextRow+si))
 			indexes = append(indexes, uint32(nextRow+si+1))
 
-			indexes = append(indexes, uint32(currentRow+si))
 			indexes = append(indexes, uint32(nextRow+si+1))
 			indexes = append(indexes, uint32(currentRow+si+1))
+			indexes = append(indexes, uint32(currentRow+si))
+
+			//indexes = append(indexes, uint32(currentRow+si))
+			//indexes = append(indexes, uint32(nextRow+si+1))
+			//indexes = append(indexes, uint32(currentRow+si+1))
 		}
 	}
 
@@ -392,7 +400,7 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 
 	r := NewRenderable()
 	r.ShaderName = shader
-	r.FaceCount = uint32(rings * sectors * 2)
+	r.FaceCount = uint32(len(indexes) / 3)
 	r.BoundingRect.Bottom = mgl.Vec3{-radius, -radius, -radius}
 	r.BoundingRect.Top = mgl.Vec3{radius, radius, radius}
 

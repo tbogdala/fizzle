@@ -11,11 +11,11 @@ import (
 
 // JoystickButtonCallback is the type of the function that gets called for the
 // joystick button callback events.
-type JoystickButtonCallback func(delta float32)
+type JoystickButtonCallback func()
 
 // JoystickAxisCallback is the type of the function that gets called for the
 // joystick axis callback events.
-type JoystickAxisCallback func(delta float32, axis float32)
+type JoystickAxisCallback func(axis float32)
 
 // JoystickAxisBinding determines what values on an axis are mapped to
 // what callback.
@@ -70,6 +70,16 @@ func NewJoystickModel(w *glfw.Window, j glfw.Joystick) *JoystickModel {
 	return js
 }
 
+// IsJoystickPresent returns true if the joystick is detected.
+func IsJoystickPresent(j glfw.Joystick) bool {
+	return glfw.JoystickPresent(j)
+}
+
+// IsActive returns true if the bound joystick id is present.
+func (jm *JoystickModel) IsActive() bool {
+	return IsJoystickPresent(jm.joystickID)
+}
+
 // BindButton binds an event handler for a given button id on a joystick.
 func (jm *JoystickModel) BindButton(button int, f JoystickButtonCallback) {
 	jm.ButtonBindings[button] = f
@@ -83,7 +93,7 @@ func (jm *JoystickModel) BindAxis(binding JoystickAxisBinding) {
 
 // CheckInput checks the joystick input against the bindings and invokes
 // any matched callbacks.
-func (jm *JoystickModel) CheckInput(delta float32) {
+func (jm *JoystickModel) CheckInput() {
 	// if the joystick is still connected, then we do the joystick polling
 	if !glfw.JoystickPresent(jm.joystickID) {
 		return
@@ -96,7 +106,7 @@ func (jm *JoystickModel) CheckInput(delta float32) {
 	// process the buttons
 	for buttonID, cb := range jm.ButtonBindings {
 		if buttons[buttonID] > 0 && cb != nil {
-			cb(delta)
+			cb()
 		}
 	}
 
@@ -116,7 +126,7 @@ func (jm *JoystickModel) CheckInput(delta float32) {
 			} else {
 				v = (v - mapping.Min) / scale
 			}
-			mapping.Callback(delta, v)
+			mapping.Callback(v)
 		}
 	}
 }
