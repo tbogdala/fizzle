@@ -47,7 +47,9 @@ type OrbitCamera struct {
 	target mgl.Vec3
 
 	// rotation controlls the angle of the camera along the circle based on radius
-	// being calculted from target->up with a vertAngle.
+	// being calculted from target->up with a vertAngle. A rotation of 0 radians
+	// will have the camera looking down the -X axis. A rotation of PI/2 radians
+	// will have the camera looking down -Z.
 	rotation float32
 
 	// position is the calculated position of the camera based on the target, the

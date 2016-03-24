@@ -94,6 +94,19 @@ func LoadRGBAToTexture(rgba []byte, imageSize int32) graphics.Texture {
 	return tex
 }
 
+// LoadRGBToTexture takes a byte slice and throws it into an OpenGL texture.
+func LoadRGBToTexture(rgb []byte, imageSize int32) graphics.Texture {
+	tex := gfx.GenTexture()
+	gfx.ActiveTexture(graphics.TEXTURE0)
+	gfx.BindTexture(graphics.TEXTURE_2D, tex)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.REPEAT)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.REPEAT)
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGB, imageSize, imageSize, 0, graphics.RGB, graphics.UNSIGNED_BYTE, gfx.Ptr(rgb), len(rgb))
+	return tex
+}
+
 // LoadImageToTexture loads an image from a file into an OpenGL texture.
 func LoadImageToTexture(filePath string) (graphics.Texture, error) {
 	tex := gfx.GenTexture()
