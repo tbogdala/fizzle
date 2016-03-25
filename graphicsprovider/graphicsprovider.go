@@ -181,6 +181,9 @@ type GraphicsProvider interface {
 	// LinkProgram links a program object
 	LinkProgram(p Program)
 
+	// PolygonMode sets a polygon rasterization mode.
+	PolygonMode(face, mode Enum)
+
 	// PolygonOffset sets the scale and units used to calculate depth values
 	PolygonOffset(factor float32, units float32)
 

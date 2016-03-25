@@ -305,6 +305,11 @@ func (impl *GraphicsImpl) LinkProgram(p graphics.Program) {
 	gl.LinkProgram(uint32(p))
 }
 
+// PolygonMode sets a polygon rasterization mode.
+func (impl *GraphicsImpl) PolygonMode(face, mode graphics.Enum) {
+	gl.PolygonMode(uint32(face), uint32(mode))
+}
+
 // PolygonOffset sets the scale and units used to calculate depth values
 func (impl *GraphicsImpl) PolygonOffset(factor float32, units float32) {
 	gl.PolygonOffset(factor, units)
