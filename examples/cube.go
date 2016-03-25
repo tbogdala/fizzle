@@ -115,8 +115,7 @@ func main() {
 	renderCube = true
 
 	// setup the camera to look at the cube
-	camera := fizzle.NewYawPitchCamera(mgl.Vec3{0.0, 1.0, 5.0})
-	camera.LookAtDirect(mgl.Vec3{0, 0, 0})
+	camera := fizzle.NewOrbitCamera(mgl.Vec3{0, 0, 0}, math.Pi/2.0, 5.0, math.Pi/2.0)
 
 	// set some OpenGL flags
 	gfx.Enable(graphics.CULL_FACE)

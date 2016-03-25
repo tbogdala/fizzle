@@ -83,26 +83,36 @@ func loadDecodedPNG(img image.Image) (*image.NRGBA, error) {
 
 // LoadRGBAToTexture takes a byte slice and throws it into an OpenGL texture.
 func LoadRGBAToTexture(rgba []byte, imageSize int32) graphics.Texture {
+	return LoadRGBAToTextureExt(rgba, imageSize, graphics.LINEAR, graphics.LINEAR, graphics.REPEAT, graphics.REPEAT)
+}
+
+// LoadRGBAToTextureExt takes a byte slice and throws it into an OpenGL texture.
+func LoadRGBAToTextureExt(rgba []byte, imageSize, magFilter, minFilter, wrapS, wrapT int32) graphics.Texture {
 	tex := gfx.GenTexture()
 	gfx.ActiveTexture(graphics.TEXTURE0)
 	gfx.BindTexture(graphics.TEXTURE_2D, tex)
-	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
-	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
-	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.REPEAT)
-	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.REPEAT)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, magFilter)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, minFilter)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, wrapS)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, wrapT)
 	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA, imageSize, imageSize, 0, graphics.RGBA, graphics.UNSIGNED_BYTE, gfx.Ptr(rgba), len(rgba))
 	return tex
 }
 
 // LoadRGBToTexture takes a byte slice and throws it into an OpenGL texture.
 func LoadRGBToTexture(rgb []byte, imageSize int32) graphics.Texture {
+	return LoadRGBToTextureExt(rgb, imageSize, graphics.LINEAR, graphics.LINEAR, graphics.REPEAT, graphics.REPEAT)
+}
+
+// LoadRGBToTextureExt takes a byte slice and throws it into an OpenGL texture.
+func LoadRGBToTextureExt(rgb []byte, imageSize, magFilter, minFilter, wrapS, wrapT int32) graphics.Texture {
 	tex := gfx.GenTexture()
 	gfx.ActiveTexture(graphics.TEXTURE0)
 	gfx.BindTexture(graphics.TEXTURE_2D, tex)
-	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, graphics.LINEAR)
-	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, graphics.LINEAR)
-	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, graphics.REPEAT)
-	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, graphics.REPEAT)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MAG_FILTER, magFilter)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_MIN_FILTER, minFilter)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_S, wrapS)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_WRAP_T, wrapT)
 	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGB, imageSize, imageSize, 0, graphics.RGB, graphics.UNSIGNED_BYTE, gfx.Ptr(rgb), len(rgb))
 	return tex
 }

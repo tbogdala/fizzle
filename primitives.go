@@ -4,6 +4,7 @@
 package fizzle
 
 import (
+	"fmt"
 	"math"
 
 	mgl "github.com/go-gl/mathgl/mgl32"
@@ -425,4 +426,334 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
 
 	return r
+}
+
+// CreateCubeMappedSphere creates a sphere that can be used for cubemaps based on the dimensions specified.
+// If the cubemapUvs parameter is true, it will map face UVs to a single cubemap texture; if
+// this parameter is false, then each face is mapped [0..1] for UVs.
+func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemapUvs bool) *Renderable {
+	// based on an implementation in C# for unity here:
+	// http://catlikecoding.com/unity/tutorials/cube-sphere/
+	//
+	// the state of this implementation is pretty bad, but it seems to work.
+	// 	¯\_(ツ)_/¯
+
+	// sanity check the gridSize
+	if gridSize < 2 {
+		return nil
+	}
+
+	const floatSize = 4
+	const uintSize = 4
+
+	const xmin = float32(-1.0)
+	const ymin = float32(-1.0)
+	const zmin = float32(-1.0)
+	const xmax = float32(1.0)
+	const ymax = float32(1.0)
+	const zmax = float32(1.0)
+
+	const xWidth = xmax - xmin
+	const yWidth = ymax - ymin
+	const zWidth = zmax - zmin
+
+	xStep := float32(xWidth) / float32(gridSize)
+	yStep := float32(yWidth) / float32(gridSize)
+	zStep := float32(zWidth) / float32(gridSize)
+
+	// create the buffer to hold all of the interleaved data
+	var vnutBuffer []float32
+	var xUv, yUv, s, t float32
+
+	scaleFn := func(gridSize int, x, y, z float32) mgl.Vec3 {
+		v := mgl.Vec3{x, y, z}
+		x2 := v[0] * v[0]
+		y2 := v[1] * v[1]
+		z2 := v[2] * v[2]
+
+		return mgl.Vec3{
+			v[0] * float32(math.Sqrt(float64(1.0-y2/2.0-z2/2.0+y2*z2/3.0))),
+			v[1] * float32(math.Sqrt(float64(1.0-x2/2.0-z2/2.0+x2*z2/3.0))),
+			v[2] * float32(math.Sqrt(float64(1.0-x2/2.0-y2/2.0+x2*y2/3.0))),
+		}
+	}
+
+	addVertData := func(buff []float32, x, y, z, nx, ny, nz, uvs, uvt float32) []float32 {
+		// vertex
+		buff = append(buff, x)
+		buff = append(buff, y)
+		buff = append(buff, z)
+
+		// normal
+		buff = append(buff, nx)
+		buff = append(buff, ny)
+		buff = append(buff, nz)
+
+		// uv
+		buff = append(buff, uvs)
+		buff = append(buff, uvt)
+
+		return buff
+	}
+
+	createFaceIndexes := func(gridSize, faceCount int) ([]uint32, int) {
+		indexesPerFace := (gridSize + 1) * (gridSize + 1)
+		faceOffset := 0
+		indexes := make([]uint32, 0, indexesPerFace*faceCount)
+
+		// now add the indexes
+		for face := 0; face < faceCount; face++ {
+			for y := 0; y < gridSize; y++ {
+				for x := 0; x < gridSize; x++ {
+					i0 := faceOffset + x + (y * (gridSize + 1))
+					i1 := faceOffset + x + 1 + (y * (gridSize + 1))
+					i2 := faceOffset + x + ((y + 1) * (gridSize + 1))
+					i3 := faceOffset + x + 1 + ((y + 1) * (gridSize + 1))
+
+					indexes = append(indexes, uint32(i0))
+					indexes = append(indexes, uint32(i1))
+					indexes = append(indexes, uint32(i2))
+
+					indexes = append(indexes, uint32(i1))
+					indexes = append(indexes, uint32(i3))
+					indexes = append(indexes, uint32(i2))
+				} // x
+			} // y
+
+			faceOffset += indexesPerFace
+		} // face
+
+		return indexes, faceOffset
+	}
+
+	// =======================================================================
+	// front face
+
+	yUv = float32(0.0)
+	for y := ymin; y <= ymax; y += yStep {
+		xUv = float32(0.0)
+		for x := xmin; x <= xmax; x += xStep {
+			defPos := scaleFn(gridSize, x, y, zmax)
+			if cubemapUvs {
+				s, t = MapUvToCubemap(FaceFront, xUv, yUv)
+			} else {
+				s, t = xUv, yUv
+			}
+			vnutBuffer = addVertData(vnutBuffer, defPos[0]*radius, defPos[1]*radius, defPos[2]*radius, defPos[0], defPos[1], defPos[2], s, t)
+			xUv += xStep / xWidth
+		} // x
+		yUv += yStep / yWidth
+	} // y
+
+	// =======================================================================
+	// back face
+	yUv = float32(0.0)
+	for y := ymin; y <= ymax; y += yStep {
+		xUv = float32(0.0)
+		for x := xmax; x >= xmin; x -= xStep {
+			defPos := scaleFn(gridSize, x, y, zmin)
+			if cubemapUvs {
+				s, t = MapUvToCubemap(FaceBack, xUv, yUv)
+			} else {
+				s, t = xUv, yUv
+			}
+			vnutBuffer = addVertData(vnutBuffer, defPos[0]*radius, defPos[1]*radius, defPos[2]*radius, defPos[0], defPos[1], defPos[2], s, t)
+			xUv += xStep / xWidth
+		} // x
+		yUv += yStep / yWidth
+	} // y
+
+	// =======================================================================
+	// right face
+	yUv = float32(0.0)
+	for y := ymin; y <= ymax; y += yStep {
+		xUv = float32(0.0)
+		for z := zmax; z >= zmin; z -= zStep {
+			defPos := scaleFn(gridSize, xmax, y, z)
+			if cubemapUvs {
+				s, t = MapUvToCubemap(FaceRight, xUv, yUv)
+			} else {
+				s, t = xUv, yUv
+			}
+			vnutBuffer = addVertData(vnutBuffer, defPos[0]*radius, defPos[1]*radius, defPos[2]*radius, defPos[0], defPos[1], defPos[2], s, t)
+			xUv += xStep / xWidth
+		} // x
+		yUv += yStep / yWidth
+	} // y
+
+	// =======================================================================
+	// left face
+	yUv = float32(0.0)
+	for y := ymin; y <= ymax; y += yStep {
+		xUv = float32(0.0)
+		for z := zmin; z <= zmax; z += zStep {
+			defPos := scaleFn(gridSize, xmin, y, z)
+			if cubemapUvs {
+				s, t = MapUvToCubemap(FaceLeft, xUv, yUv)
+			} else {
+				s, t = xUv, yUv
+			}
+			vnutBuffer = addVertData(vnutBuffer, defPos[0]*radius, defPos[1]*radius, defPos[2]*radius, defPos[0], defPos[1], defPos[2], s, t)
+			xUv += xStep / xWidth
+		} // x
+		yUv += yStep / yWidth
+	} // y
+
+	// =======================================================================
+	// bottom face
+	yUv = float32(0.0)
+	for z := zmin; z <= zmax; z += zStep {
+		xUv = float32(0.0)
+		for x := xmin; x <= xmax; x += xStep {
+			defPos := scaleFn(gridSize, x, ymin, z)
+			if cubemapUvs {
+				s, t = MapUvToCubemap(FaceBottom, xUv, yUv)
+			} else {
+				s, t = xUv, yUv
+			}
+			vnutBuffer = addVertData(vnutBuffer, defPos[0]*radius, defPos[1]*radius, defPos[2]*radius, defPos[0], defPos[1], defPos[2], s, t)
+			xUv += xStep / xWidth
+		} // x
+		yUv += yStep / yWidth
+	} // y
+
+	// =======================================================================
+	// top face
+	yUv = float32(0.0)
+	for z := zmax; z >= zmin; z -= zStep {
+		xUv = float32(0.0)
+		for x := xmin; x <= xmax; x += xStep {
+			defPos := scaleFn(gridSize, x, ymax, z)
+			if cubemapUvs {
+				s, t = MapUvToCubemap(FaceTop, xUv, yUv)
+			} else {
+				s, t = xUv, yUv
+			}
+			vnutBuffer = addVertData(vnutBuffer, defPos[0]*radius, defPos[1]*radius, defPos[2]*radius, defPos[0], defPos[1], defPos[2], s, t)
+			xUv += xStep / xWidth
+		} // x
+		yUv += yStep / yWidth
+	} // y
+
+	// now add the indexes
+	indexes, _ := createFaceIndexes(gridSize, 6)
+
+	// =======================================================================
+	r := NewRenderable()
+	r.Core = NewRenderableCore()
+	r.ShaderName = shader
+	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
+	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
+	r.FaceCount = uint32(len(indexes) / 3)
+	byteCount := floatSize*len(vnutBuffer) + uintSize*len(indexes)
+	fmt.Printf("Face count = %d ; bytes = %dB (%.2fKB)\n", r.FaceCount, byteCount, float32(byteCount)/1024.0)
+
+	// create a VBO to hold the vertex data
+	r.Core.VertVBO = gfx.GenBuffer()
+	r.Core.UvVBO = r.Core.VertVBO
+	r.Core.NormsVBO = r.Core.VertVBO
+	r.Core.TangentsVBO = r.Core.VertVBO
+
+	r.Core.VertVBOOffset = 0
+	r.Core.NormsVBOOffset = floatSize * 3
+	r.Core.UvVBOOffset = floatSize * 6
+	r.Core.VBOStride = floatSize * (3 + 3 + 2) // vert / normal / uv
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(vnutBuffer), gfx.Ptr(&vnutBuffer[0]), graphics.STATIC_DRAW)
+
+	// create a VBO to hold the face indexes
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
+
+	return r
+}
+
+// constants used to define faces for use in functions that need to act differently
+// based on the face.
+const (
+	FaceTop    = 0
+	FaceFront  = 1
+	FaceLeft   = 2
+	FaceBottom = 3
+	FaceRight  = 4
+	FaceBack   = 5
+)
+
+// MapUvToCubemap takes a UV coordinate that is in range ([0..1],[0..1]) with
+// respect to one side and returns a UV coordinate s and t value that is mapped
+// to a single cubemap texture looking something like this:
+//       .____.
+//       |    |
+//       | T  |
+// .____.|____.____.____.
+// |    |    |    |    |
+// |  L |  F | R  | Bk |
+// .----.----.----.----.
+//     |    |
+//     | Bt |
+//     .----.
+//
+// The resulting coordintes are for a texture wrapped around the outside
+// of the cube.
+func MapUvToCubemap(side int, s, t float32) (float32, float32) {
+	uvs := [...]mgl.Vec2{
+		{0.25, 0.875}, //   -1,  1, -1
+		{0.5, 0.875},  //    1,  1, -1
+		{0.0, 0.625},  //   -1,  1, -1
+		{0.25, 0.625}, //	 -1,  1,  1
+
+		{0.5, 0.625},  //    1,  1,  1
+		{0.75, 0.625}, //    1,  1, -1
+		{1.0, 0.625},  //   -1,  1, -1
+		{0.0, 0.375},  //   -1, -1, -1
+
+		{0.25, 0.375}, //   -1, -1,  1
+		{0.5, 0.375},  //    1, -1,  1
+
+		{0.75, 0.375}, //    1, -1, -1
+		{1.0, 0.375},  //   -1, -1, -1
+		{0.25, 0.125}, //   -1, -1, -1
+		{0.5, 0.125},  //    1, -1, -1
+	}
+
+	/* Cube vertices are layed out like this:
+
+	  +--------+           6          5
+	/ |       /|
+	+--------+ |        1          0        +Y
+	| |      | |                            |___ +X
+	| +------|-+           7          4    /
+	|/       |/                           +Z
+	+--------+          2          3
+
+	Which makes for the following upwrapped uv locations:
+
+	Top: {6, 5, 1, 0} -> [0, 1, 3, 4]
+	Front: {1, 0, 2, 3} -> [3, 4, 8, 9]
+	Left: {6, 1, 7, 2} -> [2, 3, 7, 8]
+	Bottom: {2, 3, 7, 4} -> [8, 9, 12, 13]
+	Right: {0, 5, 3, 4} -> [4, 5, 9, 10]
+	Back: {5, 6, 4, 7} -> [5, 6, 10, 11]
+	*/
+
+	indexes := [24]int{
+		0, 1, 3, 4,
+		3, 4, 8, 9,
+		2, 3, 7, 8,
+		8, 9, 12, 13,
+		4, 5, 9, 10,
+		5, 6, 10, 11,
+	}
+
+	// get the uv's to map to
+	topLeft := uvs[indexes[side*4]]
+	topRight := uvs[indexes[side*4+1]]
+	botLeft := uvs[indexes[side*4+2]]
+	//botRight := uvs[indexes[side*4+3]]
+
+	sScale := topRight[0] - topLeft[0]
+	tScale := topLeft[1] - botLeft[1]
+
+	return botLeft[0] + (s * sScale), botLeft[1] + (t * tScale)
 }
