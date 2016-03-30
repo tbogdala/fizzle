@@ -84,6 +84,11 @@ func (c *OrbitCamera) generatePosition() {
 	c.position[2] = c.target[2] + radius*sin
 }
 
+// GetForwardVector returns the vector representing the forward direction of the camera.
+func (c *OrbitCamera) GetForwardVector() mgl.Vec3 {
+	return c.target.Sub(c.position).Normalize()
+}
+
 // GetPosition returns the eye position of the camera.
 func (c *OrbitCamera) GetPosition() mgl.Vec3 {
 	return c.position
