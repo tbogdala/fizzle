@@ -33,8 +33,15 @@ vec4 CalcShadowFactor() {
 	float shadow = 1.0;
 	if (SHADOW_COUNT > 0) {
 		shadow = 0.0;
-		for (int shadow_i=0; shadow_i<SHADOW_COUNT; shadow_i++) {
-			shadow += textureProj(SHADOW_MAPS[shadow_i], vs_shadow_coord[shadow_i]);
+		shadow += textureProj(SHADOW_MAPS[0], vs_shadow_coord[0]);
+		if (SHADOW_COUNT > 1) {
+			shadow += textureProj(SHADOW_MAPS[1], vs_shadow_coord[1]);
+		}
+		if (SHADOW_COUNT > 2) {
+			shadow += textureProj(SHADOW_MAPS[2], vs_shadow_coord[2]);
+		}
+		if (SHADOW_COUNT > 3) {
+			shadow += textureProj(SHADOW_MAPS[3], vs_shadow_coord[3]);
 		}
 		shadow = shadow / SHADOW_COUNT;
 	}
