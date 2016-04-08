@@ -126,6 +126,9 @@ type GraphicsProvider interface {
 	// DrawElements renders primitives from array data
 	DrawElements(mode Enum, count int32, xtype Enum, indices unsafe.Pointer)
 
+	// DrawArrays renders primitives from array data
+	DrawArrays(mode Enum, first int32, count int32)
+
 	// Enable enables various GL capabilities.
 	Enable(e Enum)
 

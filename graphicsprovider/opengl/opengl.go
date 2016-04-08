@@ -188,6 +188,13 @@ func (impl *GraphicsImpl) DrawElements(mode graphics.Enum, count int32, ty graph
 	gl.DrawElements(uint32(mode), count, uint32(ty), indices)
 }
 
+// DrawArrays renders primitives from array data
+func (impl *GraphicsImpl) DrawArrays(mode graphics.Enum, first int32, count int32) {
+	gl.DrawArrays(uint32(mode), first, count)
+}
+
+// DrawArrays renders primitives from array data
+
 // Enable enables various GL capabilities.
 func (impl *GraphicsImpl) Enable(e graphics.Enum) {
 	gl.Enable(uint32(e))
