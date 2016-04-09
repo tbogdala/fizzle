@@ -70,6 +70,16 @@ func NewJoystickModel(w *glfw.Window, j glfw.Joystick) *JoystickModel {
 	return js
 }
 
+// NewJoystickAxisBinding creates a new joystick binding with the given settings.
+func NewJoystickAxisBinding(id int, min, max float32, negativeMapping bool, cb JoystickAxisCallback) (jb JoystickAxisBinding) {
+	jb.ID = id
+	jb.Min = min
+	jb.Max = max
+	jb.NegativeMapping = negativeMapping
+	jb.Callback = cb
+	return jb
+}
+
 // IsJoystickPresent returns true if the joystick is detected.
 func IsJoystickPresent(j glfw.Joystick) bool {
 	return glfw.JoystickPresent(j)

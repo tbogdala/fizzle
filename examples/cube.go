@@ -49,8 +49,8 @@ func init() {
 }
 
 const (
-	width             = 800
-	height            = 600
+	windowWidth       = 800
+	windowHeight      = 600
 	radsPerSec        = math.Pi / 4.0
 	diffuseShaderPath = "./assets/forwardshaders/diffuse"
 )
@@ -60,13 +60,14 @@ var (
 	renderCube = true
 
 	mainWindow *glfw.Window
+	renderer   *forward.ForwardRenderer
 )
 
 // main is the entry point for the application.
 func main() {
 	// start off by initializing the GL and GLFW libraries and creating a window.
 	// the default window size we use is 800x600
-	w, gfx := initGraphics("Simple Cube", width, height)
+	w, gfx := initGraphics("Simple Cube", windowWidth, windowHeight)
 	mainWindow = w
 
 	// set the callback functions for key input
@@ -76,7 +77,8 @@ func main() {
 	kbModel.SetupCallbacks()
 
 	// create a new renderer
-	renderer := forward.NewForwardRenderer(gfx)
+	renderer = forward.NewForwardRenderer(gfx)
+	renderer.ChangeResolution(windowWidth, windowHeight)
 	defer renderer.Destroy()
 
 	// put a light in there
@@ -137,6 +139,7 @@ func main() {
 		sphere.LocalRotation = sphere.LocalRotation.Mul(rotDelta)
 
 		// clear the screen
+		width, height := renderer.GetResolution()
 		gfx.Viewport(0, 0, int32(width), int32(height))
 		gfx.ClearColor(0.25, 0.25, 0.25, 1.0)
 		gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT)
@@ -180,10 +183,11 @@ func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsPr
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 
 	// do the actual window creation
-	mainWindow, err := glfw.CreateWindow(w, h, title, nil, nil)
+	mainWindow, err = glfw.CreateWindow(w, h, title, nil, nil)
 	if err != nil {
 		panic("Failed to create the main window! " + err.Error())
 	}
+	mainWindow.SetSizeCallback(onWindowResize)
 	mainWindow.MakeContextCurrent()
 
 	// disable v-sync for max draw rate
@@ -202,6 +206,11 @@ func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsPr
 // setShouldClose should be called to close the window and kill the app.
 func setShouldClose() {
 	mainWindow.SetShouldClose(true)
+}
+
+// onWindowResize is called when the window changes size
+func onWindowResize(w *glfw.Window, width int, height int) {
+	renderer.ChangeResolution(int32(width), int32(height))
 }
 
 // toggleModel sets whether or not the cube or the sphere should be rendered.

@@ -166,6 +166,7 @@ type YawPitchCamera struct {
 	// NOTE: specified in radians.
 	yaw   float32
 	pitch float32
+	roll  float32
 
 	// derived from camYaw and camPitch and is what is used for the camera
 	rotation mgl.Quat
@@ -237,6 +238,17 @@ func (c *YawPitchCamera) UpdatePitch(delta float32) {
 	c.generateRotation()
 }
 
+// GetRoll returns the roll of the camera in radians
+func (c *YawPitchCamera) GetRoll() float32 {
+	return c.roll
+}
+
+// UpdateRoll adds a delta to the camera roll and regenerates the rotation quaternion.
+func (c *YawPitchCamera) UpdateRoll(delta float32) {
+	c.roll += delta
+	c.generateRotation()
+}
+
 // GetForwardVector returns a unit vector rotated in the same direction that
 // the camera is rotated.
 func (c *YawPitchCamera) GetForwardVector() mgl.Vec3 {
@@ -275,6 +287,7 @@ func (c *YawPitchCamera) LookAt(target mgl.Vec3, distance float32) {
 	c.position[2] = target[2] + rotatedZ
 
 	correctedYaw := float32(math.Atan2(float64(c.position[0]-target[0]), float64(c.position[2]-target[2])))
+	c.roll = 0.0
 
 	// update the rotation quaternion
 	camYawQ := mgl.QuatRotate(correctedYaw, upVector)
@@ -286,8 +299,15 @@ func (c *YawPitchCamera) LookAt(target mgl.Vec3, distance float32) {
 func (c *YawPitchCamera) generateRotation() {
 	camYawQ := mgl.QuatRotate(c.yaw, upVector)
 	camPitchQ := mgl.QuatRotate(c.pitch, sideVector)
-	c.rotation = camPitchQ.Mul(camYawQ)
+	camRollQ := mgl.QuatRotate(c.roll, forwardVector)
+	c.rotation = camPitchQ.Mul(camRollQ.Mul(camYawQ))
 
 	// some use of this rotation Quat depends on it being normalized.
 	c.rotation = c.rotation.Normalize()
+}
+
+// GetRotation gets the rotation quaternion for the camera. This is calculated
+// automatically when the yaw and pitch values get updated through other methods.
+func (c *YawPitchCamera) GetRotation() mgl.Quat {
+	return c.rotation
 }

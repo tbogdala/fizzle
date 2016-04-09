@@ -36,8 +36,8 @@ func init() {
 }
 
 const (
-	width                      = 1280
-	height                     = 720
+	windowWidth                = 1280
+	windowHeight               = 720
 	shadowTexSize              = 2048
 	fov                        = 70.0
 	radsPerSec                 = math.Pi / 4.0
@@ -52,13 +52,19 @@ const (
 var (
 	// mainWindow is the main window of the application
 	mainWindow *glfw.Window
+
+	// uiMan is the user interface manager
+	uiMan *ui.UIManager
+
+	// renderer is the forward renderer used for this example
+	renderer *forward.ForwardRenderer
 )
 
 // main is the entry point for the application.
 func main() {
 	// start off by initializing the GL and GLFW libraries and creating a window.
-	// the default window size we use is 800x600
-	w, gfx := initGraphics("Forward Lighting", width, height)
+	// the default window size we use is 1280x720
+	w, gfx := initGraphics("Forward Lighting", windowWidth, windowHeight)
 	mainWindow = w
 
 	// set the callback function for key input
@@ -67,7 +73,8 @@ func main() {
 	kbModel.SetupCallbacks()
 
 	// create a new renderer
-	renderer := forward.NewForwardRenderer(gfx)
+	renderer = forward.NewForwardRenderer(gfx)
+	renderer.ChangeResolution(windowWidth, windowHeight)
 	defer renderer.Destroy()
 
 	// setup the camera to look at the cube
@@ -76,8 +83,8 @@ func main() {
 
 	// setup the user interface manager which can be used to display
 	// user interface widgets
-	uiMan := ui.NewUIManager()
-	uiMan.AdviseResolution(width, height)
+	uiMan = ui.NewUIManager()
+	uiMan.AdviseResolution(windowWidth, windowHeight)
 	renderer.UIManager = uiMan
 
 	// load the diffuse, textured and normal mapped shader
@@ -208,6 +215,7 @@ func main() {
 		renderer.EndShadowMapping()
 
 		// clear the screen and reset our viewport
+		width, height := renderer.GetResolution()
 		gfx.Viewport(0, 0, int32(width), int32(height))
 		gfx.ClearColor(0.05, 0.05, 0.05, 1.0)
 		gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT)
@@ -257,10 +265,11 @@ func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsPr
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 
 	// do the actual window creation
-	mainWindow, err := glfw.CreateWindow(w, h, title, nil, nil)
+	mainWindow, err = glfw.CreateWindow(w, h, title, nil, nil)
 	if err != nil {
 		panic("Failed to create the main window! " + err.Error())
 	}
+	mainWindow.SetSizeCallback(onWindowResize)
 	mainWindow.MakeContextCurrent()
 
 	// disable v-sync for max draw rate
@@ -279,4 +288,10 @@ func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsPr
 // setShouldClose should be called to close the window and kill the app.
 func setShouldClose() {
 	mainWindow.SetShouldClose(true)
+}
+
+// onWindowResize is called when the window changes size
+func onWindowResize(w *glfw.Window, width int, height int) {
+	renderer.ChangeResolution(int32(width), int32(height))
+	uiMan.AdviseResolution(windowWidth, windowHeight)
 }
