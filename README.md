@@ -26,7 +26,10 @@ Additionally, a backend graphics provider needs to be used. At present, fizzle
 supports the following:
 
 * [Go GL][go-gl] - pre-generated OpenGL bindings using their glow project
+* [opengles2][go-gles] - Go bindings to the OpenGL ES 2.0 library
 
+These are included when the `graphicsprovider` subpackage is used and direct
+importing is not required.
 
 Installation
 ------------
@@ -48,15 +51,21 @@ the OpenGL 3.3 library with the following command:
 go get github.com/go-gl/gl/v3.3-core/gl
 ```
 
+If you're compiling for Android/iOS, then you will need an OpenGL ES library,
+and that can be installed with the following command instead:
+
+```bash
+go get github.com/remogatto/opengles2
+```
+
 This does assume that you have the native GLFW 3.1 library installed already
 accessible to Go tools.
-
 
 Current Features
 ----------------
 
 * deferred rendering engine
-* forward rendering engine
+* forward rendering engine with limited dynamic lighting
 * limited dynamic shadow support
 * able to define components using JSON files
 * support for freetype compatible fonts
@@ -89,6 +98,7 @@ Fizzle is released under the BSD license. See the [LICENSE][license-link] file f
 [pg]: https://bitbucket.org/tbogdala/portableglue
 [glfw-go]: https://github.com/go-gl/glfw
 [go-gl]: https://github.com/go-gl/glow
+[opengles2]: https://github.com/remogatto/opengles2
 [mgl]: https://github.com/go-gl/mathgl
 [ftgo]: https://github.com/golang/freetype
 [license-link]: https://raw.githubusercontent.com/tbogdala/fizzle/master/LICENSE
