@@ -1,7 +1,7 @@
-// Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
-package fizzle
+package component
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/gombz"
 	"github.com/tbogdala/groggy"
+	"github.com/tbogdala/fizzle"
 )
 
 // ComponentMesh defines a mesh reference for a component and everything
@@ -83,7 +84,7 @@ type Component struct {
 
 	// this is the cached renerable object for the component that can
 	// be used as a prototype.
-	cachedRenderable *Renderable
+	cachedRenderable *fizzle.Renderable
 }
 
 // Destroy will destroy the cached Renderable object if it exists.
@@ -116,14 +117,14 @@ func (c *Component) Clone() *Component {
 // GetRenderable will return the cached renderable object for the component
 // or create one if it hasn't been made yet. The TextureManager is needed
 // to resolve texture references.
-func (c *Component) GetRenderable(tm *TextureManager) *Renderable {
+func (c *Component) GetRenderable(tm *fizzle.TextureManager) *fizzle.Renderable {
 	// see if we have a cached renderable already created
 	if c.cachedRenderable != nil {
 		return c.cachedRenderable
 	}
 
 	// start by creating a renderable to hold all of the meshes
-	group := NewRenderable()
+	group := fizzle.NewRenderable()
 	group.IsGroup = true
 	group.Location = c.Location
 
@@ -166,9 +167,9 @@ func (cm *ComponentMesh) GetVertices() ([]mgl.Vec3, error) {
 
 // createRenderableForMesh does the work of creating the Renderable and putting all of
 // the mesh data into VBOs.
-func createRenderableForMesh(tm *TextureManager, compMesh *ComponentMesh) *Renderable {
+func createRenderableForMesh(tm *fizzle.TextureManager, compMesh *ComponentMesh) *fizzle.Renderable {
 	// create the new renderable
-	r := CreateFromGombz(compMesh.SrcMesh)
+	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
 
 	// assign the texture
 	if len(compMesh.Textures) > 0 {

@@ -1,7 +1,7 @@
-// Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
-package fizzle
+package component
 
 import (
 	"encoding/json"
@@ -11,14 +11,15 @@ import (
 
 	"github.com/tbogdala/gombz"
 	"github.com/tbogdala/groggy"
+	"github.com/tbogdala/fizzle"
 )
 
 type ComponentManager struct {
 	storage        map[string]*Component
-	textureManager *TextureManager
+	textureManager *fizzle.TextureManager
 }
 
-func NewComponentManager(tm *TextureManager) *ComponentManager {
+func NewComponentManager(tm *fizzle.TextureManager) *ComponentManager {
 	cm := new(ComponentManager)
 	cm.storage = make(map[string]*Component)
 	cm.textureManager = tm
@@ -39,7 +40,7 @@ func (cm *ComponentManager) GetComponent(name string) (*Component, bool) {
 	return crComponent, okay
 }
 
-func (cm *ComponentManager) GetRenderableInstance(component *Component) *Renderable {
+func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.Renderable {
 	compRenderable := component.GetRenderable(cm.textureManager)
 	r := compRenderable.Clone()
 
