@@ -183,7 +183,7 @@ func (impl *GraphicsImpl) DrawElements(mode graphics.Enum, count int32, ty graph
 
 // DrawArrays renders primitives from array data
 func (impl *GraphicsImpl) DrawArrays(mode graphics.Enum, first int32, count int32) {
-	gles.DrawArrays(uint32(mode), first, count)
+	gles.DrawArrays(gles.Enum(mode), first, gles.Sizei(count))
 }
 
 // Enable enables various GL capabilities
@@ -303,7 +303,7 @@ func (impl *GraphicsImpl) LinkProgram(p graphics.Program) {
 
 // PolygonMode sets a polygon rasterization mode.
 func (impl *GraphicsImpl) PolygonMode(face, mode graphics.Enum) {
-	gles.PolygonMode(uint32(face), uint32(mode))
+	// NO-OP: no support in OpenGL ES
 }
 
 // PolygonOffset sets the scale and units used to calculate depth values
