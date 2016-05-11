@@ -9,20 +9,22 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/tbogdala/fizzle"
 	"github.com/tbogdala/gombz"
 	"github.com/tbogdala/groggy"
-	"github.com/tbogdala/fizzle"
 )
 
 type ComponentManager struct {
 	storage        map[string]*Component
 	textureManager *fizzle.TextureManager
+	loadedShaders  map[string]*fizzle.RenderShader
 }
 
-func NewComponentManager(tm *fizzle.TextureManager) *ComponentManager {
+func NewComponentManager(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader) *ComponentManager {
 	cm := new(ComponentManager)
 	cm.storage = make(map[string]*Component)
 	cm.textureManager = tm
+	cm.loadedShaders = shaders
 	return cm
 }
 
@@ -41,7 +43,7 @@ func (cm *ComponentManager) GetComponent(name string) (*Component, bool) {
 }
 
 func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.Renderable {
-	compRenderable := component.GetRenderable(cm.textureManager)
+	compRenderable := component.GetRenderable(cm.textureManager, cm.loadedShaders)
 	r := compRenderable.Clone()
 
 	// clone a renderable for each of the child references
@@ -53,7 +55,7 @@ func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.
 			continue
 		}
 
-		childRenderable := crComponent.GetRenderable(cm.textureManager)
+		childRenderable := crComponent.GetRenderable(cm.textureManager, cm.loadedShaders)
 		rc := childRenderable.Clone()
 
 		// override the location for the renderable if location was specified in
@@ -68,12 +70,12 @@ func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.
 	return r
 }
 
-func (cm *ComponentManager) LoadComponentFromFile(filename string) (*Component, error) {
+func (cm *ComponentManager) LoadComponentFromFile(filename string, storageName string) (*Component, error) {
 	// split the directory path to the component file
-	componentDirPath, componentFileName := filepath.Split(filename)
+	componentDirPath, _ := filepath.Split(filename)
 
 	// check to see if it exists in storage already
-	if loadedComp, okay := cm.storage[componentFileName]; okay {
+	if loadedComp, okay := cm.storage[storageName]; okay {
 		return loadedComp, nil
 	}
 
@@ -83,7 +85,7 @@ func (cm *ComponentManager) LoadComponentFromFile(filename string) (*Component, 
 		return nil, fmt.Errorf("Failed to read the component file specified.\n%s\n", err)
 	}
 
-	return cm.LoadComponentFromBytes(jsonBytes, filename, componentDirPath)
+	return cm.LoadComponentFromBytes(jsonBytes, storageName, componentDirPath)
 }
 
 func (cm *ComponentManager) LoadComponentFromBytes(jsonBytes []byte, storageName string, componentDirPath string) (*Component, error) {
@@ -129,7 +131,7 @@ func (cm *ComponentManager) LoadComponentFromBytes(jsonBytes []byte, storageName
 			continue
 		}
 
-		_, err := cm.LoadComponentFromFile(componentDirPath + childRef.File)
+		_, err := cm.LoadComponentFromFile(componentDirPath+childRef.File, storageName)
 		if err != nil {
 			groggy.Logsf("ERROR", "Component %s has a ChildInstance (%s) could not be loaded.\n%v", component.Name, childRef.File, err)
 		}

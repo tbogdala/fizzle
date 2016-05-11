@@ -7,9 +7,9 @@ import (
 	"fmt"
 
 	mgl "github.com/go-gl/mathgl/mgl32"
+	"github.com/tbogdala/fizzle"
 	"github.com/tbogdala/gombz"
 	"github.com/tbogdala/groggy"
-	"github.com/tbogdala/fizzle"
 )
 
 // ComponentMesh defines a mesh reference for a component and everything
@@ -41,6 +41,9 @@ type ComponentChildRef struct {
 
 // ComponentMaterial defines the material appearance of the component.
 type ComponentMaterial struct {
+	// ShaderName is the name of the shader program to use for rendering
+	ShaderName string
+
 	// Diffuse color for the material
 	Diffuse mgl.Vec4
 }
@@ -117,7 +120,7 @@ func (c *Component) Clone() *Component {
 // GetRenderable will return the cached renderable object for the component
 // or create one if it hasn't been made yet. The TextureManager is needed
 // to resolve texture references.
-func (c *Component) GetRenderable(tm *fizzle.TextureManager) *fizzle.Renderable {
+func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader) *fizzle.Renderable {
 	// see if we have a cached renderable already created
 	if c.cachedRenderable != nil {
 		return c.cachedRenderable
@@ -138,6 +141,11 @@ func (c *Component) GetRenderable(tm *fizzle.TextureManager) *fizzle.Renderable 
 		// assign material properties if specified
 		if c.Material != nil {
 			cmRenderable.Core.DiffuseColor = c.Material.Diffuse
+			cmRenderable.ShaderName = c.Material.ShaderName
+			loadedShader, okay := shaders[c.Material.ShaderName]
+			if okay {
+				cmRenderable.Core.Shader = loadedShader
+			}
 		}
 
 		// cache it for later
