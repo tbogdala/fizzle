@@ -37,11 +37,23 @@ func (cm *ComponentManager) Destroy() {
 	cm.storage = make(map[string]*Component)
 }
 
+// AddComponent adds a new component to the collection. If one existed previous using
+// the same name, then it is overwritten.
+func (cm *ComponentManager) AddComponent(name string, component *Component) {
+	cm.storage[name] = component
+}
+
+// GetComponent returns a component from storage that matches the name specified.
+// A bool is returned as the second value to indicate whether or not the component
+// was found in storage.
 func (cm *ComponentManager) GetComponent(name string) (*Component, bool) {
 	crComponent, okay := cm.storage[name]
 	return crComponent, okay
 }
 
+// GetRenderableInstance gets the renderable from the component and clones it to
+// a new instance. It then loops over all child references and calls GetRenderableInstance
+// for all of them, creating new clones for each, recursively.
 func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.Renderable {
 	compRenderable := component.GetRenderable(cm.textureManager, cm.loadedShaders)
 	r := compRenderable.Clone()
@@ -55,8 +67,7 @@ func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.
 			continue
 		}
 
-		childRenderable := crComponent.GetRenderable(cm.textureManager, cm.loadedShaders)
-		rc := childRenderable.Clone()
+		rc := cm.GetRenderableInstance(crComponent)
 
 		// override the location for the renderable if location was specified in
 		// the child reference
@@ -70,6 +81,9 @@ func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.
 	return r
 }
 
+// LoadComponentFromFile loads a component from a JSON file and stores it under
+// the name speicified. This function returns the new component and a possible
+// error value.
 func (cm *ComponentManager) LoadComponentFromFile(filename string, storageName string) (*Component, error) {
 	// split the directory path to the component file
 	componentDirPath, _ := filepath.Split(filename)
@@ -88,6 +102,10 @@ func (cm *ComponentManager) LoadComponentFromFile(filename string, storageName s
 	return cm.LoadComponentFromBytes(jsonBytes, storageName, componentDirPath)
 }
 
+// LoadComponentFromBytes loads the component from a JSON byte slice and stores it
+// under the name specified. componentDirPath can be set to aid the finding of
+// parts of the component to load. This function returns the new component and
+// a possible error value.
 func (cm *ComponentManager) LoadComponentFromBytes(jsonBytes []byte, storageName string, componentDirPath string) (*Component, error) {
 	// attempt to decode the json
 	component := new(Component)

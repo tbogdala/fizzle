@@ -258,12 +258,21 @@ func (c *YawPitchCamera) GetForwardVector() mgl.Vec3 {
 }
 
 // GetSideVector returns a unit vector rotated in the same direction that
-// the camera is rotated, but perpendicular and oriented to the side.
+// the camera is rotated, but perpendicular and oriented to the 'side'.
 // If {0, 0, 1} is forward then the side will be {-1, 0, 0}.
 func (c *YawPitchCamera) GetSideVector() mgl.Vec3 {
 	// this depends on c.rotation being updated on parameter change
 	// with generateRotation()
 	return c.rotation.Conjugate().Rotate(sideVector)
+}
+
+// GetUpVector returns a unit vector rotated in the same direction that
+// the camera is rotated, but perpendicular and oriented to the 'up'.
+// If {0, 0, 1} is forward then the up will be {0, 1, 0}.
+func (c *YawPitchCamera) GetUpVector() mgl.Vec3 {
+	// this depends on c.rotation being updated on parameter change
+	// with generateRotation()
+	return c.rotation.Conjugate().Rotate(upVector)
 }
 
 // LookAtDirect calculates a view rotation using the current Camera
@@ -310,4 +319,14 @@ func (c *YawPitchCamera) generateRotation() {
 // automatically when the yaw and pitch values get updated through other methods.
 func (c *YawPitchCamera) GetRotation() mgl.Quat {
 	return c.rotation
+}
+
+// SetRotation allows the caller to set the rotation of the camera; this will then
+// derive the yaw, pitch and roll from the quaternion parameter.
+func (c *YawPitchCamera) SetRotation(q mgl.Quat) {
+	c.rotation = q
+
+	c.roll = float32(math.Atan2(float64(2.0 * q.Y()* q.W - 2.0 * q.X() * q.Z()), float64(1.0 - 2.0 * q.Y() * q.Y() - 2.0 * q.Z() * q.Z())))
+	c.pitch = float32(math.Atan2(float64(2.0 * q.X()* q.W - 2.0 * q.Y() * q.Z()), float64(1.0 - 2.0 * q.X() * q.X() - 2.0 * q.Z() * q.Z())))
+	c.yaw = float32(math.Asin(float64(2.0 * q.X()* q.Y() + 2.0 * q.Z() * q.W)))
 }

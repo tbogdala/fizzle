@@ -48,12 +48,34 @@ type ComponentMaterial struct {
 	Diffuse mgl.Vec4
 }
 
+const (
+	// ColliderTypeAABB is for axis aligned bounding box colliders
+	ColliderTypeAABB = 0
+
+	// ColliderTypeSphere is for sphere colliders
+	ColliderTypeSphere = 1
+)
+
 // CollisionRef specifies a collision object within the component
 // (e.g. a collision cube for a wall).
-// Note: right now it only supports AABB collisions.
 type CollisionRef struct {
+	// Type is the type of collider from the enum above (e.g. ColliderTypeAABB, etc...)
+	Type uint8
+
+	// Min is the minimum point for AABB type colliders
 	Min  mgl.Vec3
+
+	// Max is the maximum point for AABB type colliders
 	Max  mgl.Vec3
+
+	// Radius is the size of the Sphere type of collider
+	Radius float32
+
+	// Offset is used as the offset for Sphere and AABB types of colliders
+	Offset mgl.Vec3
+
+	// Tags is a way to create 'layers' of colliders so that client code
+	// can select whether or not to attempt collision against this object.
 	Tags []string
 }
 
@@ -75,7 +97,9 @@ type Component struct {
 	// to be contained in this component.
 	ChildReferences []*ComponentChildRef
 
-	// Collision objects for the component
+	// Collision objects for the component; currently the fizzle library doesn't
+	// do anything specific with this and choice of collision library is left to
+	// the user.
 	Collisions []*CollisionRef
 
 	// Properties is a map for client software's custom properties for the component.
@@ -115,6 +139,17 @@ func (c *Component) Clone() *Component {
 	clone.cachedRenderable = c.cachedRenderable
 
 	return clone
+}
+
+// SetRenderable sets the cached renderable to the one passed in as a parameter.
+func (c *Component) SetRenderable(newRenderable *fizzle.Renderable) {
+	// destroy the old one if it exists
+	if c.cachedRenderable != nil {
+		c.cachedRenderable.Destroy()
+	}
+
+	// all hail the new renderable
+	c.cachedRenderable = newRenderable
 }
 
 // GetRenderable will return the cached renderable object for the component
