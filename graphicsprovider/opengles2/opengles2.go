@@ -360,6 +360,11 @@ func (impl *GraphicsImpl) RenderbufferStorage(target graphics.Enum, internalform
 	gles.RenderbufferStorage(gles.Enum(target), gles.Enum(internalformat), gles.Sizei(width), gles.Sizei(height))
 }
 
+// Scissor clips to a rectangle with the location and dimensions specified.
+func (impl *GraphicsImpl) Scissor(x, y, w, h int32) {
+	gles.Scissor(x, y, w, h)
+}
+
 // ShaderSource replaces the source code for a shader object.
 func (impl *GraphicsImpl) ShaderSource(s graphics.Shader, source string) {
 	gles.ShaderSource(uint32(s), 1, &source, nil)

@@ -204,6 +204,9 @@ type GraphicsProvider interface {
 	// RenderbufferStorage establishes the format and dimensions of a renderbuffer
 	RenderbufferStorage(target Enum, internalformat Enum, width int32, height int32)
 
+	// Scissor clips to a rectangle with the location and dimensions specified.
+	Scissor(x, y, w, h int32)
+
 	// ShaderSource replaces the source code for a shader object.
 	ShaderSource(s Shader, source string)
 
