@@ -10,31 +10,6 @@ import (
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 )
 
-/*
-
-* system
-  create(spawnerUpdate)
-  update()
-  [*] spawners
-      1 billboard image
-      1 array of particles
-      1 VBO data
-      1 shader program
-      0..1 collider
-
-      update(frameDelta)
-
-      stdParameters
-        * max particles
-        * spawn rate
-
-        * velocity
-        * acceleration
-        * time to live
-
-        ? spawn pattern
-*/
-
 var (
 	// VertShader330 is the GLSL vertex shader program for the basic particle emitter.
 	VertShader330 = `#version 330
@@ -291,7 +266,7 @@ func (e *Emitter) Draw(projection mgl.Mat4, view mgl.Mat4) {
 	gfx.EnableVertexAttribArray(uint32(shaderSize))
 	gfx.VertexAttribPointer(uint32(shaderSize), 1, graphics.FLOAT, false, Stride, gfx.PtrOffset(sizeOffset))
 
-	gfx.DrawArrays(graphics.POINTS, 0, int32(len(e.Particles)*2))
+	gfx.DrawArrays(graphics.POINTS, 0, int32(len(e.Particles)))
 
 	gfx.BindVertexArray(0)
 }

@@ -96,12 +96,12 @@ func main() {
 	particleSystem := particles.NewSystem(gfx)
 	emitter := particleSystem.NewEmitter(nil)
 	emitter.Properties.MaxParticles = 300
-	emitter.Properties.SpawnRate = 100
-	emitter.Properties.Size = 1.0
+	emitter.Properties.SpawnRate = 1
+	emitter.Properties.Size = 32.0
 	emitter.Properties.Color = mgl.Vec4{0.0, 0.9, 0.0, 1.0}
 	emitter.Properties.Velocity = mgl.Vec3{0, 1, 0}
 	emitter.Properties.Acceleration = mgl.Vec3{0, -0.1, 0}
-	emitter.Properties.TTL = 2.0
+	emitter.Properties.TTL = 3.0
 	emitter.Shader = particleShader.Prog
 	emitter.Billboard, err = fizzle.LoadImageToTexture(billboardFilepath)
 	if err != nil {
