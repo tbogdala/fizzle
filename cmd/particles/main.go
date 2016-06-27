@@ -31,8 +31,9 @@ var (
 
 const (
 	fontScale    = 18
-	fontFilepath = "../../examples/assets/HammersmithOne.ttf"
-	fontGlyphs   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890., :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
+	fontFilepath = "../../examples/assets/Oswald-Heavy.ttf"
+	//fontFilepath = "../../examples/assets/HammersmithOne.ttf"
+	fontGlyphs = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890., :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
 )
 
 // block of flags set on the command line
@@ -134,7 +135,7 @@ func main() {
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Max Particles")
-		wnd.DragSliderInt("maxparticles", 0.5, &props.MaxParticles)
+		wnd.DragSliderUInt("maxparticles", 0.5, &props.MaxParticles)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)

@@ -93,7 +93,7 @@ type Emitter struct {
 // EmitterProperties describes the behavior of an Emitter object and is it's own
 // type to facilitate sharing of parameter defaults and serialization.
 type EmitterProperties struct {
-	MaxParticles int
+	MaxParticles uint
 	SpawnRate    uint // particles per second
 	Velocity     mgl.Vec3
 	Acceleration mgl.Vec3
@@ -175,8 +175,11 @@ func (e *Emitter) Update(frameDelta float64) {
 	e.Particles = stillAlive
 
 	// how many particle to spawn?
+	var spawnInterval = float64(1.0)
 	e.timeSinceSpawn += frameDelta
-	spawnInterval := 1.0 / float64(e.Properties.SpawnRate)
+	if e.Properties.SpawnRate != 0.0 {
+		spawnInterval = 1.0 / float64(e.Properties.SpawnRate)
+	}
 	spawnCount := math.Floor(e.timeSinceSpawn / spawnInterval)
 
 	// update the timers
@@ -198,7 +201,7 @@ func (e *Emitter) Update(frameDelta float64) {
 	newParticle.Velocity = e.Properties.Velocity
 	newParticle.Acceleration = e.Properties.Acceleration
 	newParticle.Location = e.Owner.Origin.Add(e.Properties.Origin)
-	for spawnCount > 0 && len(e.Particles) < e.Properties.MaxParticles {
+	for spawnCount > 0 && len(e.Particles) < int(e.Properties.MaxParticles) {
 		newParticle.EndTime = e.Properties.TTL + newParticle.StartTime
 		e.Particles = append(e.Particles, newParticle)
 		spawnCount--
