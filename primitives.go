@@ -292,8 +292,6 @@ func CreateWireframeCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float
 	r.Core = NewRenderableCore()
 	r.ShaderName = shader
 	r.FaceCount = facesPerCollision
-	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
-	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
 
 	/* Cube vertices are layed out like this:
 
@@ -321,6 +319,123 @@ func CreateWireframeCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float
 
 	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
 	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
+
+	// create a VBO to hold the vertex data
+	r.Core.VertVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(verts), gfx.Ptr(&verts[0]), graphics.STATIC_DRAW)
+
+	// create a VBO to hold the face indexes
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
+
+	return r
+}
+
+func genCircleSegDataXZ(xmin, ymin, zmin, radius float32, segments int) ([]float32, []uint32) {
+	verts := []float32{}
+	indexes := []uint32{}
+
+	// create the lines for the circle
+	radsPerSeg := math.Pi * 2.0 / float64(segments)
+	for i := 0; i < segments; i++ {
+		verts = append(verts, xmin+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
+		verts = append(verts, ymin)
+		verts = append(verts, zmin+(radius*float32(math.Sin(radsPerSeg*float64(i)))))
+
+		indexes = append(indexes, uint32(i))
+		if i != segments-1 {
+			indexes = append(indexes, uint32(i)+1)
+		} else {
+			indexes = append(indexes, uint32(0))
+		}
+	}
+
+	return verts, indexes
+}
+
+// CreateWireframeCircleXZ makes a cirle with vertex and element VBO objects designed to be
+// rendered as graphics.LINES in the plane XZ.
+func CreateWireframeCircleXZ(shader string, xmin, ymin, zmin, radius float32, segments int) *Renderable {
+	// sanity check
+	if segments == 0 {
+		return nil
+	}
+
+	// calculate the memory size of floats used to calculate total memory size of float arrays
+	const floatSize = 4
+	const uintSize = 4
+
+	verts, indexes := genCircleSegDataXZ(xmin, ymin, zmin, radius, segments)
+
+	r := NewRenderable()
+	r.Core = NewRenderableCore()
+	r.ShaderName = shader
+	r.FaceCount = uint32(segments)
+	r.BoundingRect.Bottom = mgl.Vec3{xmin - radius, ymin, zmin - radius}
+	r.BoundingRect.Top = mgl.Vec3{xmin + radius, ymin, zmin + radius}
+
+	// create a VBO to hold the vertex data
+	r.Core.VertVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(verts), gfx.Ptr(&verts[0]), graphics.STATIC_DRAW)
+
+	// create a VBO to hold the face indexes
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
+
+	return r
+}
+
+// CreateWireframeConeSegmentXZ makes a cone segment with vertex and element VBO objects designed to be
+// rendered as graphics.LINES wtih the default orientation of the cone segment along +Y.
+func CreateWireframeConeSegmentXZ(shader string, xmin, ymin, zmin, bottomRadius, topRadius, length float32, circleSegments, sideSegments int) *Renderable {
+	// sanity check
+	if circleSegments == 0 {
+		return nil
+	}
+
+	// calculate the memory size of floats used to calculate total memory size of float arrays
+	const floatSize = 4
+	const uintSize = 4
+
+	// create the bottom circle for the cone segment
+	verts, indexes := genCircleSegDataXZ(xmin, ymin, zmin, bottomRadius, circleSegments)
+
+	// create the top circle for the cone segment
+	topVerts, topIndexes := genCircleSegDataXZ(xmin, ymin+length, zmin, topRadius, circleSegments)
+	verts = append(verts, topVerts...)
+	for _, index := range topIndexes {
+		indexes = append(indexes, index+uint32(circleSegments))
+	}
+
+	// create the side lines that will connect the cone circles
+	lineIndexOff := uint32(circleSegments) * 2
+	radsPerSideSeg := math.Pi * 2.0 / float64(sideSegments)
+	for i := 0; i < sideSegments; i++ {
+		verts = append(verts, xmin+(bottomRadius*float32(math.Cos(radsPerSideSeg*float64(i)))))
+		verts = append(verts, ymin)
+		verts = append(verts, zmin+(bottomRadius*float32(math.Sin(radsPerSideSeg*float64(i)))))
+
+		verts = append(verts, xmin+(topRadius*float32(math.Cos(radsPerSideSeg*float64(i)))))
+		verts = append(verts, ymin+length)
+		verts = append(verts, zmin+(topRadius*float32(math.Sin(radsPerSideSeg*float64(i)))))
+
+		indexes = append(indexes, lineIndexOff+(uint32(i)*2))
+		indexes = append(indexes, lineIndexOff+(uint32(i)*2)+1)
+	}
+
+	// figure out the biggest radius for the bounding box
+	maxRadius := float32(math.Max(float64(bottomRadius), float64(topRadius)))
+
+	r := NewRenderable()
+	r.Core = NewRenderableCore()
+	r.ShaderName = shader
+	r.FaceCount = uint32(circleSegments)*2 + uint32(sideSegments)
+	r.BoundingRect.Bottom = mgl.Vec3{xmin - maxRadius, ymin, zmin - maxRadius}
+	r.BoundingRect.Top = mgl.Vec3{xmin + maxRadius, ymin + length, zmin + maxRadius}
 
 	// create a VBO to hold the vertex data
 	r.Core.VertVBO = gfx.GenBuffer()

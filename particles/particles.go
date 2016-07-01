@@ -5,9 +5,12 @@ package particles
 
 import (
 	"math"
+	"math/rand"
 
 	mgl "github.com/go-gl/mathgl/mgl32"
+	fizzle "github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
+	renderer "github.com/tbogdala/fizzle/renderer"
 )
 
 var (
@@ -50,6 +53,14 @@ type System struct {
 	runtime  float64
 }
 
+// ParticleSpawner is a type of interface for objects that are able to spawn
+// particles for a particle emitter.
+type ParticleSpawner interface {
+	NewParticle() Particle
+	DrawSpawnVolume(r renderer.Renderer, shader *fizzle.RenderShader, projection mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
+	GetLocation() mgl.Vec3
+}
+
 // Emitter is a particle emmiter object that will keep track of all of the particles
 // created by the emitter and update them accordingly.
 type Emitter struct {
@@ -58,11 +69,13 @@ type Emitter struct {
 	Billboard  graphics.Texture
 	Shader     graphics.Program
 	Properties EmitterProperties
+	Spawner    ParticleSpawner
 
 	vao            uint32
 	comboVBO       graphics.Buffer
 	comboBuffer    []float32
 	timeSinceSpawn float64
+	rng            *rand.Rand
 }
 
 // EmitterProperties describes the behavior of an Emitter object and is it's own
@@ -107,6 +120,13 @@ func (s *System) NewEmitter(optProps *EmitterProperties) *Emitter {
 	e := new(Emitter)
 	e.Owner = s
 
+	// setup the rng for the emitter with a default seed of 1
+	e.rng = rand.New(rand.NewSource(1))
+
+	// for now, create a default spawner
+	//e.Spawner = NewConeSpawner(e, 0.5, 1.0, 2.0, e.Properties.Origin)
+	e.Spawner = NewCubeSpawner(e, mgl.Vec3{-1, 0, -1}, mgl.Vec3{1, 0.01, 1}, e.Properties.Origin)
+
 	// set the emitter properties if specified
 	if optProps != nil {
 		e.Properties = *optProps
@@ -135,6 +155,11 @@ func (s *System) Draw(projection mgl.Mat4, view mgl.Mat4) {
 	for _, emitter := range s.Emitters {
 		emitter.Draw(projection, view)
 	}
+}
+
+// GetLocation returns the emitter location in world space.
+func (e *Emitter) GetLocation() mgl.Vec3 {
+	return e.Owner.Origin.Add(e.Properties.Origin)
 }
 
 // Update will update all of the particles for the emitter and then
@@ -170,14 +195,8 @@ func (e *Emitter) Update(frameDelta float64) {
 
 	// add the particles
 	var newParticle Particle
-	newParticle.StartTime = e.Owner.runtime
-	newParticle.Size = e.Properties.Size
-	newParticle.Color = e.Properties.Color
-	newParticle.Velocity = e.Properties.Velocity
-	newParticle.Acceleration = e.Properties.Acceleration
-	newParticle.Location = e.Owner.Origin.Add(e.Properties.Origin)
 	for spawnCount > 0 && len(e.Particles) < int(e.Properties.MaxParticles) {
-		newParticle.EndTime = e.Properties.TTL + newParticle.StartTime
+		newParticle = e.Spawner.NewParticle()
 		e.Particles = append(e.Particles, newParticle)
 		spawnCount--
 	}

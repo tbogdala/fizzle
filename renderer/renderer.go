@@ -21,6 +21,7 @@ type Renderer interface {
 
 	DrawRenderable(r *fizzle.Renderable, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
 	DrawRenderableWithShader(r *fizzle.Renderable, shader *fizzle.RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
+	DrawLines(r *fizzle.Renderable, shader *fizzle.RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
 	EndRenderFrame()
 }
 
@@ -157,6 +158,10 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 	}
 
 	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	gfx.DrawElements(graphics.Enum(mode), int32(r.FaceCount*3), graphics.UNSIGNED_INT, gfx.PtrOffset(0))
+	if mode != graphics.LINES {
+		gfx.DrawElements(graphics.Enum(mode), int32(r.FaceCount*3), graphics.UNSIGNED_INT, gfx.PtrOffset(0))
+	} else {
+		gfx.DrawElements(graphics.Enum(mode), int32(r.FaceCount*2), graphics.UNSIGNED_INT, gfx.PtrOffset(0))
+	}
 	gfx.BindVertexArray(0)
 }

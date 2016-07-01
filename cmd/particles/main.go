@@ -27,6 +27,7 @@ var (
 	mainWindow        *glfw.Window
 	uiman             *gui.Manager
 	billboardFilepath = "../../examples/assets/textures/explosion00.png"
+	colorShader       = "../../examples/assets/forwardshaders/color"
 )
 
 const (
@@ -92,11 +93,18 @@ func main() {
 	}
 	defer particleShader.Destroy()
 
+	// load the color shader
+	colorShader, err := fizzle.LoadShaderProgramFromFiles(colorShader, nil)
+	if err != nil {
+		panic("Failed to compile and link the color shader program! " + err.Error())
+	}
+	defer colorShader.Destroy()
+
 	// create a particle system
 	particleSystem := particles.NewSystem(gfx)
 	emitter := particleSystem.NewEmitter(nil)
 	emitter.Properties.MaxParticles = 300
-	emitter.Properties.SpawnRate = 1
+	emitter.Properties.SpawnRate = 40
 	emitter.Properties.Size = 32.0
 	emitter.Properties.Color = mgl.Vec4{0.0, 0.9, 0.0, 1.0}
 	emitter.Properties.Velocity = mgl.Vec3{0, 1, 0}
@@ -121,6 +129,12 @@ func main() {
 			perspective := mgl.Perspective(mgl.DegToRad(60.0), float32(particleWindowSize)/float32(particleWindowSize), 0.1, 50.0)
 			view := camera.GetViewMatrix()
 			particleSystem.Draw(perspective, view)
+
+			// draw the emitter volumes
+			for _, e := range particleSystem.Emitters {
+				e.Spawner.DrawSpawnVolume(renderer, colorShader, perspective, view, camera)
+			}
+
 		})
 	})
 	customWindow.Title = "Particle Output"
@@ -172,7 +186,7 @@ func main() {
 		wnd.Text("Alpha")
 		wnd.SliderFloat("color4", &props.Color[3], 0.0, 1.0)
 	})
-	propertyWindow.Title = "Property Test"
+	propertyWindow.Title = "Emitter Properties"
 	propertyWindow.ShowTitleBar = true
 	propertyWindow.IsMoveable = true
 	propertyWindow.AutoAdjustHeight = true
