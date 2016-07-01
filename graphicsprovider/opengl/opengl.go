@@ -1,4 +1,4 @@
-// Copyright 2015, Timothy` Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
 package opengl
