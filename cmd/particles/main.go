@@ -142,6 +142,7 @@ func main() {
 	customWindow.Style.WindowPadding = mgl.Vec4{4, 4, 4, 4}
 
 	// create a window for editing the emitter properites
+	var yaw, pitch, roll int
 	propertyWindow := uiman.NewWindow("Emitter", 0.66, 0.99, 0.33, 0.75, func(wnd *gui.Window) {
 		const textWidth = 0.33
 		const width4Col = 0.165
@@ -194,6 +195,19 @@ func main() {
 		wnd.DragSliderFloat("origin2", 0.1, &props.Origin[1])
 		wnd.RequestItemWidthMax(width3Col)
 		wnd.DragSliderFloat("origin3", 0.1, &props.Origin[2])
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("YawPitchRoll") // Y, X, Z order
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.SliderInt("yaw", &yaw, 0, 359)
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.SliderInt("pitch", &pitch, 0, 359)
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.SliderInt("roll", &roll, 0, 359)
+
+		// set the rotation based on the UI selected ypr angle values (in degrees)
+		props.Rotation = mgl.AnglesToQuat(mgl.DegToRad(float32(pitch)), mgl.DegToRad(float32(yaw)), mgl.DegToRad(float32(roll)), mgl.XYZ)
 	})
 	propertyWindow.Title = "Emitter Properties"
 	propertyWindow.ShowTitleBar = true

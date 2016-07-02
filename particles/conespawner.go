@@ -69,7 +69,9 @@ func (cone *ConeSpawner) NewParticle() (p Particle) {
 	top[2] = btRatio * bottom[2]
 
 	p.Velocity = top.Sub(bottom).Normalize()
-	p.Location = bottom
+	p.Velocity = cone.Owner.Properties.Rotation.Rotate(p.Velocity)
+
+	p.Location = cone.Owner.Properties.Rotation.Rotate(bottom)
 
 	return p
 }
@@ -88,8 +90,9 @@ func (cone *ConeSpawner) DrawSpawnVolume(r renderer.Renderer, shader *fizzle.Ren
 		cone.volumeRenderable = cone.createRenderable()
 	}
 
-	// sync the position
+	// sync the position and rotation
 	cone.volumeRenderable.Location = cone.Owner.Properties.Origin
+	cone.volumeRenderable.LocalRotation = cone.Owner.Properties.Rotation
 
 	r.DrawLines(cone.volumeRenderable, shader, nil, projection, view, camera)
 }

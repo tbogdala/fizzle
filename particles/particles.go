@@ -88,6 +88,7 @@ type EmitterProperties struct {
 	Acceleration mgl.Vec3
 	TTL          float64  // in seconds
 	Origin       mgl.Vec3 // relative to Emitter.Owner.Origin
+	Rotation     mgl.Quat
 	Color        mgl.Vec4
 	Size         float32
 }
@@ -138,6 +139,7 @@ func (s *System) NewEmitter(optProps *EmitterProperties) *Emitter {
 		e.Properties.Color = mgl.Vec4{1, 1, 1, 1}
 		e.Properties.Speed = 1.0
 		e.Properties.Velocity = mgl.Vec3{0, 1, 0}
+		e.Properties.Rotation = mgl.QuatIdent()
 	}
 
 	// construct the objects needed for rendering

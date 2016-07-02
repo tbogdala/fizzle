@@ -55,8 +55,10 @@ func (cube *CubeSpawner) NewParticle() (p Particle) {
 	p.Location[0] = x
 	p.Location[1] = y
 	p.Location[2] = z
+	p.Location = cube.Owner.Properties.Rotation.Rotate(p.Location)
 
 	p.Velocity = cube.Owner.Properties.Velocity.Normalize()
+	p.Velocity = cube.Owner.Properties.Rotation.Rotate(p.Velocity)
 
 	return p
 }
@@ -75,6 +77,7 @@ func (cube *CubeSpawner) DrawSpawnVolume(r renderer.Renderer, shader *fizzle.Ren
 
 	// sync the position
 	cube.volumeRenderable.Location = cube.Owner.Properties.Origin
+	cube.volumeRenderable.LocalRotation = cube.Owner.Properties.Rotation
 
 	r.DrawLines(cube.volumeRenderable, shader, nil, projection, view, camera)
 }
