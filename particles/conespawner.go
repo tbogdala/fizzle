@@ -42,6 +42,7 @@ func (cone *ConeSpawner) NewParticle() (p Particle) {
 	// get the standard properties from the emitter itself
 	p.StartTime = cone.Owner.Owner.runtime
 	p.Size = cone.Owner.Properties.Size
+	p.Speed = cone.Owner.Properties.Speed
 	p.Color = cone.Owner.Properties.Color
 	p.Acceleration = cone.Owner.Properties.Acceleration
 	p.EndTime = cone.Owner.Properties.TTL + p.StartTime
@@ -67,7 +68,7 @@ func (cone *ConeSpawner) NewParticle() (p Particle) {
 	top[1] = bottom[1] + cone.Length
 	top[2] = btRatio * bottom[2]
 
-	p.Velocity = top.Sub(bottom)
+	p.Velocity = top.Sub(bottom).Normalize()
 	p.Location = bottom
 
 	return p

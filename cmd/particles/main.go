@@ -165,8 +165,13 @@ func main() {
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
-		wnd.Text("Particle Size")
+		wnd.Text("Size")
 		wnd.DragSliderFloat("size", 0.1, &props.Size)
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Speed")
+		wnd.DragSliderFloat("speed", 0.1, &props.Speed)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)

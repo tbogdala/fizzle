@@ -38,6 +38,7 @@ func (cube *CubeSpawner) NewParticle() (p Particle) {
 	// get the standard properties from the emitter itself
 	p.StartTime = cube.Owner.Owner.runtime
 	p.Size = cube.Owner.Properties.Size
+	p.Speed = cube.Owner.Properties.Speed
 	p.Color = cube.Owner.Properties.Color
 	p.Acceleration = cube.Owner.Properties.Acceleration
 	p.EndTime = cube.Owner.Properties.TTL + p.StartTime
@@ -55,7 +56,7 @@ func (cube *CubeSpawner) NewParticle() (p Particle) {
 	p.Location[1] = y
 	p.Location[2] = z
 
-	p.Velocity = cube.Owner.Properties.Velocity
+	p.Velocity = cube.Owner.Properties.Velocity.Normalize()
 
 	return p
 }

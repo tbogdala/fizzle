@@ -82,8 +82,9 @@ type Emitter struct {
 // type to facilitate sharing of parameter defaults and serialization.
 type EmitterProperties struct {
 	MaxParticles uint
-	SpawnRate    uint // particles per second
-	Velocity     mgl.Vec3
+	SpawnRate    uint     // particles per second
+	Velocity     mgl.Vec3 // should be normalized
+	Speed        float32
 	Acceleration mgl.Vec3
 	TTL          float64  // in seconds
 	Origin       mgl.Vec3 // relative to Emitter.Owner.Origin
@@ -96,7 +97,8 @@ type Particle struct {
 	Size         float32
 	Color        mgl.Vec4
 	Location     mgl.Vec3
-	Velocity     mgl.Vec3
+	Velocity     mgl.Vec3 // should be normalized
+	Speed        float32
 	Acceleration mgl.Vec3
 	EndTime      float64
 	StartTime    float64
@@ -130,6 +132,12 @@ func (s *System) NewEmitter(optProps *EmitterProperties) *Emitter {
 	// set the emitter properties if specified
 	if optProps != nil {
 		e.Properties = *optProps
+	} else {
+		// plug in some defaults
+		e.Properties.Size = 32.0
+		e.Properties.Color = mgl.Vec4{1, 1, 1, 1}
+		e.Properties.Speed = 1.0
+		e.Properties.Velocity = mgl.Vec3{0, 1, 0}
 	}
 
 	// construct the objects needed for rendering
@@ -187,10 +195,10 @@ func (e *Emitter) Update(frameDelta float64) {
 
 	// update the particles
 	for i, particle := range e.Particles {
-		dV := particle.Velocity.Mul(float32(frameDelta))
-		dA := particle.Acceleration.Mul(float32(frameDelta))
+		dV := particle.Velocity.Mul(float32(frameDelta) * particle.Speed)
+		//dA := particle.Acceleration.Mul(float32(frameDelta))
 		e.Particles[i].Location = particle.Location.Add(dV)
-		e.Particles[i].Velocity = particle.Velocity.Add(dA)
+		//e.Particles[i].Velocity = particle.Velocity.Add(dA)
 	}
 
 	// add the particles
