@@ -124,8 +124,8 @@ func (s *System) NewEmitter(optProps *EmitterProperties) *Emitter {
 	e.rng = rand.New(rand.NewSource(1))
 
 	// for now, create a default spawner
-	//e.Spawner = NewConeSpawner(e, 0.5, 1.0, 2.0, e.Properties.Origin)
-	e.Spawner = NewCubeSpawner(e, mgl.Vec3{-1, 0, -1}, mgl.Vec3{1, 0.01, 1}, e.Properties.Origin)
+	e.Spawner = NewConeSpawner(e, 0.5, 1.0, 2.0)
+	//e.Spawner = NewCubeSpawner(e, mgl.Vec3{-1, 0, -1}, mgl.Vec3{1, 0.01, 1})
 
 	// set the emitter properties if specified
 	if optProps != nil {

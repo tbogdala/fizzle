@@ -14,25 +14,23 @@ import (
 type CubeSpawner struct {
 	BottomLeft mgl.Vec3
 	TopRight   mgl.Vec3
-	Origin     mgl.Vec3
 	Owner      *Emitter
 
 	volumeRenderable *fizzle.Renderable
 }
 
 // NewCubeSpawner creates a new cube shaped particle spawner.
-func NewCubeSpawner(owner *Emitter, bl, tr, loc mgl.Vec3) *CubeSpawner {
+func NewCubeSpawner(owner *Emitter, bl, tr mgl.Vec3) *CubeSpawner {
 	cube := new(CubeSpawner)
 	cube.BottomLeft = bl
 	cube.TopRight = tr
-	cube.Origin = loc
 	cube.Owner = owner
 	return cube
 }
 
 // GetLocation returns the location in world space for the spawner.
 func (cube *CubeSpawner) GetLocation() mgl.Vec3 {
-	return cube.Owner.GetLocation().Add(cube.Origin)
+	return cube.Owner.GetLocation()
 }
 
 // NewParticle creates a new particle that fits within the volume of a cone section.
@@ -53,10 +51,9 @@ func (cube *CubeSpawner) NewParticle() (p Particle) {
 	y := cube.BottomLeft[1] + cube.Owner.rng.Float32()*h
 	z := cube.BottomLeft[2] + cube.Owner.rng.Float32()*d
 
-	p.Location = cube.Owner.GetLocation()
-	p.Location[0] += x
-	p.Location[1] += y
-	p.Location[2] += z
+	p.Location[0] = x
+	p.Location[1] = y
+	p.Location[2] = z
 
 	p.Velocity = cube.Owner.Properties.Velocity
 
@@ -74,6 +71,9 @@ func (cube *CubeSpawner) DrawSpawnVolume(r renderer.Renderer, shader *fizzle.Ren
 	if cube.volumeRenderable == nil {
 		cube.volumeRenderable = cube.createRenderable()
 	}
+
+	// sync the position
+	cube.volumeRenderable.Location = cube.Owner.Properties.Origin
 
 	r.DrawLines(cube.volumeRenderable, shader, nil, projection, view, camera)
 }

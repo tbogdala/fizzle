@@ -144,6 +144,8 @@ func main() {
 	// create a window for editing the emitter properites
 	propertyWindow := uiman.NewWindow("Emitter", 0.66, 0.99, 0.33, 0.75, func(wnd *gui.Window) {
 		const textWidth = 0.33
+		const width4Col = 0.165
+		const width3Col = 0.22
 		props := &emitter.Properties
 
 		wnd.StartRow()
@@ -168,23 +170,25 @@ func main() {
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
-		wnd.Text("Red")
+		wnd.Text("Color")
+		wnd.RequestItemWidthMax(width4Col)
 		wnd.SliderFloat("color1", &props.Color[0], 0.0, 1.0)
-
-		wnd.StartRow()
-		wnd.RequestItemWidthMin(textWidth)
-		wnd.Text("Green")
+		wnd.RequestItemWidthMax(width4Col)
 		wnd.SliderFloat("color2", &props.Color[1], 0.0, 1.0)
-
-		wnd.StartRow()
-		wnd.RequestItemWidthMin(textWidth)
-		wnd.Text("Blue")
+		wnd.RequestItemWidthMax(width4Col)
 		wnd.SliderFloat("color3", &props.Color[2], 0.0, 1.0)
+		wnd.RequestItemWidthMax(width4Col)
+		wnd.SliderFloat("color4", &props.Color[3], 0.0, 1.0)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
-		wnd.Text("Alpha")
-		wnd.SliderFloat("color4", &props.Color[3], 0.0, 1.0)
+		wnd.Text("Origin")
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("origin1", 0.1, &props.Origin[0])
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("origin2", 0.1, &props.Origin[1])
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("origin3", 0.1, &props.Origin[2])
 	})
 	propertyWindow.Title = "Emitter Properties"
 	propertyWindow.ShowTitleBar = true

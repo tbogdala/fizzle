@@ -17,26 +17,24 @@ type ConeSpawner struct {
 	BottomRadius float32
 	TopRadius    float32
 	Length       float32
-	Origin       mgl.Vec3
 	Owner        *Emitter
 
 	volumeRenderable *fizzle.Renderable
 }
 
 // NewConeSpawner creates a new cone shaped particle spawner.
-func NewConeSpawner(owner *Emitter, br, tr, cl float32, loc mgl.Vec3) *ConeSpawner {
+func NewConeSpawner(owner *Emitter, br, tr, cl float32) *ConeSpawner {
 	cone := new(ConeSpawner)
 	cone.BottomRadius = br
 	cone.TopRadius = tr
 	cone.Length = cl
-	cone.Origin = loc
 	cone.Owner = owner
 	return cone
 }
 
 // GetLocation returns the location in world space for the cone spawner.
 func (cone *ConeSpawner) GetLocation() mgl.Vec3 {
-	return cone.Owner.GetLocation().Add(cone.Origin)
+	return cone.Owner.GetLocation()
 }
 
 // NewParticle creates a new particle that fits within the volume of a cone section.
@@ -52,8 +50,8 @@ func (cone *ConeSpawner) NewParticle() (p Particle) {
 	var bottom mgl.Vec3
 	bangle := cone.Owner.rng.Float32() * math.Pi * 2.0
 	bradius := cone.Owner.rng.Float32() * cone.BottomRadius
-	bottom[0] = cone.Origin[0] + bradius*float32(math.Cos(float64(bangle)))
-	bottom[2] = cone.Origin[2] + bradius*float32(math.Sin(float64(bangle)))
+	bottom[0] = bradius * float32(math.Cos(float64(bangle)))
+	bottom[2] = bradius * float32(math.Sin(float64(bangle)))
 
 	// caculate the ratio of top to bottom size avoiding divbyzero
 	var btRatio float32
@@ -66,12 +64,11 @@ func (cone *ConeSpawner) NewParticle() (p Particle) {
 	// calculate the top point within the top circle
 	var top mgl.Vec3
 	top[0] = btRatio * bottom[0]
-	top[1] = cone.Length
+	top[1] = bottom[1] + cone.Length
 	top[2] = btRatio * bottom[2]
 
-	emitterLoc := cone.Owner.GetLocation()
 	p.Velocity = top.Sub(bottom)
-	p.Location = emitterLoc.Add(bottom)
+	p.Location = bottom
 
 	return p
 }
@@ -89,6 +86,9 @@ func (cone *ConeSpawner) DrawSpawnVolume(r renderer.Renderer, shader *fizzle.Ren
 	if cone.volumeRenderable == nil {
 		cone.volumeRenderable = cone.createRenderable()
 	}
+
+	// sync the position
+	cone.volumeRenderable.Location = cone.Owner.Properties.Origin
 
 	r.DrawLines(cone.volumeRenderable, shader, nil, projection, view, camera)
 }
