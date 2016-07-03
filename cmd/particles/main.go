@@ -130,7 +130,7 @@ func main() {
 	flag.Parse()
 
 	// start off by initializing the GL and GLFW libraries and creating a window.
-	w, gfx := initGraphics("Simple Cube", windowWidth, windowHeight)
+	w, gfx := initGraphics("Particle Editor", windowWidth, windowHeight)
 	mainWindow = w
 
 	// create prototype instances of all known spawner types
