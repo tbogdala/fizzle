@@ -5,6 +5,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"math"
 	"runtime"
 	"time"
@@ -42,6 +43,19 @@ var (
 	flagDesktopNumber int
 )
 
+// spawnerPrototypes keeps track of possible spawner interface implementations
+// to switch between
+type spawnerPrototypes struct {
+	Name string
+	particles.ParticleSpawner
+	RenderUI func(wnd *gui.Window)
+}
+
+var (
+	// created instances of particle spawners
+	knownSpawners []spawnerPrototypes
+)
+
 // GLFW event handling must run on the main OS thread. If this doesn't get
 // locked down, you will likely see random crashes on memory access while
 // running the application after a few seconds.
@@ -52,6 +66,65 @@ func init() {
 	flag.IntVar(&flagDesktopNumber, "desktop", -1, "the index of the desktop to create the main window on")
 }
 
+// initSpawners create prototype instances of all known spawner types
+func initSpawners() {
+	knownSpawners = []spawnerPrototypes{}
+
+	cone := particles.NewConeSpawner(nil, 0.5, 1, 1)
+	knownSpawners = append(knownSpawners, spawnerPrototypes{Name: cone.GetName(), ParticleSpawner: cone, RenderUI: func(wnd *gui.Window) {
+		const textWidth = 0.33
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Top Radius")
+		wnd.DragSliderUFloat("tradius", 0.1, &cone.TopRadius)
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Bottom Radius")
+		wnd.DragSliderUFloat("bradius", 0.1, &cone.BottomRadius)
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Length")
+		wnd.DragSliderUFloat("conelength", 0.1, &cone.Length)
+	}})
+
+	cube := particles.NewCubeSpawner(nil, mgl.Vec3{-1, -1, -1}, mgl.Vec3{1, 1, 1})
+	knownSpawners = append(knownSpawners, spawnerPrototypes{Name: cube.GetName(), ParticleSpawner: cube, RenderUI: func(wnd *gui.Window) {
+		const textWidth = 0.33
+		const width3Col = 0.22
+
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Bottom Left")
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("cubebl1", 0.1, &cube.BottomLeft[0])
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("cubebl2", 0.1, &cube.BottomLeft[1])
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("cubebl3", 0.1, &cube.BottomLeft[2])
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Top Right")
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("cubetr1", 0.1, &cube.TopRight[0])
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("cubetr2", 0.1, &cube.TopRight[1])
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("cubetr3", 0.1, &cube.TopRight[2])
+	}})
+}
+
+// getSpawnerIndex returns the slice index within known spawners for a given spawner interface instance
+func getSpawnerIndex(spawner particles.ParticleSpawner) int {
+	for i, s := range knownSpawners {
+		if s.Name == spawner.GetName() {
+			return i
+		}
+	}
+
+	return 0
+}
+
 func main() {
 	// parse the command line options
 	flag.Parse()
@@ -59,6 +132,9 @@ func main() {
 	// start off by initializing the GL and GLFW libraries and creating a window.
 	w, gfx := initGraphics("Simple Cube", windowWidth, windowHeight)
 	mainWindow = w
+
+	// create prototype instances of all known spawner types
+	initSpawners()
 
 	/////////////////////////////////////////////////////////////////////////////
 	// create and initialize the gui Manager
@@ -103,6 +179,7 @@ func main() {
 	// create a particle system
 	particleSystem := particles.NewSystem(gfx)
 	emitter := particleSystem.NewEmitter(nil)
+	emitter.Properties.BillboardFilepath = billboardFilepath
 	emitter.Properties.MaxParticles = 300
 	emitter.Properties.SpawnRate = 40
 	emitter.Properties.Size = 32.0
@@ -111,10 +188,16 @@ func main() {
 	emitter.Properties.Acceleration = mgl.Vec3{0, -0.1, 0}
 	emitter.Properties.TTL = 3.0
 	emitter.Shader = particleShader.Prog
-	emitter.Billboard, err = fizzle.LoadImageToTexture(billboardFilepath)
+
+	// load the billboard
+	err = emitter.LoadBillboard()
 	if err != nil {
-		panic("Failed to load the billboard texture: " + billboardFilepath + " " + err.Error())
+		panic(err.Error())
 	}
+
+	// reset the spawner to the first known spawner instance
+	emitter.Spawner = knownSpawners[0]
+	emitter.Spawner.SetOwner(emitter)
 
 	// setup the camera to look at the cube
 	camera := fizzle.NewOrbitCamera(mgl.Vec3{0, 0, 0}, math.Pi/2.0, 5.0, math.Pi/2.0)
@@ -132,6 +215,7 @@ func main() {
 
 			// draw the emitter volumes
 			for _, e := range particleSystem.Emitters {
+				e.Spawner.CreateRenderable()
 				e.Spawner.DrawSpawnVolume(renderer, colorShader, perspective, view, camera)
 			}
 
@@ -143,11 +227,54 @@ func main() {
 
 	// create a window for editing the emitter properites
 	var yaw, pitch, roll int
-	propertyWindow := uiman.NewWindow("Emitter", 0.66, 0.99, 0.33, 0.75, func(wnd *gui.Window) {
+	propertyWindow := uiman.NewWindow("Emitter", 0.5, 0.99, 0.5, 0.75, func(wnd *gui.Window) {
 		const textWidth = 0.33
 		const width4Col = 0.165
 		const width3Col = 0.22
 		props := &emitter.Properties
+
+		wnd.StartRow()
+		wnd.Checkbox("isAlive", &emitter.Owner.IsActive)
+		wnd.Text("Is Alive")
+		wnd.Space(0.05)
+		wnd.Checkbox("isEmitting", &emitter.Owner.IsEmitting)
+		wnd.Text("Is Emitting")
+
+		// setup the controls to switch between spawnwers
+		wnd.Separator()
+		prevPressed, _ := wnd.Button("prevSpawner", " < ")
+		nextPressed, _ := wnd.Button("nextSpawner", " > ")
+		ki := getSpawnerIndex(emitter.Spawner)
+		if prevPressed {
+			if ki > 0 {
+				emitter.Spawner = knownSpawners[ki-1].ParticleSpawner
+				emitter.Spawner.SetOwner(emitter)
+				ki--
+			}
+		}
+		if nextPressed {
+			if ki < len(knownSpawners)-1 {
+				emitter.Spawner = knownSpawners[ki+1].ParticleSpawner
+				emitter.Spawner.SetOwner(emitter)
+				ki++
+			}
+		}
+		wnd.Text(emitter.Spawner.GetName())
+
+		// render the spawner interface
+		wnd.StartRow()
+		knownSpawners[ki].RenderUI(wnd)
+
+		wnd.Separator()
+		wnd.RequestItemWidthMin(textWidth)
+		loadBillboardPressed, _ := wnd.Button("LoadBillboard", "Load Billboard")
+		wnd.Editbox("billboardedit", &props.BillboardFilepath)
+		if loadBillboardPressed {
+			err := emitter.LoadBillboard()
+			if err != nil {
+				fmt.Printf("Failed to load new billobard: %v\n", err)
+			}
+		}
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
@@ -162,17 +289,17 @@ func main() {
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("TTL")
-		wnd.DragSliderFloat64("ttl", 0.1, &props.TTL)
+		wnd.DragSliderUFloat64("ttl", 0.1, &props.TTL)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Size")
-		wnd.DragSliderFloat("size", 0.1, &props.Size)
+		wnd.DragSliderUFloat("size", 0.1, &props.Size)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Speed")
-		wnd.DragSliderFloat("speed", 0.1, &props.Speed)
+		wnd.DragSliderUFloat("speed", 0.1, &props.Speed)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)

@@ -32,6 +32,16 @@ func NewConeSpawner(owner *Emitter, br, tr, cl float32) *ConeSpawner {
 	return cone
 }
 
+// GetName returns a user friendly name for the spawner
+func (cone *ConeSpawner) GetName() string {
+	return "Cone Spawner"
+}
+
+// SetOwner sets the owning emitter for the spawner
+func (cone *ConeSpawner) SetOwner(e *Emitter) {
+	cone.Owner = e
+}
+
 // GetLocation returns the location in world space for the cone spawner.
 func (cone *ConeSpawner) GetLocation() mgl.Vec3 {
 	return cone.Owner.GetLocation()
@@ -76,18 +86,20 @@ func (cone *ConeSpawner) NewParticle() (p Particle) {
 	return p
 }
 
-func (cone *ConeSpawner) createRenderable() *fizzle.Renderable {
+// CreateRenderable creates a cached renderable for the spawner that represents
+// the spawning volume for particles.
+func (cone *ConeSpawner) CreateRenderable() *fizzle.Renderable {
 	const circleSegments = 16
 	const sideSegments = 8
 
-	r := fizzle.CreateWireframeConeSegmentXZ("color", 0, 0, 0, cone.BottomRadius, cone.TopRadius, cone.Length, circleSegments, sideSegments)
-	return r
+	cone.volumeRenderable = fizzle.CreateWireframeConeSegmentXZ("color", 0, 0, 0, cone.BottomRadius, cone.TopRadius, cone.Length, circleSegments, sideSegments)
+	return cone.volumeRenderable
 }
 
 // DrawSpawnVolume renders a visual representation of the particle spawning volume.
 func (cone *ConeSpawner) DrawSpawnVolume(r renderer.Renderer, shader *fizzle.RenderShader, projection mgl.Mat4, view mgl.Mat4, camera fizzle.Camera) {
 	if cone.volumeRenderable == nil {
-		cone.volumeRenderable = cone.createRenderable()
+		cone.CreateRenderable()
 	}
 
 	// sync the position and rotation

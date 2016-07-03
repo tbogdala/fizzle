@@ -28,6 +28,16 @@ func NewCubeSpawner(owner *Emitter, bl, tr mgl.Vec3) *CubeSpawner {
 	return cube
 }
 
+// GetName returns a user friendly name for the spawner
+func (cube *CubeSpawner) GetName() string {
+	return "Cube Spawner"
+}
+
+// SetOwner sets the owning emitter for the spawner
+func (cube *CubeSpawner) SetOwner(e *Emitter) {
+	cube.Owner = e
+}
+
 // GetLocation returns the location in world space for the spawner.
 func (cube *CubeSpawner) GetLocation() mgl.Vec3 {
 	return cube.Owner.GetLocation()
@@ -63,16 +73,18 @@ func (cube *CubeSpawner) NewParticle() (p Particle) {
 	return p
 }
 
-func (cube *CubeSpawner) createRenderable() *fizzle.Renderable {
-	r := fizzle.CreateWireframeCube("color", cube.BottomLeft[0], cube.BottomLeft[1], cube.BottomLeft[2],
+// CreateRenderable creates a cached renderable for the spawner that represents
+// the spawning volume for particles.
+func (cube *CubeSpawner) CreateRenderable() *fizzle.Renderable {
+	cube.volumeRenderable = fizzle.CreateWireframeCube("color", cube.BottomLeft[0], cube.BottomLeft[1], cube.BottomLeft[2],
 		cube.TopRight[0], cube.TopRight[1], cube.TopRight[2])
-	return r
+	return cube.volumeRenderable
 }
 
 // DrawSpawnVolume renders a visual representation of the particle spawning volume.
 func (cube *CubeSpawner) DrawSpawnVolume(r renderer.Renderer, shader *fizzle.RenderShader, projection mgl.Mat4, view mgl.Mat4, camera fizzle.Camera) {
 	if cube.volumeRenderable == nil {
-		cube.volumeRenderable = cube.createRenderable()
+		cube.CreateRenderable()
 	}
 
 	// sync the position

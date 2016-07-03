@@ -4,6 +4,7 @@
 package particles
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 
@@ -47,18 +48,35 @@ var (
 // System is a particle system master collection that keeps track of all of the
 // particle emitters and updates them accordingly.
 type System struct {
-	Emitters []*Emitter
-	Origin   mgl.Vec3
-	gfx      graphics.GraphicsProvider
-	runtime  float64
+	Emitters   []*Emitter
+	Origin     mgl.Vec3
+	IsActive   bool
+	IsEmitting bool
+	gfx        graphics.GraphicsProvider
+	runtime    float64
 }
 
 // ParticleSpawner is a type of interface for objects that are able to spawn
 // particles for a particle emitter.
 type ParticleSpawner interface {
+	// NewParticle creates a new particle for the emitter
 	NewParticle() Particle
+
+	// DrawSpawnVolume draws an object on screen, probably a wireframe object, representing the spawn volume
 	DrawSpawnVolume(r renderer.Renderer, shader *fizzle.RenderShader, projection mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
+
+	// GetLocation returns the location of the spawner
 	GetLocation() mgl.Vec3
+
+	// GetName returns a user friendly name for the spawner
+	GetName() string
+
+	// SetOwner sets the owning emitter for the spawner
+	SetOwner(e *Emitter)
+
+	// CreateRenderable creates a cached renderable for the spawner that represents
+	// the spawning volume for particles.
+	CreateRenderable() *fizzle.Renderable
 }
 
 // Emitter is a particle emmiter object that will keep track of all of the particles
@@ -81,16 +99,17 @@ type Emitter struct {
 // EmitterProperties describes the behavior of an Emitter object and is it's own
 // type to facilitate sharing of parameter defaults and serialization.
 type EmitterProperties struct {
-	MaxParticles uint
-	SpawnRate    uint     // particles per second
-	Velocity     mgl.Vec3 // should be normalized
-	Speed        float32
-	Acceleration mgl.Vec3
-	TTL          float64  // in seconds
-	Origin       mgl.Vec3 // relative to Emitter.Owner.Origin
-	Rotation     mgl.Quat
-	Color        mgl.Vec4
-	Size         float32
+	BillboardFilepath string
+	MaxParticles      uint
+	SpawnRate         uint     // particles per second
+	Velocity          mgl.Vec3 // should be normalized
+	Speed             float32
+	Acceleration      mgl.Vec3
+	TTL               float64  // in seconds
+	Origin            mgl.Vec3 // relative to Emitter.Owner.Origin
+	Rotation          mgl.Quat
+	Color             mgl.Vec4
+	Size              float32
 }
 
 // Particle is an individual particle in an Emitter.
@@ -109,6 +128,8 @@ type Particle struct {
 func NewSystem(gfx graphics.GraphicsProvider) *System {
 	s := new(System)
 	s.gfx = gfx
+	s.IsActive = true
+	s.IsEmitting = true
 	return s
 }
 
@@ -152,11 +173,14 @@ func (s *System) NewEmitter(optProps *EmitterProperties) *Emitter {
 	return e
 }
 
-// Update will update all of the emitters currently tracked by the system.
+// Update will update all of the emitters currently tracked by the system if
+// the system is active.
 func (s *System) Update(frameDelta float64) {
-	s.runtime += frameDelta
-	for _, emitter := range s.Emitters {
-		emitter.Update(frameDelta)
+	if s.IsActive {
+		s.runtime += frameDelta
+		for _, emitter := range s.Emitters {
+			emitter.Update(frameDelta)
+		}
 	}
 }
 
@@ -170,6 +194,18 @@ func (s *System) Draw(projection mgl.Mat4, view mgl.Mat4) {
 // GetLocation returns the emitter location in world space.
 func (e *Emitter) GetLocation() mgl.Vec3 {
 	return e.Owner.Origin.Add(e.Properties.Origin)
+}
+
+// LoadBillboard will load the Properties.BillboardFilepath and create
+// an OpenGL texture with it.
+func (e *Emitter) LoadBillboard() error {
+	var err error
+	e.Billboard, err = fizzle.LoadImageToTexture(e.Properties.BillboardFilepath)
+	if err != nil {
+		return fmt.Errorf("Failed to load the billboard texture: %s. %v", e.Properties.BillboardFilepath, err)
+	}
+
+	return nil
 }
 
 // Update will update all of the particles for the emitter and then
@@ -203,12 +239,14 @@ func (e *Emitter) Update(frameDelta float64) {
 		//e.Particles[i].Velocity = particle.Velocity.Add(dA)
 	}
 
-	// add the particles
-	var newParticle Particle
-	for spawnCount > 0 && len(e.Particles) < int(e.Properties.MaxParticles) {
-		newParticle = e.Spawner.NewParticle()
-		e.Particles = append(e.Particles, newParticle)
-		spawnCount--
+	// add the particles if we're still emitting
+	if e.Owner.IsEmitting {
+		var newParticle Particle
+		for spawnCount > 0 && len(e.Particles) < int(e.Properties.MaxParticles) {
+			newParticle = e.Spawner.NewParticle()
+			e.Particles = append(e.Particles, newParticle)
+			spawnCount--
+		}
 	}
 }
 
