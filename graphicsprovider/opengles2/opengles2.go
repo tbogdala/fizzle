@@ -80,6 +80,11 @@ func (impl *GraphicsImpl) BlendFunc(sFactor, dFactor graphics.Enum) {
 	gles.BlendFunc(gles.Enum(sFactor), gles.Enum(dFactor))
 }
 
+// BlitFramebuffer copies a block of pixels from one framebuffer object to another
+func (impl *GraphicsImpl) BlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1 int32, mask graphics.Bitfield, filter graphics.Enum) {
+	// NO-OP ves3+
+}
+
 // BufferData creates a new data store for the bound buffer object.
 func (impl *GraphicsImpl) BufferData(target graphics.Enum, size int, data unsafe.Pointer, usage graphics.Enum) {
 	gles.BufferData(gles.Enum(target), gles.SizeiPtr(size), gles.Void(data), gles.Enum(usage))
@@ -360,6 +365,11 @@ func (impl *GraphicsImpl) RenderbufferStorage(target graphics.Enum, internalform
 	gles.RenderbufferStorage(gles.Enum(target), gles.Enum(internalformat), gles.Sizei(width), gles.Sizei(height))
 }
 
+// RenderbufferStorageMultisample establishes the format and dimensions of a renderbuffer
+func (impl *GraphicsImpl) RenderbufferStorageMultisample(target graphics.Enum, samples int32, internalformat graphics.Enum, width int32, height int32) {
+	// NO-OP ves3+ only
+}
+
 // Scissor clips to a rectangle with the location and dimensions specified.
 func (impl *GraphicsImpl) Scissor(x, y, w, h int32) {
 	gles.Scissor(x, y, w, h)
@@ -373,6 +383,11 @@ func (impl *GraphicsImpl) ShaderSource(s graphics.Shader, source string) {
 // TexImage2D writes a 2D texture image.
 func (impl *GraphicsImpl) TexImage2D(target graphics.Enum, level, intfmt, width, height, border int32, format graphics.Enum, ty graphics.Enum, ptr unsafe.Pointer, dataLength int) {
 	gles.TexImage2D(gles.Enum(target), level, intfmt, gles.Sizei(width), gles.Sizei(height), border, gles.Enum(format), gles.Enum(ty), gles.Void(ptr))
+}
+
+// TexImage2DMultisample establishes the data storage, format, dimensions, and number of samples of a multisample texture's image
+func (impl *GraphicsImpl) TexImage2DMultisample(target graphics.Enum, samples int32, intfmt graphics.Enum, width int32, height int32, fixedsamplelocations bool) {
+	// NO-OP ves3.1+ only
 }
 
 // TexParameterf sets a float texture parameter

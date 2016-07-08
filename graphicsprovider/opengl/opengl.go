@@ -87,6 +87,11 @@ func (impl *GraphicsImpl) BlendFunc(sFactor, dFactor graphics.Enum) {
 	gl.BlendFunc(uint32(sFactor), uint32(dFactor))
 }
 
+// BlitFramebuffer copies a block of pixels from one framebuffer object to another
+func (impl *GraphicsImpl) BlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1 int32, mask graphics.Bitfield, filter graphics.Enum) {
+	gl.BlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, uint32(mask), uint32(filter))
+}
+
 // BufferData creates a new data store for the bound buffer object.
 func (impl *GraphicsImpl) BufferData(target graphics.Enum, size int, data unsafe.Pointer, usage graphics.Enum) {
 	gl.BufferData(uint32(target), size, data, uint32(usage))
@@ -344,6 +349,11 @@ func (impl *GraphicsImpl) RenderbufferStorage(target graphics.Enum, internalform
 	gl.RenderbufferStorage(uint32(target), uint32(internalformat), width, height)
 }
 
+// RenderbufferStorageMultisample establishes the format and dimensions of a renderbuffer
+func (impl *GraphicsImpl) RenderbufferStorageMultisample(target graphics.Enum, samples int32, internalformat graphics.Enum, width int32, height int32) {
+	gl.RenderbufferStorageMultisample(uint32(target), samples, uint32(internalformat), width, height)
+}
+
 // Scissor clips to a rectangle with the location and dimensions specified.
 func (impl *GraphicsImpl) Scissor(x, y, w, h int32) {
 	gl.Scissor(x, y, w, h)
@@ -359,6 +369,11 @@ func (impl *GraphicsImpl) ShaderSource(s graphics.Shader, source string) {
 // TexImage2D writes a 2D texture image.
 func (impl *GraphicsImpl) TexImage2D(target graphics.Enum, level, intfmt, width, height, border int32, format graphics.Enum, ty graphics.Enum, ptr unsafe.Pointer, dataLength int) {
 	gl.TexImage2D(uint32(target), level, intfmt, width, height, border, uint32(format), uint32(ty), ptr)
+}
+
+// TexImage2DMultisample establishes the data storage, format, dimensions, and number of samples of a multisample texture's image
+func (impl *GraphicsImpl) TexImage2DMultisample(target graphics.Enum, samples int32, intfmt graphics.Enum, width int32, height int32, fixedsamplelocations bool) {
+	gl.TexImage2DMultisample(uint32(target), samples, uint32(intfmt), width, height, fixedsamplelocations)
 }
 
 // TexParameterf sets a float texture parameter

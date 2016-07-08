@@ -34,6 +34,9 @@ type Program uint32
 // Shader is a type indicating the uint32 use as an OpenGL shader
 type Shader uint32
 
+// Bitfield is a typ indicating the uint32 use as an OpenGL bitfield
+type Bitfield uint32
+
 // GraphicsProvider represents a common way to interface with graphics
 // 'drivers' like OpenGL or OpenGL ES.
 type GraphicsProvider interface {
@@ -68,6 +71,9 @@ type GraphicsProvider interface {
 
 	// BlendFunc specifies the pixel arithmetic for the blend fucntion
 	BlendFunc(sFactor, dFactor Enum)
+
+	// BlitFramebuffer copies a block of pixels from one framebuffer object to another
+	BlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1 int32, mask Bitfield, filter Enum)
 
 	// BufferData creates a new data store for the bound buffer object.
 	BufferData(target Enum, size int, data unsafe.Pointer, usage Enum)
@@ -204,6 +210,9 @@ type GraphicsProvider interface {
 	// RenderbufferStorage establishes the format and dimensions of a renderbuffer
 	RenderbufferStorage(target Enum, internalformat Enum, width int32, height int32)
 
+	// RenderbufferStorageMultisample establishes the format and dimensions of a renderbuffer
+	RenderbufferStorageMultisample(target Enum, samples int32, internalformat Enum, width int32, height int32)
+
 	// Scissor clips to a rectangle with the location and dimensions specified.
 	Scissor(x, y, w, h int32)
 
@@ -212,6 +221,9 @@ type GraphicsProvider interface {
 
 	// TexImage2D writes a 2D texture image.
 	TexImage2D(target Enum, level, intfmt, width, height, border int32, format Enum, ty Enum, ptr unsafe.Pointer, dataLength int)
+
+	// TexImage2DMultisample establishes the data storage, format, dimensions, and number of samples of a multisample texture's image
+	TexImage2DMultisample(target Enum, samples int32, intfmt Enum, width int32, height int32, fixedsamplelocations bool)
 
 	// TexParameterf sets a float texture parameter
 	TexParameterf(target, pname Enum, param float32)
