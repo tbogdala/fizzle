@@ -24,6 +24,10 @@ type KeyboardModel struct {
 	// keyCallback is the function that will get passed to GLFW as the
 	// callback handler for key presses
 	KeyCallback glfw.KeyCallback
+
+	// prevKeyCallback is the previously bound key callback from glfw.
+	// This is used to chain input.
+	prevKeyCallback glfw.KeyCallback
 }
 
 // NewKeyboardModel returns a newly created keyboard model object
@@ -44,6 +48,11 @@ func NewKeyboardModel(w *glfw.Window) *KeyboardModel {
 		if okay && cb != nil {
 			cb()
 		}
+
+		// chain the event handler to the previous one if it existed.
+		if kb.prevKeyCallback != nil {
+			kb.prevKeyCallback(w, key, scancode, action, mods)
+		}
 	}
 
 	return kb
@@ -51,7 +60,7 @@ func NewKeyboardModel(w *glfw.Window) *KeyboardModel {
 
 // SetupCallbacks sets the callback handlers for the window.
 func (kb *KeyboardModel) SetupCallbacks() {
-	kb.window.SetKeyCallback(kb.KeyCallback)
+	kb.prevKeyCallback = kb.window.SetKeyCallback(kb.KeyCallback)
 }
 
 // CheckKeyPresses runs through all of the KeyBindings and checks to see if that
