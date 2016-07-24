@@ -174,7 +174,7 @@ func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, index
 }
 
 // CreateCube creates a cube based on the dimensions specified.
-func CreateCube(shader string, x, y, z, xmax, ymax, zmax float32) *Renderable {
+func CreateCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
 	/* Cube vertices are layed out like this:
 
 	  +--------+           6          5
@@ -188,12 +188,12 @@ func CreateCube(shader string, x, y, z, xmax, ymax, zmax float32) *Renderable {
 	*/
 
 	verts := [...]float32{
-		xmax, ymax, zmax, x, ymax, zmax, x, y, zmax, xmax, y, zmax, // v0,v1,v2,v3 (front)
-		xmax, ymax, z, xmax, ymax, zmax, xmax, y, zmax, xmax, y, z, // v5,v0,v3,v4 (right)
-		xmax, ymax, z, x, ymax, z, x, ymax, zmax, xmax, ymax, zmax, // v5,v6,v1,v0 (top)
-		x, ymax, zmax, x, ymax, z, x, y, z, x, y, zmax, // v1,v6,v7,v2 (left)
-		xmax, y, zmax, x, y, zmax, x, y, z, xmax, y, z, // v3,v2,v7,v4 (bottom)
-		x, ymax, z, xmax, ymax, z, xmax, y, z, x, y, z, // v6,v5,v4,v7 (back)
+		xmax, ymax, zmax, xmin, ymax, zmax, xmin, ymin, zmax, xmax, ymin, zmax, // v0,v1,v2,v3 (front)
+		xmax, ymax, zmin, xmax, ymax, zmax, xmax, ymin, zmax, xmax, ymin, zmin, // v5,v0,v3,v4 (right)
+		xmax, ymax, zmin, xmin, ymax, zmin, xmin, ymax, zmax, xmax, ymax, zmax, // v5,v6,v1,v0 (top)
+		xmin, ymax, zmax, xmin, ymax, zmin, xmin, ymin, zmin, xmin, ymin, zmax, // v1,v6,v7,v2 (left)
+		xmax, ymin, zmax, xmin, ymin, zmax, xmin, ymin, zmin, xmax, ymin, zmin, // v3,v2,v7,v4 (bottom)
+		xmin, ymax, zmin, xmax, ymax, zmin, xmax, ymin, zmin, xmin, ymin, zmin, // v6,v5,v4,v7 (back)
 	}
 	indexes := [...]uint32{
 		0, 1, 2, 2, 3, 0,
@@ -227,7 +227,7 @@ func CreateCube(shader string, x, y, z, xmax, ymax, zmax float32) *Renderable {
 	r.Core = NewRenderableCore()
 	r.ShaderName = shader
 	r.FaceCount = 12
-	r.BoundingRect.Bottom = mgl.Vec3{x, y, z}
+	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
 	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
 
 	const floatSize = 4
@@ -282,7 +282,7 @@ func CreateCube(shader string, x, y, z, xmax, ymax, zmax float32) *Renderable {
 
 // CreateWireframeCube makes a cube with vertex and element VBO objects designed to be
 // rendered as graphics.LINES.
-func CreateWireframeCube(shader string, x, y, z, xmax, ymax, zmax float32) *Renderable {
+func CreateWireframeCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
 	// calculate the memory size of floats used to calculate total memory size of float arrays
 	const floatSize = 4
 	const uintSize = 4
@@ -305,10 +305,10 @@ func CreateWireframeCube(shader string, x, y, z, xmax, ymax, zmax float32) *Rend
 
 	*/
 	verts := [...]float32{
-		xmax, ymax, zmax, x, ymax, zmax, x, y, zmax, xmax, y, zmax, // v0,v1,v2,v3 (front)
-		xmax, ymax, z, xmax, ymax, zmax, xmax, y, zmax, xmax, y, z, // v5,v0,v3,v4 (right)
-		x, ymax, zmax, x, ymax, z, x, y, z, x, y, zmax, // v1,v6,v7,v2 (left)
-		x, ymax, z, xmax, ymax, z, xmax, y, z, x, y, z, // v6,v5,v4,v7 (back)
+		xmax, ymax, zmax, xmin, ymax, zmax, xmin, ymin, zmax, xmax, ymin, zmax, // v0,v1,v2,v3 (front)
+		xmax, ymax, zmin, xmax, ymax, zmax, xmax, ymin, zmax, xmax, ymin, zmin, // v5,v0,v3,v4 (right)
+		xmin, ymax, zmax, xmin, ymax, zmin, xmin, ymin, zmin, xmin, ymin, zmax, // v1,v6,v7,v2 (left)
+		xmin, ymax, zmin, xmax, ymax, zmin, xmax, ymin, zmin, xmin, ymin, zmin, // v6,v5,v4,v7 (back)
 	}
 	indexes := [...]uint32{
 		0, 1, 1, 2, 2, 3, 3, 0,
@@ -317,7 +317,7 @@ func CreateWireframeCube(shader string, x, y, z, xmax, ymax, zmax float32) *Rend
 		12, 13, 13, 14, 14, 15, 15, 12,
 	}
 
-	r.BoundingRect.Bottom = mgl.Vec3{x, y, z}
+	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
 	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
 
 	// create a VBO to hold the vertex data
@@ -364,16 +364,16 @@ func CreateLine(shader string, x0, y0, z0, x1, y1, z1 float32) *Renderable {
 	return r
 }
 
-func genCircleSegDataXZ(x, y, z, radius float32, segments int) ([]float32, []uint32) {
+func genCircleSegDataXZ(xmin, ymin, zmin, radius float32, segments int) ([]float32, []uint32) {
 	verts := []float32{}
 	indexes := []uint32{}
 
 	// create the lines for the circle
 	radsPerSeg := math.Pi * 2.0 / float64(segments)
-	for i := 0; i <= segments; i++ { // i`m replace < on <=.otherwise draw last line to center
-		verts = append(verts, x+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
-		verts = append(verts, y)
-		verts = append(verts, z+(radius*float32(math.Sin(radsPerSeg*float64(i)))))
+	for i := 0; i < segments; i++ {
+		verts = append(verts, xmin+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
+		verts = append(verts, ymin)
+		verts = append(verts, zmin+(radius*float32(math.Sin(radsPerSeg*float64(i)))))
 
 		indexes = append(indexes, uint32(i))
 		if i != segments-1 {
@@ -388,7 +388,7 @@ func genCircleSegDataXZ(x, y, z, radius float32, segments int) ([]float32, []uin
 
 // CreateWireframeCircleXZ makes a cirle with vertex and element VBO objects designed to be
 // rendered as graphics.LINES in the plane XZ.
-func CreateWireframeCircleXZ(shader string, x, y, z, radius float32, segments int) *Renderable {
+func CreateWireframeCircleXZ(shader string, xmin, ymin, zmin, radius float32, segments int) *Renderable {
 	// sanity check
 	if segments == 0 {
 		return nil
@@ -398,14 +398,14 @@ func CreateWireframeCircleXZ(shader string, x, y, z, radius float32, segments in
 	const floatSize = 4
 	const uintSize = 4
 
-	verts, indexes := genCircleSegDataXZ(x, y, z, radius, segments)
+	verts, indexes := genCircleSegDataXZ(xmin, ymin, zmin, radius, segments)
 
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
 	r.ShaderName = shader
 	r.FaceCount = uint32(segments)
-	r.BoundingRect.Bottom = mgl.Vec3{x - radius, y, z - radius}
-	r.BoundingRect.Top = mgl.Vec3{x + radius, y, z + radius}
+	r.BoundingRect.Bottom = mgl.Vec3{xmin - radius, ymin, zmin - radius}
+	r.BoundingRect.Top = mgl.Vec3{xmin + radius, ymin, zmin + radius}
 
 	// create a VBO to hold the vertex data
 	r.Core.VertVBO = gfx.GenBuffer()
@@ -422,7 +422,7 @@ func CreateWireframeCircleXZ(shader string, x, y, z, radius float32, segments in
 
 // CreateWireframeConeSegmentXZ makes a cone segment with vertex and element VBO objects designed to be
 // rendered as graphics.LINES wtih the default orientation of the cone segment along +Y.
-func CreateWireframeConeSegmentXZ(shader string, x, y, z, bottomRadius, topRadius, length float32, circleSegments, sideSegments int) *Renderable {
+func CreateWireframeConeSegmentXZ(shader string, xmin, ymin, zmin, bottomRadius, topRadius, length float32, circleSegments, sideSegments int) *Renderable {
 	// sanity check
 	if circleSegments == 0 {
 		return nil
@@ -433,10 +433,10 @@ func CreateWireframeConeSegmentXZ(shader string, x, y, z, bottomRadius, topRadiu
 	const uintSize = 4
 
 	// create the bottom circle for the cone segment
-	verts, indexes := genCircleSegDataXZ(x, y, z, bottomRadius, circleSegments)
+	verts, indexes := genCircleSegDataXZ(xmin, ymin, zmin, bottomRadius, circleSegments)
 
 	// create the top circle for the cone segment
-	topVerts, topIndexes := genCircleSegDataXZ(x, y+length, z, topRadius, circleSegments)
+	topVerts, topIndexes := genCircleSegDataXZ(xmin, ymin+length, zmin, topRadius, circleSegments)
 	verts = append(verts, topVerts...)
 	for _, index := range topIndexes {
 		indexes = append(indexes, index+uint32(circleSegments))
@@ -446,13 +446,13 @@ func CreateWireframeConeSegmentXZ(shader string, x, y, z, bottomRadius, topRadiu
 	lineIndexOff := uint32(circleSegments) * 2
 	radsPerSideSeg := math.Pi * 2.0 / float64(sideSegments)
 	for i := 0; i < sideSegments; i++ {
-		verts = append(verts, x+(bottomRadius*float32(math.Cos(radsPerSideSeg*float64(i)))))
-		verts = append(verts, y)
-		verts = append(verts, z+(bottomRadius*float32(math.Sin(radsPerSideSeg*float64(i)))))
+		verts = append(verts, xmin+(bottomRadius*float32(math.Cos(radsPerSideSeg*float64(i)))))
+		verts = append(verts, ymin)
+		verts = append(verts, zmin+(bottomRadius*float32(math.Sin(radsPerSideSeg*float64(i)))))
 
-		verts = append(verts, x+(topRadius*float32(math.Cos(radsPerSideSeg*float64(i)))))
-		verts = append(verts, y+length)
-		verts = append(verts, z+(topRadius*float32(math.Sin(radsPerSideSeg*float64(i)))))
+		verts = append(verts, xmin+(topRadius*float32(math.Cos(radsPerSideSeg*float64(i)))))
+		verts = append(verts, ymin+length)
+		verts = append(verts, zmin+(topRadius*float32(math.Sin(radsPerSideSeg*float64(i)))))
 
 		indexes = append(indexes, lineIndexOff+(uint32(i)*2))
 		indexes = append(indexes, lineIndexOff+(uint32(i)*2)+1)
@@ -465,8 +465,8 @@ func CreateWireframeConeSegmentXZ(shader string, x, y, z, bottomRadius, topRadiu
 	r.Core = NewRenderableCore()
 	r.ShaderName = shader
 	r.FaceCount = uint32(circleSegments)*2 + uint32(sideSegments)
-	r.BoundingRect.Bottom = mgl.Vec3{x - maxRadius, y, z - maxRadius}
-	r.BoundingRect.Top = mgl.Vec3{x + maxRadius, y + length, z + maxRadius}
+	r.BoundingRect.Bottom = mgl.Vec3{xmin - maxRadius, ymin, zmin - maxRadius}
+	r.BoundingRect.Top = mgl.Vec3{xmin + maxRadius, ymin + length, zmin + maxRadius}
 
 	// create a VBO to hold the vertex data
 	r.Core.VertVBO = gfx.GenBuffer()
@@ -592,16 +592,16 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	const floatSize = 4
 	const uintSize = 4
 
-	const x = float32(-1.0)
-	const y = float32(-1.0)
-	const z = float32(-1.0)
+	const xmin = float32(-1.0)
+	const ymin = float32(-1.0)
+	const zmin = float32(-1.0)
 	const xmax = float32(1.0)
 	const ymax = float32(1.0)
 	const zmax = float32(1.0)
 
-	const xWidth = xmax - x
-	const yWidth = ymax - y
-	const zWidth = zmax - z
+	const xWidth = xmax - xmin
+	const yWidth = ymax - ymin
+	const zWidth = zmax - zmin
 
 	xStep := float32(xWidth) / float32(gridSize)
 	yStep := float32(yWidth) / float32(gridSize)
@@ -676,9 +676,9 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	// front face
 
 	yUv = float32(0.0)
-	for y := y; y <= ymax; y += yStep {
+	for y := ymin; y <= ymax; y += yStep {
 		xUv = float32(0.0)
-		for x := x; x <= xmax; x += xStep {
+		for x := xmin; x <= xmax; x += xStep {
 			defPos := scaleFn(gridSize, x, y, zmax)
 			if cubemapUvs {
 				s, t = MapUvToCubemap(FaceFront, xUv, yUv)
@@ -694,10 +694,10 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	// =======================================================================
 	// back face
 	yUv = float32(0.0)
-	for y := y; y <= ymax; y += yStep {
+	for y := ymin; y <= ymax; y += yStep {
 		xUv = float32(0.0)
-		for x := xmax; x >= x; x -= xStep {
-			defPos := scaleFn(gridSize, x, y, z)
+		for x := xmax; x >= xmin; x -= xStep {
+			defPos := scaleFn(gridSize, x, y, zmin)
 			if cubemapUvs {
 				s, t = MapUvToCubemap(FaceBack, xUv, yUv)
 			} else {
@@ -712,9 +712,9 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	// =======================================================================
 	// right face
 	yUv = float32(0.0)
-	for y := y; y <= ymax; y += yStep {
+	for y := ymin; y <= ymax; y += yStep {
 		xUv = float32(0.0)
-		for z := zmax; z >= z; z -= zStep {
+		for z := zmax; z >= zmin; z -= zStep {
 			defPos := scaleFn(gridSize, xmax, y, z)
 			if cubemapUvs {
 				s, t = MapUvToCubemap(FaceRight, xUv, yUv)
@@ -730,10 +730,10 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	// =======================================================================
 	// left face
 	yUv = float32(0.0)
-	for y := y; y <= ymax; y += yStep {
+	for y := ymin; y <= ymax; y += yStep {
 		xUv = float32(0.0)
-		for z := z; z <= zmax; z += zStep {
-			defPos := scaleFn(gridSize, x, y, z)
+		for z := zmin; z <= zmax; z += zStep {
+			defPos := scaleFn(gridSize, xmin, y, z)
 			if cubemapUvs {
 				s, t = MapUvToCubemap(FaceLeft, xUv, yUv)
 			} else {
@@ -748,10 +748,10 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	// =======================================================================
 	// bottom face
 	yUv = float32(0.0)
-	for z := z; z <= zmax; z += zStep {
+	for z := zmin; z <= zmax; z += zStep {
 		xUv = float32(0.0)
-		for x := x; x <= xmax; x += xStep {
-			defPos := scaleFn(gridSize, x, y, z)
+		for x := xmin; x <= xmax; x += xStep {
+			defPos := scaleFn(gridSize, x, ymin, z)
 			if cubemapUvs {
 				s, t = MapUvToCubemap(FaceBottom, xUv, yUv)
 			} else {
@@ -766,9 +766,9 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	// =======================================================================
 	// top face
 	yUv = float32(0.0)
-	for z := zmax; z >= z; z -= zStep {
+	for z := zmax; z >= zmin; z -= zStep {
 		xUv = float32(0.0)
-		for x := x; x <= xmax; x += xStep {
+		for x := xmin; x <= xmax; x += xStep {
 			defPos := scaleFn(gridSize, x, ymax, z)
 			if cubemapUvs {
 				s, t = MapUvToCubemap(FaceTop, xUv, yUv)
@@ -788,7 +788,7 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
 	r.ShaderName = shader
-	r.BoundingRect.Bottom = mgl.Vec3{x, y, z}
+	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
 	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
 	r.FaceCount = uint32(len(indexes) / 3)
 	byteCount := floatSize*len(vnutBuffer) + uintSize*len(indexes)
