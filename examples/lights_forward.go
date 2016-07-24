@@ -13,9 +13,6 @@ import (
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 
-	gui "github.com/tbogdala/eweygewey"
-	guiinput "github.com/tbogdala/eweygewey/glfwinput"
-
 	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	opengl "github.com/tbogdala/fizzle/graphicsprovider/opengl"
@@ -49,18 +46,11 @@ const (
 
 	testDiffusePath = "./assets/textures/TestCube_D.png"
 	testNormalsPath = "./assets/textures/TestCube_N.png"
-
-	fontScale    = 18
-	fontFilepath = "./assets/Oswald-Heavy.ttf"
-	fontGlyphs   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890., :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
 )
 
 var (
 	// mainWindow is the main window of the application
 	mainWindow *glfw.Window
-
-	// uiman is the user interface manager
-	uiman *gui.Manager
 
 	// renderer is the forward renderer used for this example
 	renderer *forward.ForwardRenderer
@@ -86,22 +76,6 @@ func main() {
 	// setup the camera to look at the cube
 	camera := fizzle.NewYawPitchCamera(mgl.Vec3{0.0, 5.0, 5.0})
 	camera.SetYawAndPitch(0.0, mgl.DegToRad(60))
-
-	// setup the user interface manager which can be used to display
-	// user interface widgets
-	uiman = gui.NewManager(gfx)
-	err := uiman.Initialize(gui.VertShader330, gui.FragShader330, windowWidth, windowHeight, windowHeight)
-	if err != nil {
-		fmt.Printf("Failed to initialize the user interface!\n%v", err)
-		os.Exit(1)
-	}
-	guiinput.SetInputHandlers(uiman, mainWindow)
-
-	// load a font
-	_, err = uiman.NewFont("Default", fontFilepath, fontScale, fontGlyphs)
-	if err != nil {
-		panic("Failed to load the font file! " + err.Error())
-	}
 
 	// load the diffuse, textured and normal mapped shader
 	diffuseTexBumpedShader, err := fizzle.LoadShaderProgramFromFiles(diffuseTexBumpedShaderPath, nil)
@@ -188,16 +162,9 @@ func main() {
 	light2.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{2.0, -3.0, -3.0})
 
 	// make a UI image to show the shadowmap texture, scaled down
-	imgWS, imgHS := uiman.DisplayToScreen(260, 260)
-	shadowMapWindow := uiman.NewWindow("ShadowMap", 0.9-imgWS, 0.5+imgHS*0.5, imgWS, imgHS, func(wnd *gui.Window) {
-		imageTexIndex := uiman.AddTextureToStack(light.ShadowMap.Texture)
-		wnd.Image("ShadowMapTexture", imgWS, imgHS, mgl.Vec4{1, 1, 1, 1}, imageTexIndex, mgl.Vec4{0.0, 0.0, 1.0, 1.0})
-	})
-	shadowMapWindow.Title = "ShadowMap"
-	shadowMapWindow.ShowTitleBar = false
-	shadowMapWindow.IsMoveable = false
-	shadowMapWindow.Style.WindowBgColor[3] = 0.0               // transparent
-	shadowMapWindow.Style.WindowPadding = mgl.Vec4{0, 0, 0, 0} // no padding
+	shadowMapUIQuad := fizzle.CreatePlaneXY("shadowmap", 0, 0, 256, 256)
+	shadowMapUIQuad.Core.Shader = shadowmapTextureShader
+	shadowMapUIQuad.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 
 	// set some OpenGL flags
 	gfx.Enable(graphics.CULL_FACE)
@@ -234,6 +201,8 @@ func main() {
 
 			}
 		}
+
+		// stop the shadow generation
 		renderer.EndShadowMapping()
 
 		// clear the screen and reset our viewport
@@ -250,18 +219,8 @@ func main() {
 		renderer.DrawRenderable(testCube, nil, perspective, view, camera)
 		renderer.DrawRenderable(floorPlane, nil, perspective, view, camera)
 
-		// Finish with the user interface
-		//
-		// however, to to our drawing of the texture of the shadow map, we need to change some texture parameters
-		gfx.BindTexture(graphics.TEXTURE_2D, renderer.ActiveLights[0].ShadowMap.Texture)
-		gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_COMPARE_MODE, graphics.NONE)
-		gfx.BindTexture(graphics.TEXTURE_2D, 0)
-		// draw the user interface
-		uiman.Construct(float64(frameDelta))
-		uiman.Draw()
-		gfx.BindTexture(graphics.TEXTURE_2D, renderer.ActiveLights[0].ShadowMap.Texture)
-		gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_COMPARE_MODE, graphics.COMPARE_REF_TO_TEXTURE)
-		gfx.BindTexture(graphics.TEXTURE_2D, 0)
+		// for this test, render a quad showing the shadowmap texture
+		renderShadowMapUITex(shadowMapUIQuad, renderer.ActiveLights[0].ShadowMap.Texture)
 
 		// draw the screen
 		mainWindow.SwapBuffers()
@@ -270,6 +229,26 @@ func main() {
 		// update our last frame time
 		lastFrame = thisFrame
 	}
+}
+
+func renderShadowMapUITex(r *fizzle.Renderable, shadow graphics.Texture) {
+	gfx := fizzle.GetGraphics()
+
+	gfx.BindTexture(graphics.TEXTURE_2D, shadow)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_COMPARE_MODE, graphics.NONE)
+	gfx.BindTexture(graphics.TEXTURE_2D, 0)
+
+	r.Core.Tex0 = shadow
+	width, height := renderer.GetResolution()
+	ortho := mgl.Ortho(0, float32(width), 0, float32(height), -10, 10)
+	view := mgl.Ident4()
+	renderer.DrawRenderable(r, nil, ortho, view, nil)
+
+	// reset the shadow map textures used for visualization
+	gfx.BindTexture(graphics.TEXTURE_2D, shadow)
+	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_COMPARE_MODE, graphics.COMPARE_REF_TO_TEXTURE)
+	gfx.BindTexture(graphics.TEXTURE_2D, 0)
+
 }
 
 // initGraphics creates an OpenGL window and initializes the required graphics libraries.
@@ -317,5 +296,4 @@ func setShouldClose() {
 // onWindowResize is called when the window changes size
 func onWindowResize(w *glfw.Window, width int, height int) {
 	renderer.ChangeResolution(int32(width), int32(height))
-	uiman.AdviseResolution(windowWidth, windowHeight)
 }
