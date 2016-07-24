@@ -52,7 +52,7 @@ const (
 	windowWidth       = 800
 	windowHeight      = 600
 	radsPerSec        = math.Pi / 4.0
-	diffuseShaderPath = "./assets/forwardshaders/diffuse"
+	diffuseShaderPath = "../assets/forwardshaders/diffuse"
 )
 
 var (

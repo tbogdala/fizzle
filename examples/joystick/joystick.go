@@ -16,7 +16,9 @@ import (
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
 	forward "github.com/tbogdala/fizzle/renderer/forward"
-	ui "github.com/tbogdala/fizzle/ui"
+
+	gui "github.com/tbogdala/eweygewey"
+	guiinput "github.com/tbogdala/eweygewey/glfwinput"
 )
 
 /*
@@ -32,13 +34,13 @@ func init() {
 }
 
 const (
-	width          = 800
-	height         = 600
-	textShaderPath = "./assets/forwardshaders/colortext"
+	width          = 1280
+	height         = 720
+	textShaderPath = "../assets/forwardshaders/colortext"
 
-	fontScale    = 24
+	fontScale    = 14
 	fontGlyphs   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890. :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
-	fontFilepath = "assets/HammersmithOne.ttf"
+	fontFilepath = "../assets/Oswald-Heavy.ttf"
 )
 
 // main is the entry point for the application.
@@ -54,11 +56,21 @@ func main() {
 	renderer := forward.NewForwardRenderer(gfx)
 	defer renderer.Destroy()
 
-	// setup the user interface manager
-	uiManager := ui.NewUIManager()
-	uiManager.AdviseResolution(width, height)
-	defer uiManager.Destroy()
-	renderer.UIManager = uiManager
+	// create and initialize the gui Manager
+	uiman := gui.NewManager(gfx)
+	err := uiman.Initialize(gui.VertShader330, gui.FragShader330, width, height, height)
+	if err != nil {
+		fmt.Printf("Failed to initialize the user interface!\n%v", err)
+		os.Exit(1)
+	}
+	guiinput.SetInputHandlers(uiman, mainWindow)
+
+	// load a font
+	_, err = uiman.NewFont("Default", fontFilepath, fontScale, fontGlyphs)
+	if err != nil {
+		fmt.Printf("Failed to load the font file!\n%v", err)
+		os.Exit(1)
+	}
 
 	// load the text shader
 	textShader, err := fizzle.LoadShaderProgramFromFiles(textShaderPath, nil)
@@ -68,14 +80,6 @@ func main() {
 	}
 	defer textShader.Destroy()
 
-	// load the font
-	font, err := fizzle.NewGLFont(fontFilepath, fontScale, fontGlyphs)
-	if err != nil {
-		fmt.Print("Failed to process font file!\n" + err.Error())
-	}
-	font.Shader = textShader
-	defer font.Destroy()
-
 	// setup the camera to look at the cube
 	camera := fizzle.NewYawPitchCamera(mgl.Vec3{0.0, 1.0, 5.0})
 	camera.LookAtDirect(mgl.Vec3{0, 0, 0})
@@ -84,75 +88,51 @@ func main() {
 	gl.Enable(gl.CULL_FACE)
 	gl.Enable(gl.DEPTH_TEST)
 
-	createStateWidgets := func() {
-		// clear the ui manager
-		uiManager.Destroy()
-
-		// get the name of the joystick from GLFW ...
-		var nameWidget *ui.UILabel
-		var joystickName string
+	// create a window to display the joystick properties
+	joystickWindow := uiman.NewWindow("JoystickWnd", 0.1, 0.9, 0.8, 0.8, func(wnd *gui.Window) {
+		// write out the name of the joystick
 		if glfw.JoystickPresent(glfw.Joystick1) {
-			joystickName = fmt.Sprintf("Joystick: %s", glfw.GetJoystickName(glfw.Joystick1))
-			nameWidget = uiManager.CreateLabel(font, ui.UIAnchorTopMiddle, mgl.Vec3{0.0, 0.0, 10.0}, joystickName)
+			wnd.Text(fmt.Sprintf("Joystick: %s", glfw.GetJoystickName(glfw.Joystick1)))
 		} else {
-			joystickName = "Joystick1 Not Detected"
-			uiManager.CreateLabel(font, ui.UIAnchorTopMiddle, mgl.Vec3{0.0, 0.0, 10.0}, joystickName)
-			uiManager.LayoutWidgets()
+			wnd.Text("Joystick1 Not Detected")
 			return
 		}
 
 		// get the axes and button values
 		axes := glfw.GetJoystickAxes(glfw.Joystick1)
 		buttons := glfw.GetJoystickButtons(glfw.Joystick1)
-		startHeight := float32(10.0 + nameWidget.Renderable.BoundingRect.DeltaY()*2.0)
 
-		// setup a column and make labels for the button states
-		var w *ui.UILabel
-		x := float32(10.0)
-		y := startHeight
+		// create a section for the button mappings
+		wnd.Separator()
 		for i, b := range buttons {
-			wString := fmt.Sprintf("B%02d: %d", i, b)
-			w = uiManager.CreateLabel(font, ui.UIAnchorTopLeft, mgl.Vec3{x, -y, 0.0}, wString)
-			y += w.Renderable.BoundingRect.DeltaY() * 1.5
-
-			if w.Renderable.BoundingRect.DeltaY()+y > float32(height)*.90 {
-				x += 10.0 + w.Renderable.BoundingRect.DeltaX()
-				y = startHeight
+			if i != 0 {
+				wnd.StartRow()
 			}
+			wnd.Text(fmt.Sprintf("Button %d: %d", i, b))
 		}
 
-		// setup a new column and make labels for the axis values
-		if w != nil {
-			x += 10.0 + w.Renderable.BoundingRect.DeltaX()
-		}
-		y = startHeight
+		// create a section for the axis mappings
+		wnd.Separator()
 		for i, f := range axes {
-			wString := fmt.Sprintf("Axis %02d: %f", i, f)
-			w = uiManager.CreateLabel(font, ui.UIAnchorTopLeft, mgl.Vec3{x, -y, 0.0}, wString)
-			y += w.Renderable.BoundingRect.DeltaY() * 1.5
-
-			if w.Renderable.BoundingRect.DeltaY()+y > float32(height)*.90 {
-				x += 10.0 + w.Renderable.BoundingRect.DeltaX()
-				y = startHeight
+			if i != 0 {
+				wnd.StartRow()
 			}
+			wnd.Text(fmt.Sprintf("Axis %d: %f", i, f))
 		}
-
-		// layout the widgets
-		uiManager.LayoutWidgets()
-	}
+	})
+	joystickWindow.Title = "Button Mappings"
+	//joystickWindow.Style.WindowBgColor[3] = 1.0 // turn off transparent bg
 
 	// loop until something told the mainWindow that it should close
 	for !mainWindow.ShouldClose() {
-		// recreate all of the state widgets
-		createStateWidgets()
-
 		// clear the screen
 		gl.Viewport(0, 0, int32(width), int32(height))
 		gl.ClearColor(0.05, 0.05, 0.05, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		// Finish with the user interface
-		uiManager.Draw(renderer, nil)
+		// draw the user interface
+		uiman.Construct(0)
+		uiman.Draw()
 
 		// draw the screen
 		mainWindow.SwapBuffers()

@@ -40,12 +40,12 @@ const (
 	shadowTexSize              = 2048
 	fov                        = 70.0
 	radsPerSec                 = math.Pi / 4.0
-	diffuseTexBumpedShaderPath = "./assets/forwardshaders/diffuse_texbumped_shadows"
-	shadowmapTextureShaderPath = "./assets/forwardshaders/shadowmap_texture"
-	shadowmapShaderPath        = "./assets/forwardshaders/shadowmap_generator"
+	diffuseTexBumpedShaderPath = "../assets/forwardshaders/diffuse_texbumped_shadows"
+	shadowmapTextureShaderPath = "../assets/forwardshaders/shadowmap_texture"
+	shadowmapShaderPath        = "../assets/forwardshaders/shadowmap_generator"
 
-	testDiffusePath = "./assets/textures/TestCube_D.png"
-	testNormalsPath = "./assets/textures/TestCube_N.png"
+	testDiffusePath = "../assets/textures/TestCube_D.png"
+	testNormalsPath = "../assets/textures/TestCube_N.png"
 )
 
 var (
