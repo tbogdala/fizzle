@@ -11,7 +11,6 @@ import (
 	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	renderer "github.com/tbogdala/fizzle/renderer"
-	ui "github.com/tbogdala/fizzle/ui"
 )
 
 const (
@@ -193,9 +192,6 @@ type ForwardRenderer struct {
 	// OnScreenSizeChanged is the function called by the renderer after
 	// a screen size change is detected.
 	OnScreenSizeChanged func(fr *ForwardRenderer, width int32, height int32)
-
-	// UIManager is the user interface manager assigned to the renderer.
-	UIManager *ui.UIManager
 
 	// ActiveLights are the current lights that should be used while
 	// drawing Renderables.
