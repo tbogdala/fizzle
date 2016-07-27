@@ -333,6 +333,37 @@ func CreateWireframeCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float
 	return r
 }
 
+// CreateLine makes a line between a two points
+// rendered as graphics.LINES.
+func CreateLine(shader string, x0, y0, z0, x1, y1, z1 float32) *Renderable {
+	r := NewRenderable()
+	r.Core = NewRenderableCore()
+	r.ShaderName = shader
+	r.FaceCount = 1
+
+	const floatSize = 4
+	const uintSize = 4
+
+	verts := [...]float32{
+		x0, y0, z0, x1, y1, z1,
+	}
+	indexes := [...]uint32{
+		0, 1,
+	}
+
+	// create a VBO to hold the vertex data
+	r.Core.VertVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(verts), gfx.Ptr(&verts[0]), graphics.STATIC_DRAW)
+
+	// create a VBO to hold the face indexes
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
+
+	return r
+}
+
 func genCircleSegDataXZ(xmin, ymin, zmin, radius float32, segments int) ([]float32, []uint32) {
 	verts := []float32{}
 	indexes := []uint32{}
