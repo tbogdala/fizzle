@@ -119,7 +119,7 @@ func main() {
 	fmt.Printf("Loaded the normals texture at %s(%d).\n", testNormalsPath, normalsTex)
 
 	// create the floor plane
-	floorPlane := fizzle.CreatePlaneXZ("diffuse_texbumped", -0.5, 0.5, 0.5, -0.5)
+	floorPlane := fizzle.CreatePlaneXZ(-0.5, 0.5, 0.5, -0.5)
 	floorPlane.Scale = mgl.Vec3{10, 10, 10}
 	floorPlane.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	floorPlane.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
@@ -129,7 +129,7 @@ func main() {
 	floorPlane.Core.Shader = diffuseTexBumpedShader
 
 	// create the test cube to rotate
-	testCube := fizzle.CreateCube("diffuse_texbumped", -0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+	testCube := fizzle.CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
 	testCube.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	testCube.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
 	testCube.Location = mgl.Vec3{-2.5, 1.0, 0.0}
@@ -162,7 +162,7 @@ func main() {
 	light2.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{2.0, -3.0, -3.0})
 
 	// make a UI image to show the shadowmap texture, scaled down
-	shadowMapUIQuad := fizzle.CreatePlaneXY("shadowmap", 0, 0, 256, 256)
+	shadowMapUIQuad := fizzle.CreatePlaneXY(0, 0, 256, 256)
 	shadowMapUIQuad.Core.Shader = shadowmapTextureShader
 	shadowMapUIQuad.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 
