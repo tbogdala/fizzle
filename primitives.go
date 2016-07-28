@@ -13,7 +13,7 @@ import (
 
 // CreatePlaneXY makes a 2d Renderable object on the XY plane for the given size,
 // where (x0,y0) is the lower left and (x1, y1) is the upper right coordinate.
-func CreatePlaneXY(shader string, x0, y0, x1, y1 float32) *Renderable {
+func CreatePlaneXY(x0, y0, x1, y1 float32) *Renderable {
 	verts := [12]float32{
 		x0, y0, 0.0,
 		x1, y0, 0.0,
@@ -37,12 +37,12 @@ func CreatePlaneXY(shader string, x0, y0, x1, y1 float32) *Renderable {
 		0.0, 0.0, 1.0,
 	}
 
-	return createPlane(shader, x0, y0, x1, y1, verts, indexes, uvs, normals)
+	return createPlane(x0, y0, x1, y1, verts, indexes, uvs, normals)
 }
 
 // CreatePlaneXZ makes a 2d Renderable object on the XZ plane for the given size,
 // where (x0,z0) is the lower left and (x1, z1) is the upper right coordinate.
-func CreatePlaneXZ(shader string, x0, z0, x1, z1 float32) *Renderable {
+func CreatePlaneXZ(x0, z0, x1, z1 float32) *Renderable {
 	verts := [12]float32{
 		x0, 0.0, z0,
 		x1, 0.0, z0,
@@ -66,7 +66,7 @@ func CreatePlaneXZ(shader string, x0, z0, x1, z1 float32) *Renderable {
 		0.0, 1.0, 0.0,
 	}
 
-	return createPlane(shader, x0, z0, x1, z1, verts, indexes, uvs, normals)
+	return createPlane(x0, z0, x1, z1, verts, indexes, uvs, normals)
 }
 
 // createTangents constructs the tangents for the faces.
@@ -112,7 +112,7 @@ func createTangents(verts []float32, indexes []uint32, uvs []float32) []float32 
 	return tangents
 }
 
-func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, indexes [6]uint32, uvs [8]float32, normals [12]float32) *Renderable {
+func createPlane(x0, y0, x1, y1 float32, verts [12]float32, indexes [6]uint32, uvs [8]float32, normals [12]float32) *Renderable {
 	const floatSize = 4
 	const uintSize = 4
 
@@ -121,7 +121,6 @@ func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, index
 
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
-	r.ShaderName = shader
 	r.FaceCount = 2
 	r.BoundingRect.Bottom = mgl.Vec3{x0, y0, 0.0}
 	r.BoundingRect.Top = mgl.Vec3{x1, y1, 0.0}
@@ -156,7 +155,6 @@ func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, index
 	r.Core.UvVBO = r.Core.VertVBO
 	r.Core.NormsVBO = r.Core.VertVBO
 	r.Core.TangentsVBO = r.Core.VertVBO
-
 	r.Core.VertVBOOffset = 0
 	r.Core.NormsVBOOffset = floatSize * 3
 	r.Core.UvVBOOffset = floatSize * 6
@@ -174,7 +172,7 @@ func createPlane(shader string, x0, y0, x1, y1 float32, verts [12]float32, index
 }
 
 // CreateCube creates a cube based on the dimensions specified.
-func CreateCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
+func CreateCube(xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
 	/* Cube vertices are layed out like this:
 
 	  +--------+           6          5
@@ -225,7 +223,7 @@ func CreateCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Rend
 
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
-	r.ShaderName = shader
+
 	r.FaceCount = 12
 	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
 	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
@@ -263,7 +261,6 @@ func CreateCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Rend
 	r.Core.UvVBO = r.Core.VertVBO
 	r.Core.NormsVBO = r.Core.VertVBO
 	r.Core.TangentsVBO = r.Core.VertVBO
-
 	r.Core.VertVBOOffset = 0
 	r.Core.NormsVBOOffset = floatSize * 3
 	r.Core.UvVBOOffset = floatSize * 6
@@ -282,7 +279,7 @@ func CreateCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Rend
 
 // CreateWireframeCube makes a cube with vertex and element VBO objects designed to be
 // rendered as graphics.LINES.
-func CreateWireframeCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
+func CreateWireframeCube(xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
 	// calculate the memory size of floats used to calculate total memory size of float arrays
 	const floatSize = 4
 	const uintSize = 4
@@ -290,7 +287,6 @@ func CreateWireframeCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float
 
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
-	r.ShaderName = shader
 	r.FaceCount = facesPerCollision
 
 	/* Cube vertices are layed out like this:
@@ -335,14 +331,14 @@ func CreateWireframeCube(shader string, xmin, ymin, zmin, xmax, ymax, zmax float
 
 // CreateLine makes a line between a two points
 // rendered as graphics.LINES.
-func CreateLine(shader string, x0, y0, z0, x1, y1, z1 float32) *Renderable {
-	r := NewRenderable()
-	r.Core = NewRenderableCore()
-	r.ShaderName = shader
-	r.FaceCount = 1
-
+func CreateLine(x0, y0, z0, x1, y1, z1 float32) *Renderable {
+	// calculate the memory size of floats used to calculate total memory size of float arrays
 	const floatSize = 4
 	const uintSize = 4
+
+	r := NewRenderable()
+	r.Core = NewRenderableCore()
+	r.FaceCount = 1 //one line one face
 
 	verts := [...]float32{
 		x0, y0, z0, x1, y1, z1,
@@ -388,7 +384,7 @@ func genCircleSegDataXZ(xmin, ymin, zmin, radius float32, segments int) ([]float
 
 // CreateWireframeCircleXZ makes a cirle with vertex and element VBO objects designed to be
 // rendered as graphics.LINES in the plane XZ.
-func CreateWireframeCircleXZ(shader string, xmin, ymin, zmin, radius float32, segments int) *Renderable {
+func CreateWireframeCircleXZ(xmin, ymin, zmin, radius float32, segments int) *Renderable {
 	// sanity check
 	if segments == 0 {
 		return nil
@@ -402,7 +398,6 @@ func CreateWireframeCircleXZ(shader string, xmin, ymin, zmin, radius float32, se
 
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
-	r.ShaderName = shader
 	r.FaceCount = uint32(segments)
 	r.BoundingRect.Bottom = mgl.Vec3{xmin - radius, ymin, zmin - radius}
 	r.BoundingRect.Top = mgl.Vec3{xmin + radius, ymin, zmin + radius}
@@ -422,7 +417,7 @@ func CreateWireframeCircleXZ(shader string, xmin, ymin, zmin, radius float32, se
 
 // CreateWireframeConeSegmentXZ makes a cone segment with vertex and element VBO objects designed to be
 // rendered as graphics.LINES wtih the default orientation of the cone segment along +Y.
-func CreateWireframeConeSegmentXZ(shader string, xmin, ymin, zmin, bottomRadius, topRadius, length float32, circleSegments, sideSegments int) *Renderable {
+func CreateWireframeConeSegmentXZ(xmin, ymin, zmin, bottomRadius, topRadius, length float32, circleSegments, sideSegments int) *Renderable {
 	// sanity check
 	if circleSegments == 0 {
 		return nil
@@ -463,7 +458,7 @@ func CreateWireframeConeSegmentXZ(shader string, xmin, ymin, zmin, bottomRadius,
 
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
-	r.ShaderName = shader
+
 	r.FaceCount = uint32(circleSegments)*2 + uint32(sideSegments)
 	r.BoundingRect.Bottom = mgl.Vec3{xmin - maxRadius, ymin, zmin - maxRadius}
 	r.BoundingRect.Top = mgl.Vec3{xmin + maxRadius, ymin + length, zmin + maxRadius}
@@ -482,7 +477,7 @@ func CreateWireframeConeSegmentXZ(shader string, xmin, ymin, zmin, bottomRadius,
 }
 
 // CreateSphere generates a 3d uv-sphere with the given radius and returns a Renderable.
-func CreateSphere(shader string, radius float32, rings int, sectors int) *Renderable {
+func CreateSphere(radius float32, rings int, sectors int) *Renderable {
 	// nothing to create
 	if rings < 2 || sectors < 2 {
 		return nil
@@ -546,7 +541,7 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 	//tangents := createTangents(verts[:], indexes[:], uvs[:])
 
 	r := NewRenderable()
-	r.ShaderName = shader
+
 	r.FaceCount = uint32(len(indexes) / 3)
 	r.BoundingRect.Bottom = mgl.Vec3{-radius, -radius, -radius}
 	r.BoundingRect.Top = mgl.Vec3{radius, radius, radius}
@@ -558,7 +553,6 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 	r.Core.VertVBO = gfx.GenBuffer()
 	r.Core.UvVBO = r.Core.VertVBO
 	r.Core.NormsVBO = r.Core.VertVBO
-
 	r.Core.VertVBOOffset = 0
 	r.Core.NormsVBOOffset = floatSize * 3
 	r.Core.UvVBOOffset = floatSize * 6
@@ -577,7 +571,7 @@ func CreateSphere(shader string, radius float32, rings int, sectors int) *Render
 // CreateCubeMappedSphere creates a sphere that can be used for cubemaps based on the dimensions specified.
 // If the cubemapUvs parameter is true, it will map face UVs to a single cubemap texture; if
 // this parameter is false, then each face is mapped [0..1] for UVs.
-func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemapUvs bool) *Renderable {
+func CreateCubeMappedSphere(gridSize int, radius float32, cubemapUvs bool) *Renderable {
 	// based on an implementation in C# for unity here:
 	// http://catlikecoding.com/unity/tutorials/cube-sphere/
 	//
@@ -787,7 +781,7 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	// =======================================================================
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
-	r.ShaderName = shader
+
 	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
 	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
 	r.FaceCount = uint32(len(indexes) / 3)
@@ -799,7 +793,6 @@ func CreateCubeMappedSphere(shader string, gridSize int, radius float32, cubemap
 	r.Core.UvVBO = r.Core.VertVBO
 	r.Core.NormsVBO = r.Core.VertVBO
 	r.Core.TangentsVBO = r.Core.VertVBO
-
 	r.Core.VertVBOOffset = 0
 	r.Core.NormsVBOOffset = floatSize * 3
 	r.Core.UvVBOOffset = floatSize * 6
