@@ -360,16 +360,53 @@ func CreateLine(x0, y0, z0, x1, y1, z1 float32) *Renderable {
 	return r
 }
 
-func genCircleSegDataXZ(xmin, ymin, zmin, radius float32, segments int) ([]float32, []uint32) {
+//axis for forming planes
+const (
+	X = 1 << iota
+	Y
+	Z
+)
+
+func genCircleSegData(xmin, ymin, zmin, radius float32, segments int, axis int) ([]float32, []uint32) {
 	verts := []float32{}
 	indexes := []uint32{}
 
 	// create the lines for the circle
 	radsPerSeg := math.Pi * 2.0 / float64(segments)
 	for i := 0; i < segments; i++ {
-		verts = append(verts, xmin+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
-		verts = append(verts, ymin)
-		verts = append(verts, zmin+(radius*float32(math.Sin(radsPerSeg*float64(i)))))
+
+		//XZ plane
+		if axis == (X | Z) {
+			verts = append(verts, xmin+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
+			verts = append(verts, ymin)
+			verts = append(verts, zmin+(radius*float32(math.Sin(radsPerSeg*float64(i)))))
+		}
+
+		//XY plane
+		if axis == (X | Y) {
+			verts = append(verts, xmin+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
+			verts = append(verts, ymin+(radius*float32(math.Sin(radsPerSeg*float64(i)))))
+			verts = append(verts, zmin)
+		}
+
+		//ZY plane
+		if axis == (Z | Y) {
+			verts = append(verts, xmin)
+			verts = append(verts, ymin+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
+			verts = append(verts, zmin+(radius*float32(math.Sin(radsPerSeg*float64(i)))))
+		}
+
+		//XYZ ...
+		if axis == (X | Y | Z) {
+			verts = append(verts, xmin+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
+			verts = append(verts, ymin+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
+			verts = append(verts, zmin+(radius*float32(math.Sin(radsPerSeg*float64(i)))))
+		}
+
+		// original XZ verts
+		// verts = append(verts, xmin+(radius*float32(math.Cos(radsPerSeg*float64(i)))))
+		// verts = append(verts, ymin)
+		// verts = append(verts, zmin+(radius*float32(math.Sin(radsPerSeg*float64(i)))))
 
 		indexes = append(indexes, uint32(i))
 		if i != segments-1 {
@@ -382,9 +419,9 @@ func genCircleSegDataXZ(xmin, ymin, zmin, radius float32, segments int) ([]float
 	return verts, indexes
 }
 
-// CreateWireframeCircleXZ makes a cirle with vertex and element VBO objects designed to be
-// rendered as graphics.LINES in the plane XZ.
-func CreateWireframeCircleXZ(xmin, ymin, zmin, radius float32, segments int) *Renderable {
+// CreateWireframeCircle makes a cirle with vertex and element VBO objects designed to be
+// rendered as graphics.LINES.
+func CreateWireframeCircle(xmin, ymin, zmin, radius float32, segments int, axis int) *Renderable {
 	// sanity check
 	if segments == 0 {
 		return nil
@@ -394,7 +431,7 @@ func CreateWireframeCircleXZ(xmin, ymin, zmin, radius float32, segments int) *Re
 	const floatSize = 4
 	const uintSize = 4
 
-	verts, indexes := genCircleSegDataXZ(xmin, ymin, zmin, radius, segments)
+	verts, indexes := genCircleSegData(xmin, ymin, zmin, radius, segments, axis)
 
 	r := NewRenderable()
 	r.Core = NewRenderableCore()
@@ -428,10 +465,10 @@ func CreateWireframeConeSegmentXZ(xmin, ymin, zmin, bottomRadius, topRadius, len
 	const uintSize = 4
 
 	// create the bottom circle for the cone segment
-	verts, indexes := genCircleSegDataXZ(xmin, ymin, zmin, bottomRadius, circleSegments)
+	verts, indexes := genCircleSegData(xmin, ymin, zmin, bottomRadius, circleSegments, X|Z)
 
 	// create the top circle for the cone segment
-	topVerts, topIndexes := genCircleSegDataXZ(xmin, ymin+length, zmin, topRadius, circleSegments)
+	topVerts, topIndexes := genCircleSegData(xmin, ymin+length, zmin, topRadius, circleSegments, X|Z)
 	verts = append(verts, topVerts...)
 	for _, index := range topIndexes {
 		indexes = append(indexes, index+uint32(circleSegments))
