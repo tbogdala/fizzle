@@ -83,6 +83,13 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 		gfx.BindTexture(graphics.TEXTURE_2D, r.Core.Tex0)
 		gfx.Uniform1i(shaderTex1, texturesBound)
 		texturesBound++
+
+		if r.Core.Tex0 > 0 {
+			shaderTex1Valid := shader.GetUniformLocation("MATERIAL_TEX_0_VALID")
+			if shaderTex1Valid >= 0 {
+				gfx.Uniform1f(shaderTex1Valid, 1.0)
+			}
+		}
 	}
 
 	shaderTex2 := shader.GetUniformLocation("MATERIAL_TEX_1")

@@ -5,4 +5,5 @@ examples/*.exe
 examples/*.dll
 *.exe
 *.dll
+*.swp
 cmd/particles/particles
