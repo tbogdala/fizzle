@@ -37,6 +37,7 @@ const (
 var (
 	// renderCube indicates if the cube should be drawn or the sphere
 	renderCube = true
+	rotateObj  = true
 
 	mainWindow *glfw.Window
 	renderer   *forward.ForwardRenderer
@@ -113,14 +114,14 @@ func main() {
 	cube.Core.Shader = diffuseShader
 	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	cube.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	cube.Core.Shininess = 4.8
+	cube.Core.Shininess = 10.0
 
 	// create a sphere to render
 	sphere := fizzle.CreateSphere("diffuse", 1, 16, 16)
 	sphere.Core.Shader = diffuseShader
 	sphere.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	sphere.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	sphere.Core.Shininess = 4.8
+	sphere.Core.Shininess = 10.0
 
 	renderCube = false
 
@@ -137,7 +138,7 @@ func main() {
 	// -------------------------------------------------------------------------
 	// Create the windows to manage the properties of the shader and lights
 	// -------------------------------------------------------------------------
-	shininess := float32(1.0)
+	shininess := float32(10.0)
 	color := [4]int{255, 0, 0, 255}
 	specular := [4]int{255, 255, 255, 255}
 
@@ -228,6 +229,31 @@ func main() {
 	lightWindow.ShowScrollBar = true
 	lightWindow.IsScrollable = true
 
+	objCtrlWindow := uiman.NewWindow("ObjControl", 0.01, 0.99, 0.2, 0.35, func(wnd *gui.Window) {
+		wnd.Checkbox("RotateObjs", &rotateObj)
+		wnd.Text("Rotate Object")
+
+		// setup the controls to switch between spawnwers
+		wnd.StartRow()
+		prevPressed, _ := wnd.Button("prevSpawner", " < ")
+		nextPressed, _ := wnd.Button("nextSpawner", " > ")
+		if prevPressed || nextPressed {
+			// we only have two models for now, so if the button
+			// is pressed, then toggle the model to draw
+			renderCube = !renderCube
+		}
+
+		if renderCube {
+			wnd.Text("Cube")
+		} else {
+			wnd.Text("Sphere")
+		}
+
+	})
+	objCtrlWindow.ShowTitleBar = false
+	objCtrlWindow.IsMoveable = false
+	objCtrlWindow.AutoAdjustHeight = true
+
 	// -------------------------------------------------------------------------
 	// Main loop
 	// -------------------------------------------------------------------------
@@ -243,9 +269,11 @@ func main() {
 		kbModel.CheckKeyPresses()
 
 		// rotate the cube and sphere around the Y axis at a speed of radsPerSec
-		rotDelta := mgl.QuatRotate(radsPerSec*frameDelta, mgl.Vec3{0.0, 1.0, 0.0})
-		cube.LocalRotation = cube.LocalRotation.Mul(rotDelta)
-		sphere.LocalRotation = sphere.LocalRotation.Mul(rotDelta)
+		if rotateObj {
+			rotDelta := mgl.QuatRotate(radsPerSec*frameDelta, mgl.Vec3{0.0, 1.0, 0.0})
+			cube.LocalRotation = cube.LocalRotation.Mul(rotDelta)
+			sphere.LocalRotation = sphere.LocalRotation.Mul(rotDelta)
+		}
 
 		// clear the screen
 		width, height := renderer.GetResolution()
