@@ -18,6 +18,7 @@ uniform vec3 LIGHT_DIRECTION[MAX_LIGHTS];
 uniform float LIGHT_CONST_ATTENUATION[MAX_LIGHTS];
 uniform float LIGHT_LINEAR_ATTENUATION[MAX_LIGHTS];
 uniform float LIGHT_QUADRATIC_ATTENUATION[MAX_LIGHTS];
+uniform float LIGHT_STRENGTH[MAX_LIGHTS];
 uniform int LIGHT_COUNT;
 
 smooth in vec3 vs_normal_model;
@@ -46,13 +47,14 @@ vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 			// point light
 			light_direction = LIGHT_POSITION[i] - v_model;
 			float distance = length(light_direction);
-			attenuation = 1.0 / 
+		
+			attenuation = LIGHT_STRENGTH[i] / (1.0 + 
 				(LIGHT_CONST_ATTENUATION[i] +
 				 LIGHT_LINEAR_ATTENUATION[i] * distance +
-				 LIGHT_QUADRATIC_ATTENUATION[i] * distance * distance);
-
-			light_direction = light_direction / distance;	
-			s = light_direction;
+				 LIGHT_QUADRATIC_ATTENUATION[i] * distance * distance));
+			
+			light_direction = normalize(light_direction / distance);	
+			s = normalize(light_direction);
 	        } else {
 			// directional light
 			light_direction = normalize(light_direction);

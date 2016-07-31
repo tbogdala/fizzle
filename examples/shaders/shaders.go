@@ -98,15 +98,16 @@ func main() {
 
 	// put a light in there
 	light := renderer.NewLight()
-	//light.Position = mgl.Vec3{-10.0, 5.0, 10}
+	light.Position = mgl.Vec3{-10.0, 5.0, 10}
 	light.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	light.Direction = mgl.Vec3{1.0, -0.5, -1.0}
+	//light.Direction = mgl.Vec3{1.0, -0.5, -1.0}
 	light.DiffuseIntensity = 0.70
 	light.SpecularIntensity = 0.10
 	light.AmbientIntensity = 0.20
-	light.ConstAttenuation = 1.0
-	light.LinearAttenuation = 1.0
-	light.QuadraticAttenuation = 1.0
+	light.ConstAttenuation = 0.20
+	light.LinearAttenuation = 0.20
+	light.QuadraticAttenuation = 0.20
+	light.Strength = 10.0
 	renderer.ActiveLights[0] = light
 
 	// create a 2x2x2 cube to render
@@ -191,6 +192,11 @@ func main() {
 		wnd.SliderFloat("LDiffB", &light.DiffuseColor[2], 0, 1)
 		wnd.RequestItemWidthMax(0.165)
 		wnd.SliderFloat("LDiffA", &light.DiffuseColor[3], 0, 1)
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(colWidth)
+		wnd.Text("Strength")
+		wnd.DragSliderUFloat("LStr", 0.01, &light.Strength)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(colWidth)

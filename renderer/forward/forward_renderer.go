@@ -104,6 +104,9 @@ type Light struct {
 	// QuadraticAttenuation is the quadratic coefficient for the attenuation factor
 	QuadraticAttenuation float32
 
+	// Strength is the scale factor on the light strength.
+	Strength float32
+
 	// ShadowMap is the texture, and other data, used to render
 	// shadows casted by the light. This member is nil when
 	// the light does not cast shadows.
@@ -422,6 +425,11 @@ func (fr *ForwardRenderer) chainedBinder(renderer renderer.Renderer, r *fizzle.R
 			shaderLightQuadraticAttenuation := shader.GetUniformLocation(fmt.Sprintf("LIGHT_QUADRATIC_ATTENUATION[%d]", lightI))
 			if shaderLightQuadraticAttenuation >= 0 {
 				gfx.Uniform1f(shaderLightQuadraticAttenuation, light.QuadraticAttenuation)
+			}
+
+			shaderLightStrength := shader.GetUniformLocation(fmt.Sprintf("LIGHT_STRENGTH[%d]", lightI))
+			if shaderLightStrength >= 0 {
+				gfx.Uniform1f(shaderLightStrength, light.Strength)
 			}
 
 			shaderShadowMaps := shader.GetUniformLocation(fmt.Sprintf("SHADOW_MAPS[%d]", lightI))
