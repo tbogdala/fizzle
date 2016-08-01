@@ -31,7 +31,7 @@ void main()
 	vs_position_model = vec3(M_MATRIX * vertex4);
 	vs_position_view = vec3(MV_MATRIX * vertex4); 
 	vs_camera_eye = vec3(V_MATRIX * vec4(CAMERA_WORLD_POSITION,1.0));
-	vs_tangent = VERTEX_TANGENT;
+	vs_tangent = mat3(M_MATRIX) * VERTEX_TANGENT;
 	vs_tex0_uv = VERTEX_UV_0;
 
 	/* handle the shadow coordinates unrolled since for loop indexing can be problematic */

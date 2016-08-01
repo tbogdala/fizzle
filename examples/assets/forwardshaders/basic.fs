@@ -123,7 +123,7 @@ void main()
 		vec3 bump_normal = texture(MATERIAL_TEX_1, vs_tex0_uv).rgb;
 		bump_normal = 2.0 * bump_normal - vec3(1.0, 1.0, 1.0);
 		mat3 TBN = mat3(T, BT, vs_normal_model);
-		normal = normalize(TBN * bump_normal);
+		normal = TBN * bump_normal;
 	}
 
 	frag_color = vec4(shadowFactor.rgb * CalcADSLights(vs_position_model, normalize(normal), color.rgb), 1.0);
