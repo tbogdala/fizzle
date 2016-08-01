@@ -95,8 +95,17 @@ type Light struct {
 	// AmbientIntensity is how strong the ambient light should be
 	AmbientIntensity float32
 
-	// Attenuation is the coefficient for the attenuation factor
-	Attenuation float32
+	// ConstAttenuation is the constant coefficient for the attenuation factor
+	ConstAttenuation float32
+
+	// LinearAttenuation is the linear coefficient for the attenuation factor
+	LinearAttenuation float32
+
+	// QuadraticAttenuation is the quadratic coefficient for the attenuation factor
+	QuadraticAttenuation float32
+
+	// Strength is the scale factor on the light strength.
+	Strength float32
 
 	// ShadowMap is the texture, and other data, used to render
 	// shadows casted by the light. This member is nil when
@@ -235,11 +244,39 @@ func (fr *ForwardRenderer) NewShadowMap() *ShadowMap {
 	return shady
 }
 
-// NewLight creates a new light object and returns it
+// NewLight creates a new light object and returns it without
+// setting any default attributes.
 func (fr *ForwardRenderer) NewLight() *Light {
 	l := new(Light)
 	l.owner = fr
 	return l
+}
+
+// NewPointLight creates a new light and sets it up to be a point light.
+func (fr *ForwardRenderer) NewPointLight(location mgl.Vec3) *Light {
+	light := fr.NewLight()
+	light.Position = location
+	light.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	light.DiffuseIntensity = 0.70
+	light.SpecularIntensity = 0.10
+	light.AmbientIntensity = 0.30
+	light.ConstAttenuation = 0.20
+	light.LinearAttenuation = 0.18
+	light.QuadraticAttenuation = 0.15
+	light.Strength = 20.0
+	return light
+}
+
+// NewDirectionalLight creates a new light and sets it up to be a directional light.
+func (fr *ForwardRenderer) NewDirectionalLight(dir mgl.Vec3) *Light {
+	light := fr.NewLight()
+	light.Direction = dir
+	light.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	light.DiffuseIntensity = 0.70
+	light.SpecularIntensity = 0.10
+	light.AmbientIntensity = 0.30
+	light.Strength = 20.0
+	return light
 }
 
 // ChangeResolution should be called when the underlying rendering
@@ -403,9 +440,24 @@ func (fr *ForwardRenderer) chainedBinder(renderer renderer.Renderer, r *fizzle.R
 				gfx.Uniform1f(shaderLightAmbientIntensity, light.AmbientIntensity)
 			}
 
-			shaderLightAttenuation := shader.GetUniformLocation(fmt.Sprintf("LIGHT_ATTENUATION[%d]", lightI))
-			if shaderLightAttenuation >= 0 {
-				gfx.Uniform1f(shaderLightAttenuation, light.Attenuation)
+			shaderLightConstAttenuation := shader.GetUniformLocation(fmt.Sprintf("LIGHT_CONST_ATTENUATION[%d]", lightI))
+			if shaderLightConstAttenuation >= 0 {
+				gfx.Uniform1f(shaderLightConstAttenuation, light.ConstAttenuation)
+			}
+
+			shaderLightLinearAttenuation := shader.GetUniformLocation(fmt.Sprintf("LIGHT_LINEAR_ATTENUATION[%d]", lightI))
+			if shaderLightLinearAttenuation >= 0 {
+				gfx.Uniform1f(shaderLightLinearAttenuation, light.LinearAttenuation)
+			}
+
+			shaderLightQuadraticAttenuation := shader.GetUniformLocation(fmt.Sprintf("LIGHT_QUADRATIC_ATTENUATION[%d]", lightI))
+			if shaderLightQuadraticAttenuation >= 0 {
+				gfx.Uniform1f(shaderLightQuadraticAttenuation, light.QuadraticAttenuation)
+			}
+
+			shaderLightStrength := shader.GetUniformLocation(fmt.Sprintf("LIGHT_STRENGTH[%d]", lightI))
+			if shaderLightStrength >= 0 {
+				gfx.Uniform1f(shaderLightStrength, light.Strength)
 			}
 
 			shaderShadowMaps := shader.GetUniformLocation(fmt.Sprintf("SHADOW_MAPS[%d]", lightI))

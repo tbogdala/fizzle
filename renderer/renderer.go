@@ -77,20 +77,38 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 		gfx.Uniform1f(shaderShiny, r.Core.Shininess)
 	}
 
-	shaderTex1 := shader.GetUniformLocation("MATERIAL_TEX_0")
-	if shaderTex1 >= 0 {
+	shaderTex0 := shader.GetUniformLocation("MATERIAL_TEX_0")
+	if shaderTex0 >= 0 {
 		gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
 		gfx.BindTexture(graphics.TEXTURE_2D, r.Core.Tex0)
-		gfx.Uniform1i(shaderTex1, texturesBound)
+		gfx.Uniform1i(shaderTex0, texturesBound)
 		texturesBound++
+
+		shaderTex0Valid := shader.GetUniformLocation("MATERIAL_TEX_0_VALID")
+		if shaderTex0Valid >= 0 {
+			if r.Core.Tex0 > 0 {
+				gfx.Uniform1f(shaderTex0Valid, 1.0)
+			} else {
+				gfx.Uniform1f(shaderTex0Valid, 0.0)
+			}
+		}
 	}
 
-	shaderTex2 := shader.GetUniformLocation("MATERIAL_TEX_1")
-	if shaderTex2 >= 0 {
+	shaderTex1 := shader.GetUniformLocation("MATERIAL_TEX_1")
+	if shaderTex1 >= 0 {
 		gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
 		gfx.BindTexture(graphics.TEXTURE_2D, r.Core.Tex1)
-		gfx.Uniform1i(shaderTex2, texturesBound)
+		gfx.Uniform1i(shaderTex1, texturesBound)
 		texturesBound++
+
+		shaderTex1Valid := shader.GetUniformLocation("MATERIAL_TEX_1_VALID")
+		if shaderTex1Valid >= 0 {
+			if r.Core.Tex1 > 0 {
+				gfx.Uniform1f(shaderTex1Valid, 1.0)
+			} else {
+				gfx.Uniform1f(shaderTex1Valid, 0.0)
+			}
+		}
 	}
 
 	shaderBones := shader.GetUniformLocation("BONES")
@@ -128,7 +146,7 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 	}
 
 	shaderTangent := shader.GetAttribLocation("VERTEX_TANGENT")
-	if shaderTangent >= 0 {
+	if shaderTangent >= 0 && r.Core.TangentsVBO > 0 {
 		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.TangentsVBO)
 		gfx.EnableVertexAttribArray(uint32(shaderTangent))
 		gfx.VertexAttribPointer(uint32(shaderTangent), 3, graphics.FLOAT, false, r.Core.VBOStride, gfx.PtrOffset(r.Core.TangentsVBOOffset))

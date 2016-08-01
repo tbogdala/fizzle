@@ -85,6 +85,9 @@ func main() {
 	camera.LookAtDirect(mgl.Vec3{0, 0, 0})
 
 	// set some OpenGL flags
+	gfx.BlendEquation(graphics.FUNC_ADD)
+	gfx.BlendFunc(graphics.SRC_ALPHA, graphics.ONE_MINUS_SRC_ALPHA)
+	gfx.Enable(graphics.BLEND)
 	gl.Enable(gl.CULL_FACE)
 	gl.Enable(gl.DEPTH_TEST)
 

@@ -27,15 +27,15 @@ var (
 	windowHeight      = 720
 	mainWindow        *glfw.Window
 	uiman             *gui.Manager
+	renderer          *forward.ForwardRenderer
 	billboardFilepath = "../../examples/assets/textures/explosion00.png"
 	colorShader       = "../../examples/assets/forwardshaders/color"
 )
 
 const (
-	fontScale    = 18
+	fontScale    = 14
 	fontFilepath = "../../examples/assets/Oswald-Heavy.ttf"
-	//fontFilepath = "../../examples/assets/HammersmithOne.ttf"
-	fontGlyphs = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890., :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
+	fontGlyphs   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890., :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
 )
 
 // block of flags set on the command line
@@ -158,7 +158,7 @@ func main() {
 	customWindowWS, customWindowHS := uiman.DisplayToScreen(particleWindowSize+8, particleWindowSize+8) // offset by 8 for windowPadding
 	customWS, customHS := uiman.DisplayToScreen(particleWindowSize, particleWindowSize)
 
-	renderer := forward.NewForwardRenderer(gfx)
+	renderer = forward.NewForwardRenderer(gfx)
 	renderer.ChangeResolution(particleWindowSize, particleWindowSize)
 	defer renderer.Destroy()
 
@@ -218,7 +218,6 @@ func main() {
 				e.Spawner.CreateRenderable()
 				e.Spawner.DrawSpawnVolume(renderer, colorShader, perspective, view, camera)
 			}
-
 		})
 	})
 	customWindow.Title = "Particle Output"
@@ -227,7 +226,7 @@ func main() {
 
 	// create a window for editing the emitter properites
 	var yaw, pitch, roll int
-	propertyWindow := uiman.NewWindow("Emitter", 0.5, 0.99, 0.5, 0.75, func(wnd *gui.Window) {
+	propertyWindow := uiman.NewWindow("Emitter", 0.5, 0.99, 0.45, 0.75, func(wnd *gui.Window) {
 		const textWidth = 0.33
 		const width4Col = 0.165
 		const width3Col = 0.22
@@ -239,7 +238,6 @@ func main() {
 		wnd.Space(0.05)
 		wnd.Checkbox("isEmitting", &emitter.Owner.IsEmitting)
 		wnd.Text("Is Emitting")
-
 		// setup the controls to switch between spawnwers
 		wnd.Separator()
 		prevPressed, _ := wnd.Button("prevSpawner", " < ")
@@ -369,12 +367,8 @@ func main() {
 		gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT)
 
 		// draw the user interface
-		gfx.Disable(graphics.DEPTH_TEST)
-		gfx.Enable(graphics.SCISSOR_TEST)
 		uiman.Construct(frameDelta)
 		uiman.Draw()
-		gfx.Disable(graphics.SCISSOR_TEST)
-		gfx.Enable(graphics.DEPTH_TEST)
 
 		// draw the screen
 		mainWindow.SwapBuffers()
@@ -397,7 +391,7 @@ func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsPr
 	}
 
 	// request a OpenGL 3.3 core context
-	glfw.WindowHint(glfw.Samples, 0)
+	glfw.WindowHint(glfw.Samples, 4)
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
