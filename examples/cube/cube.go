@@ -101,14 +101,14 @@ func main() {
 	defer diffuseShader.Destroy()
 
 	// create a 2x2x2 cube to render
-	cube := fizzle.CreateCube("diffuse", -1, -1, -1, 1, 1, 1)
+	cube := fizzle.CreateCube(-1, -1, -1, 1, 1, 1)
 	cube.Core.Shader = diffuseShader
 	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	cube.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	cube.Core.Shininess = 4.8
 
 	// create a sphere to render
-	sphere := fizzle.CreateSphere("diffuse", 1, 16, 16)
+	sphere := fizzle.CreateSphere(1, 16, 16)
 	sphere.Core.Shader = diffuseShader
 	sphere.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	sphere.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}

@@ -74,8 +74,6 @@ func (rect *Rectangle3D) DeltaZ() float32 {
 
 // Renderable defines the data necessary to draw an object in OpenGL.
 type Renderable struct {
-	ShaderName string
-
 	FaceCount     uint32
 	Scale         mgl.Vec3
 	Location      mgl.Vec3
@@ -107,7 +105,7 @@ func NewRenderable() *Renderable {
 	r.IsVisible = true
 	r.IsGroup = false
 	r.Children = make([]*Renderable, 0, 4)
-	r.ShaderName = ""
+
 	r.Core = NewRenderableCore()
 	return r
 }
@@ -154,7 +152,6 @@ func (r *Renderable) Clone() *Renderable {
 	clone.LocalRotation = r.LocalRotation
 	clone.IsVisible = r.IsVisible
 	clone.IsGroup = r.IsGroup
-	clone.ShaderName = r.ShaderName
 	clone.BoundingRect = r.BoundingRect
 
 	// The render core is shared in the clone
