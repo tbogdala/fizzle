@@ -147,7 +147,9 @@ func main() {
 	light.DiffuseColor = mgl.Vec4{0.9, 0.9, 0.9, 1.0}
 	light.DiffuseIntensity = 5.00
 	light.AmbientIntensity = 0.20
-	light.Attenuation = 0.2
+	light.ConstAttenuation = 0.2
+	light.LinearAttenuation = 0.2
+	light.QuadraticAttenuation = 0.2
 	renderer.ActiveLights[0] = light
 	light.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{-5.0, -3.0, -5.0})
 
@@ -157,7 +159,9 @@ func main() {
 	light2.DiffuseColor = mgl.Vec4{0.9, 0.0, 0.0, 1.0}
 	light2.DiffuseIntensity = 1.00
 	light2.AmbientIntensity = 0.00
-	light2.Attenuation = 0.2
+	light2.ConstAttenuation = 0.2
+	light2.LinearAttenuation = 0.2
+	light2.QuadraticAttenuation = 0.2
 	renderer.ActiveLights[1] = light2
 	light2.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{2.0, -3.0, -3.0})
 

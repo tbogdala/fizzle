@@ -17,8 +17,8 @@ type RenderableCore struct {
 	Shader   *RenderShader
 	Skeleton *Skeleton
 
-	Tex0          graphics.Texture
-	Tex1          graphics.Texture
+	Tex0          graphics.Texture // typically diffuse
+	Tex1          graphics.Texture // typically normal map
 	DiffuseColor  mgl.Vec4
 	SpecularColor mgl.Vec4
 

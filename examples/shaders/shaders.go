@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math"
 	"os"
 	"runtime"
@@ -12,6 +13,7 @@ import (
 
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
+	"github.com/tbogdala/gombz"
 
 	gui "github.com/tbogdala/eweygewey"
 	guiinput "github.com/tbogdala/eweygewey/glfwinput"
@@ -28,20 +30,31 @@ const (
 	fontFilepath = "../assets/Oswald-Heavy.ttf"
 	fontGlyphs   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890., :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
 
-	windowWidth       = 1280
-	windowHeight      = 720
-	radsPerSec        = math.Pi / 4.0
-	diffuseShaderPath = "../assets/forwardshaders/basic"
+	windowWidth     = 1280
+	windowHeight    = 720
+	radsPerSec      = math.Pi / 4.0
+	basicShaderPath = "../assets/forwardshaders/basic"
+)
+
+const (
+	renderCube = iota
+	renderSphere
+	renderCustom
 )
 
 var (
 	// renderCube indicates if the cube should be drawn or the sphere
-	renderCube = true
-	rotateObj  = true
+	typeOfRender = renderCube
+	rotateObj    = true
 
-	mainWindow *glfw.Window
-	renderer   *forward.ForwardRenderer
-	uiman      *gui.Manager
+	mainWindow  *glfw.Window
+	renderer    *forward.ForwardRenderer
+	uiman       *gui.Manager
+	basicShader *fizzle.RenderShader
+
+	cube      *fizzle.Renderable
+	sphere    *fizzle.Renderable
+	customObj *fizzle.Renderable
 )
 
 // GLFW must run on the same OS thread.
@@ -76,7 +89,6 @@ func main() {
 	// set the callback functions for key input
 	kbModel := input.NewKeyboardModel(mainWindow)
 	kbModel.BindTrigger(glfw.KeyEscape, setShouldClose)
-	kbModel.BindTrigger(glfw.KeySpace, toggleModel)
 	kbModel.SetupCallbacks()
 
 	// -------------------------------------------------------------------------
@@ -88,13 +100,13 @@ func main() {
 	renderer.ChangeResolution(windowWidth, windowHeight)
 	defer renderer.Destroy()
 
-	// load the diffuse shader
-	diffuseShader, err := fizzle.LoadShaderProgramFromFiles(diffuseShaderPath, nil)
+	// load the basic shader
+	basicShader, err = fizzle.LoadShaderProgramFromFiles(basicShaderPath, nil)
 	if err != nil {
 		fmt.Printf("Failed to compile and link the diffuse shader program!\n%v", err)
 		os.Exit(1)
 	}
-	defer diffuseShader.Destroy()
+	defer basicShader.Destroy()
 
 	// put a light in there
 	light := renderer.NewLight()
@@ -111,20 +123,18 @@ func main() {
 	renderer.ActiveLights[0] = light
 
 	// create a 2x2x2 cube to render
-	cube := fizzle.CreateCube("diffuse", -1, -1, -1, 1, 1, 1)
-	cube.Core.Shader = diffuseShader
+	cube = fizzle.CreateCube("diffuse", -1, -1, -1, 1, 1, 1)
+	cube.Core.Shader = basicShader
 	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	cube.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	cube.Core.Shininess = 10.0
 
 	// create a sphere to render
-	sphere := fizzle.CreateSphere("diffuse", 1, 16, 16)
-	sphere.Core.Shader = diffuseShader
+	sphere = fizzle.CreateSphere("diffuse", 1, 16, 16)
+	sphere.Core.Shader = basicShader
 	sphere.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	sphere.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	sphere.Core.Shininess = 10.0
-
-	renderCube = false
 
 	// setup the camera to look at the cube
 	camera := fizzle.NewOrbitCamera(mgl.Vec3{0, 0, 0}, math.Pi/2.0, 5.0, math.Pi/2.0)
@@ -142,8 +152,10 @@ func main() {
 	shininess := float32(10.0)
 	color := [4]int{255, 0, 0, 255}
 	specular := [4]int{255, 255, 255, 255}
+	diffuseTexFilepath := "../assets/textures/TestCube_D.png"
+	normalmapTexFilepath := "../assets/textures/TestCube_N.png"
 
-	materialWindow := uiman.NewWindow("Property", 0.01, 0.85, 0.2, 0.25, func(wnd *gui.Window) {
+	materialWindow := uiman.NewWindow("Property", 0.01, 0.85, 0.3, 0.25, func(wnd *gui.Window) {
 		const colWidth = 0.33
 		wnd.RequestItemWidthMin(colWidth)
 		wnd.Text("Diffuse")
@@ -172,6 +184,35 @@ func main() {
 		wnd.RequestItemWidthMin(colWidth)
 		wnd.Text("Shininess")
 		wnd.DragSliderUFloat("Shininess", 0.1, &shininess)
+
+		wnd.Separator()
+		pressedLoadDiffuse, _ := wnd.Button("BtnLoadDiffuseTex", "Load Diffuse")
+		wnd.Editbox("EBDiffuseTex", &diffuseTexFilepath)
+
+		if pressedLoadDiffuse {
+			glTexID, err := fizzle.LoadImageToTexture(diffuseTexFilepath)
+			if err != nil {
+				fmt.Printf("Failed to load the diffuse texture: %s.\n%v", diffuseTexFilepath, err)
+			} else {
+				r := getCurrentRenderable()
+				r.Core.Tex0 = glTexID
+			}
+		}
+
+		wnd.StartRow()
+		pressedLoadNormalmap, _ := wnd.Button("BtnLoadNormalsTex", "Load Normalmap")
+		wnd.Editbox("EBNormalmapTex", &normalmapTexFilepath)
+
+		if pressedLoadNormalmap {
+			glTexID, err := fizzle.LoadImageToTexture(normalmapTexFilepath)
+			if err != nil {
+				fmt.Printf("Failed to load the normal texture: %s.\n%v", normalmapTexFilepath, err)
+			} else {
+				r := getCurrentRenderable()
+				r.Core.Tex1 = glTexID
+			}
+		}
+
 	})
 	materialWindow.Title = "Material Properties"
 	materialWindow.ShowTitleBar = true
@@ -235,7 +276,8 @@ func main() {
 	lightWindow.ShowScrollBar = true
 	lightWindow.IsScrollable = true
 
-	objCtrlWindow := uiman.NewWindow("ObjControl", 0.01, 0.99, 0.2, 0.35, func(wnd *gui.Window) {
+	customFilepath := "../assets/models/basic_cube.gombz"
+	objCtrlWindow := uiman.NewWindow("ObjControl", 0.01, 0.99, 0.4, 0.4, func(wnd *gui.Window) {
 		wnd.Checkbox("RotateObjs", &rotateObj)
 		wnd.Text("Rotate Object")
 
@@ -243,16 +285,38 @@ func main() {
 		wnd.StartRow()
 		prevPressed, _ := wnd.Button("prevSpawner", " < ")
 		nextPressed, _ := wnd.Button("nextSpawner", " > ")
-		if prevPressed || nextPressed {
-			// we only have two models for now, so if the button
-			// is pressed, then toggle the model to draw
-			renderCube = !renderCube
+		if nextPressed {
+			typeOfRender++
+			if typeOfRender > renderCustom {
+				typeOfRender = renderCube
+			}
+		} else if prevPressed {
+			typeOfRender--
+			if typeOfRender < renderCube {
+				typeOfRender = renderCustom
+			}
 		}
 
-		if renderCube {
+		switch typeOfRender {
+		case renderCube:
 			wnd.Text("Cube")
-		} else {
+		case renderSphere:
 			wnd.Text("Sphere")
+		case renderCustom:
+			wnd.Text("Custom")
+
+			// add UI to add custom models
+			wnd.Separator()
+			pressedLoad, _ := wnd.Button("ModelEBBtn", "Load")
+			wnd.Editbox("ModelEB", &customFilepath)
+
+			// do we need to load a custom file?
+			if pressedLoad {
+				err = loadCustomModel(customFilepath)
+				if err != nil {
+					fmt.Printf("Failed to load the model file: %s\n%v", customFilepath, err)
+				}
+			}
 		}
 
 	})
@@ -279,6 +343,9 @@ func main() {
 			rotDelta := mgl.QuatRotate(radsPerSec*frameDelta, mgl.Vec3{0.0, 1.0, 0.0})
 			cube.LocalRotation = cube.LocalRotation.Mul(rotDelta)
 			sphere.LocalRotation = sphere.LocalRotation.Mul(rotDelta)
+			if customObj != nil {
+				customObj.LocalRotation = customObj.LocalRotation.Mul(rotDelta)
+			}
 		}
 
 		// clear the screen
@@ -293,20 +360,28 @@ func main() {
 
 		// draw the cube or the sphere
 		var activeCore *fizzle.RenderableCore
-		if renderCube {
+		switch typeOfRender {
+		case renderCube:
 			activeCore = cube.Core
 			renderer.DrawRenderable(cube, nil, perspective, view, camera)
-		} else {
+		case renderSphere:
 			activeCore = sphere.Core
 			renderer.DrawRenderable(sphere, nil, perspective, view, camera)
+		case renderCustom:
+			if customObj != nil {
+				activeCore = customObj.Core
+				renderer.DrawRenderable(customObj, nil, perspective, view, camera)
+			}
 		}
 
 		// update the material on the active object with the values from the editor
-		for i := 0; i < 4; i++ {
-			activeCore.DiffuseColor[i] = float32(color[i]) / 255.0
-			activeCore.SpecularColor[i] = float32(specular[i]) / 255.0
+		if activeCore != nil {
+			for i := 0; i < 4; i++ {
+				activeCore.DiffuseColor[i] = float32(color[i]) / 255.0
+				activeCore.SpecularColor[i] = float32(specular[i]) / 255.0
+			}
+			activeCore.Shininess = shininess
 		}
-		activeCore.Shininess = shininess
 
 		// draw the user interface
 		uiman.Construct(float64(frameDelta))
@@ -333,7 +408,7 @@ func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsPr
 	}
 
 	// request a OpenGL 3.3 core context
-	glfw.WindowHint(glfw.Samples, 0)
+	glfw.WindowHint(glfw.Samples, 4)
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
@@ -368,14 +443,42 @@ func setShouldClose() {
 // onWindowResize is called when the window changes size
 func onWindowResize(w *glfw.Window, width int, height int) {
 	renderer.ChangeResolution(int32(width), int32(height))
+	uiman.AdviseResolution(int32(width), int32(height))
 }
 
-// toggleModel sets whether or not the cube or the sphere should be rendered.
-func toggleModel() {
-	// spacebar toggles the drawing of the cube or the sphere
-	if renderCube {
-		renderCube = false
-	} else {
-		renderCube = true
+// loadCustomModel will load a given GOMBZ object and build
+// a renderable for it. An error will be returned if there
+// is a problem along the way.
+func loadCustomModel(filepath string) error {
+	// make sure the model file exists
+	gombzBytes, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return fmt.Errorf("Failed to read the GOMBZ file specified.\n%v", err)
 	}
+
+	// load the mesh from the binary file
+	meshData, err := gombz.DecodeMesh(gombzBytes)
+	if err != nil {
+		return fmt.Errorf("Failed to deocde the binary file (%s) for the model.\n%v", filepath, err)
+	}
+
+	// create the renderable for the mesh
+	customObj = fizzle.CreateFromGombz(meshData)
+	customObj.Core.Shader = basicShader
+
+	return nil
+}
+
+// getCurrentRenderable will return the currently viewed object in the editor
+func getCurrentRenderable() *fizzle.Renderable {
+	switch typeOfRender {
+	case renderCube:
+		return cube
+	case renderSphere:
+		return sphere
+	case renderCustom:
+		return customObj
+	}
+
+	return nil
 }

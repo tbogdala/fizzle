@@ -8,7 +8,9 @@ uniform vec4 MATERIAL_DIFFUSE;
 uniform vec4 MATERIAL_SPECULAR;
 uniform float MATERIAL_SHININESS;
 uniform sampler2D MATERIAL_TEX_0;
+uniform sampler2D MATERIAL_TEX_1;
 uniform float MATERIAL_TEX_0_VALID;
+uniform float MATERIAL_TEX_1_VALID;
 
 uniform vec3 LIGHT_POSITION[MAX_LIGHTS];
 uniform vec4 LIGHT_DIFFUSE[MAX_LIGHTS];
@@ -24,6 +26,7 @@ uniform int LIGHT_COUNT;
 smooth in vec3 vs_normal_model;
 in vec3 vs_position_model;
 in vec3 vs_position_view;
+in vec3 vs_tangent;
 in vec2 vs_tex0_uv;
 in vec3 vs_camera_eye;
 
@@ -39,7 +42,7 @@ vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 			break;
 		}
 
-		vec3 s;
+		vec3 incidence;
 		float attenuation = 1.0;
 		vec3 light_direction = LIGHT_DIRECTION[i]; // in world space
 
@@ -53,18 +56,17 @@ vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 				 LIGHT_LINEAR_ATTENUATION[i] * distance +
 				 LIGHT_QUADRATIC_ATTENUATION[i] * distance * distance));
 			
-			light_direction = normalize(light_direction / distance);	
-			s = normalize(light_direction);
+			light_direction = light_direction / distance;	
+			incidence = light_direction;
 	        } else {
 			// directional light
 			light_direction = normalize(light_direction);
-			s = -light_direction;
+			incidence = -light_direction;
 		}
 
 		float specularF = 0.0;
-		float diffuseF = max(0.0, dot(n_model, s));
-		if (diffuseF != 0.0) {
-			vec3 incidence = s;
+		float diffuseF = max(0.0, dot(n_model, incidence));
+		if (MATERIAL_SHININESS != 0.0 && diffuseF != 0.0) {
 			vec3 reflection = reflect(incidence, n_model);
 			vec3 s_to_camera = normalize(vs_camera_eye - v_model);
 			specularF = pow(max(0.0, dot(s_to_camera, reflection)), MATERIAL_SHININESS);
@@ -88,5 +90,23 @@ void main()
 	if (MATERIAL_TEX_0_VALID > 0.0) {
 		color *= texture(MATERIAL_TEX_0, vs_tex0_uv);
 	}
-	frag_color = vec4(CalcADSLights(vs_position_model, normalize(vs_normal_model), color.rgb), 1.0);
+
+	vec3 normal = vs_normal_model;
+	if (MATERIAL_TEX_1_VALID > 0.0) {
+		vec3 T = normalize(vs_tangent - dot(vs_tangent, vs_normal_model) * vs_normal_model);
+		vec3 BT = cross(T, vs_normal_model);
+		vec3 bump_normal = texture(MATERIAL_TEX_1, vs_tex0_uv).rgb;
+		bump_normal = 2.0 * bump_normal - vec3(1.0, 1.0, 1.0);
+		mat3 TBN = mat3(T, BT, vs_normal_model);
+		normal = normalize(TBN * bump_normal);
+	}
+
+	frag_color = vec4(CalcADSLights(vs_position_model, normalize(normal), color.rgb), 1.0);
+/*
+	if (MATERIAL_TEX_0_VALID > 0.0) {
+		frag_color = color;
+	} else {
+		frag_color = vec4(0,0,1,1);
+	}
+*/
 }

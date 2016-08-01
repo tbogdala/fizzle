@@ -132,9 +132,10 @@ func LoadImageToTexture(filePath string) (graphics.Texture, error) {
 		return tex, err
 	}
 
-	imageSize := int32(rgbaFlipped.Bounds().Max.X)
+	imageSizeW := int32(rgbaFlipped.Bounds().Max.X)
+	imageSizeH := int32(rgbaFlipped.Bounds().Max.Y)
 
-	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA, imageSize, imageSize, 0, graphics.RGBA, graphics.UNSIGNED_BYTE, gfx.Ptr(rgbaFlipped.Pix), len(rgbaFlipped.Pix))
+	gfx.TexImage2D(graphics.TEXTURE_2D, 0, graphics.RGBA, imageSizeW, imageSizeH, 0, graphics.RGBA, graphics.UNSIGNED_BYTE, gfx.Ptr(rgbaFlipped.Pix), len(rgbaFlipped.Pix))
 	return tex, nil
 }
 
