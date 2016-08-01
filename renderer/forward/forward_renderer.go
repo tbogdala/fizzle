@@ -244,11 +244,39 @@ func (fr *ForwardRenderer) NewShadowMap() *ShadowMap {
 	return shady
 }
 
-// NewLight creates a new light object and returns it
+// NewLight creates a new light object and returns it without
+// setting any default attributes.
 func (fr *ForwardRenderer) NewLight() *Light {
 	l := new(Light)
 	l.owner = fr
 	return l
+}
+
+// NewPointLight creates a new light and sets it up to be a point light.
+func (fr *ForwardRenderer) NewPointLight(location mgl.Vec3) *Light {
+	light := fr.NewLight()
+	light.Position = location
+	light.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	light.DiffuseIntensity = 0.70
+	light.SpecularIntensity = 0.10
+	light.AmbientIntensity = 0.30
+	light.ConstAttenuation = 0.20
+	light.LinearAttenuation = 0.18
+	light.QuadraticAttenuation = 0.15
+	light.Strength = 20.0
+	return light
+}
+
+// NewDirectionalLight creates a new light and sets it up to be a directional light.
+func (fr *ForwardRenderer) NewDirectionalLight(dir mgl.Vec3) *Light {
+	light := fr.NewLight()
+	light.Direction = dir
+	light.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	light.DiffuseIntensity = 0.70
+	light.SpecularIntensity = 0.10
+	light.AmbientIntensity = 0.30
+	light.Strength = 20.0
+	return light
 }
 
 // ChangeResolution should be called when the underlying rendering

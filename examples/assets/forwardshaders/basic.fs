@@ -11,6 +11,7 @@ uniform sampler2D MATERIAL_TEX_0;
 uniform sampler2D MATERIAL_TEX_1;
 uniform float MATERIAL_TEX_0_VALID;
 uniform float MATERIAL_TEX_1_VALID;
+uniform sampler2DShadow SHADOW_MAPS[4];
 
 uniform vec3 LIGHT_POSITION[MAX_LIGHTS];
 uniform vec4 LIGHT_DIFFUSE[MAX_LIGHTS];
@@ -22,6 +23,7 @@ uniform float LIGHT_LINEAR_ATTENUATION[MAX_LIGHTS];
 uniform float LIGHT_QUADRATIC_ATTENUATION[MAX_LIGHTS];
 uniform float LIGHT_STRENGTH[MAX_LIGHTS];
 uniform int LIGHT_COUNT;
+uniform int SHADOW_COUNT;
 
 smooth in vec3 vs_normal_model;
 in vec3 vs_position_model;
@@ -29,8 +31,29 @@ in vec3 vs_position_view;
 in vec3 vs_tangent;
 in vec2 vs_tex0_uv;
 in vec3 vs_camera_eye;
+in vec4 vs_shadow_coord[4];
 
 out vec4 frag_color;
+
+vec4 CalcShadowFactor() {
+	float shadow = 1.0;
+	if (SHADOW_COUNT > 0) {
+		shadow = 0.0;
+		shadow += textureProj(SHADOW_MAPS[0], vs_shadow_coord[0]);
+		if (SHADOW_COUNT > 1) {
+			shadow += textureProj(SHADOW_MAPS[1], vs_shadow_coord[1]);
+		}
+		if (SHADOW_COUNT > 2) {
+			shadow += textureProj(SHADOW_MAPS[2], vs_shadow_coord[2]);
+		}
+		if (SHADOW_COUNT > 3) {
+			shadow += textureProj(SHADOW_MAPS[3], vs_shadow_coord[3]);
+		}
+		shadow = shadow / SHADOW_COUNT;
+	}
+	return vec4(shadow,shadow,shadow,1.0);
+}
+
 
 vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 {
@@ -91,6 +114,8 @@ void main()
 		color *= texture(MATERIAL_TEX_0, vs_tex0_uv);
 	}
 
+  	vec4 shadowFactor = CalcShadowFactor();
+
 	vec3 normal = vs_normal_model;
 	if (MATERIAL_TEX_1_VALID > 0.0) {
 		vec3 T = normalize(vs_tangent - dot(vs_tangent, vs_normal_model) * vs_normal_model);
@@ -101,12 +126,5 @@ void main()
 		normal = normalize(TBN * bump_normal);
 	}
 
-	frag_color = vec4(CalcADSLights(vs_position_model, normalize(normal), color.rgb), 1.0);
-/*
-	if (MATERIAL_TEX_0_VALID > 0.0) {
-		frag_color = color;
-	} else {
-		frag_color = vec4(0,0,1,1);
-	}
-*/
+	frag_color = vec4(shadowFactor.rgb * CalcADSLights(vs_position_model, normalize(normal), color.rgb), 1.0);
 }

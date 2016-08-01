@@ -109,17 +109,7 @@ func main() {
 	defer basicShader.Destroy()
 
 	// put a light in there
-	light := renderer.NewLight()
-	light.Position = mgl.Vec3{-10.0, 5.0, 10}
-	light.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	//light.Direction = mgl.Vec3{1.0, -0.5, -1.0}
-	light.DiffuseIntensity = 0.70
-	light.SpecularIntensity = 0.10
-	light.AmbientIntensity = 0.20
-	light.ConstAttenuation = 0.20
-	light.LinearAttenuation = 0.20
-	light.QuadraticAttenuation = 0.20
-	light.Strength = 10.0
+	light := renderer.NewPointLight(mgl.Vec3{-10.0, 5.0, 10})
 	renderer.ActiveLights[0] = light
 
 	// create a 2x2x2 cube to render

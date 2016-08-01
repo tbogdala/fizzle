@@ -49,10 +49,10 @@ func init() {
 }
 
 const (
-	windowWidth       = 800
-	windowHeight      = 600
-	radsPerSec        = math.Pi / 4.0
-	diffuseShaderPath = "../assets/forwardshaders/diffuse"
+	windowWidth     = 800
+	windowHeight    = 600
+	radsPerSec      = math.Pi / 4.0
+	basicShaderPath = "../assets/forwardshaders/basic"
 )
 
 var (
@@ -82,34 +82,27 @@ func main() {
 	defer renderer.Destroy()
 
 	// put a light in there
-	light := renderer.NewLight()
-	//light.Position = mgl.Vec3{-10.0, 5.0, 10}
-	light.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	light.Direction = mgl.Vec3{1.0, -0.5, -1.0}
-	light.DiffuseIntensity = 0.70
-	light.SpecularIntensity = 0.10
-	light.AmbientIntensity = 0.20
-	light.Attenuation = 1.0
+	light := renderer.NewDirectionalLight(mgl.Vec3{1.0, -0.5, -1.0})
 	renderer.ActiveLights[0] = light
 
-	// load the diffuse shader
-	diffuseShader, err := fizzle.LoadShaderProgramFromFiles(diffuseShaderPath, nil)
+	// load the basic shader
+	basicShader, err := fizzle.LoadShaderProgramFromFiles(basicShaderPath, nil)
 	if err != nil {
-		fmt.Printf("Failed to compile and link the diffuse shader program!\n%v", err)
+		fmt.Printf("Failed to compile and link the basic shader program!\n%v", err)
 		os.Exit(1)
 	}
-	defer diffuseShader.Destroy()
+	defer basicShader.Destroy()
 
 	// create a 2x2x2 cube to render
-	cube := fizzle.CreateCube("diffuse", -1, -1, -1, 1, 1, 1)
-	cube.Core.Shader = diffuseShader
+	cube := fizzle.CreateCube("basic", -1, -1, -1, 1, 1, 1)
+	cube.Core.Shader = basicShader
 	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	cube.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	cube.Core.Shininess = 4.8
 
 	// create a sphere to render
-	sphere := fizzle.CreateSphere("diffuse", 1, 16, 16)
-	sphere.Core.Shader = diffuseShader
+	sphere := fizzle.CreateSphere("basic", 1, 16, 16)
+	sphere.Core.Shader = basicShader
 	sphere.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
 	sphere.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	sphere.Core.Shininess = 4.8

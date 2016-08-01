@@ -21,7 +21,7 @@ import (
 )
 
 /*
-  This example illustrates the lighting setup of lights in a forward rendering situation.
+	This example illustrates the lighting setup of lights in a forward rendering situation.
 	This differs from the deferred rendering pass because the lighting setup in forward
 	rendering is much more limited and and support less than a handfull of lights.
 
@@ -40,7 +40,7 @@ const (
 	shadowTexSize              = 2048
 	fov                        = 70.0
 	radsPerSec                 = math.Pi / 4.0
-	diffuseTexBumpedShaderPath = "../assets/forwardshaders/diffuse_texbumped_shadows"
+	basicShaderPath            = "../assets/forwardshaders/basic"
 	shadowmapTextureShaderPath = "../assets/forwardshaders/shadowmap_texture"
 	shadowmapShaderPath        = "../assets/forwardshaders/shadowmap_generator"
 
@@ -77,23 +77,23 @@ func main() {
 	camera := fizzle.NewYawPitchCamera(mgl.Vec3{0.0, 5.0, 5.0})
 	camera.SetYawAndPitch(0.0, mgl.DegToRad(60))
 
-	// load the diffuse, textured and normal mapped shader
-	diffuseTexBumpedShader, err := fizzle.LoadShaderProgramFromFiles(diffuseTexBumpedShaderPath, nil)
+	// load the basic shader
+	basicShader, err := fizzle.LoadShaderProgramFromFiles(basicShaderPath, nil)
 	if err != nil {
-		fmt.Printf("Failed to compile and link the diffuse shader program!\n%v", err)
+		fmt.Printf("Failed to compile and link the basic shader program!\n%v", err)
 		os.Exit(1)
 	}
-	defer diffuseTexBumpedShader.Destroy()
+	defer basicShader.Destroy()
 
-	// load the diffuse, textured and normal mapped shader
+	// load the shader used to draw the shadowmap as a texture in the UI
 	shadowmapTextureShader, err := fizzle.LoadShaderProgramFromFiles(shadowmapTextureShaderPath, nil)
 	if err != nil {
-		fmt.Printf("Failed to compile and link the color texture shader program!\n%v", err)
+		fmt.Printf("Failed to compile and link the shadowmap texture shader program!\n%v", err)
 		os.Exit(1)
 	}
 	defer shadowmapTextureShader.Destroy()
 
-	// loadup the shadowmap shaders
+	// loadup the shadowmap shader used to generate the shadows
 	shadowmapShader, err := fizzle.LoadShaderProgramFromFiles(shadowmapShaderPath, nil)
 	if err != nil {
 		fmt.Printf("Failed to compile and link the shadowmap generator shader program!\n%v", err)
@@ -119,49 +119,41 @@ func main() {
 	fmt.Printf("Loaded the normals texture at %s(%d).\n", testNormalsPath, normalsTex)
 
 	// create the floor plane
-	floorPlane := fizzle.CreatePlaneXZ("diffuse_texbumped", -0.5, 0.5, 0.5, -0.5)
+	floorPlane := fizzle.CreatePlaneXZ("basic", -0.5, 0.5, 0.5, -0.5)
 	floorPlane.Scale = mgl.Vec3{10, 10, 10}
 	floorPlane.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	floorPlane.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
 	floorPlane.Core.Shininess = 3.0
 	floorPlane.Core.Tex0 = diffuseTex
 	floorPlane.Core.Tex1 = normalsTex
-	floorPlane.Core.Shader = diffuseTexBumpedShader
+	floorPlane.Core.Shader = basicShader
 
 	// create the test cube to rotate
-	testCube := fizzle.CreateCube("diffuse_texbumped", -0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+	testCube := fizzle.CreateCube("basic", -0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
 	testCube.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	testCube.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
 	testCube.Location = mgl.Vec3{-2.5, 1.0, 0.0}
 	testCube.Core.Shininess = 6.0
 	testCube.Core.Tex0 = diffuseTex
 	testCube.Core.Tex1 = normalsTex
-	testCube.Core.Shader = diffuseTexBumpedShader
+	testCube.Core.Shader = basicShader
 
 	// enable shadow mapping in the renderer
 	renderer.SetupShadowMapRendering()
 
 	// add light #1
-	light := renderer.NewLight()
-	light.Position = mgl.Vec3{5.0, 3.0, 5.0}
+	light := renderer.NewPointLight(mgl.Vec3{5.0, 3.0, 5.0})
 	light.DiffuseColor = mgl.Vec4{0.9, 0.9, 0.9, 1.0}
-	light.DiffuseIntensity = 5.00
-	light.AmbientIntensity = 0.20
-	light.ConstAttenuation = 0.2
-	light.LinearAttenuation = 0.2
-	light.QuadraticAttenuation = 0.2
+	light.Strength = 5.0
 	renderer.ActiveLights[0] = light
 	light.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{-5.0, -3.0, -5.0})
 
 	// add light #2
-	light2 := renderer.NewLight()
-	light2.Position = mgl.Vec3{-2.0, 3.0, 3.0}
+	light2 := renderer.NewPointLight(mgl.Vec3{-2.0, 3.0, 3.0})
 	light2.DiffuseColor = mgl.Vec4{0.9, 0.0, 0.0, 1.0}
 	light2.DiffuseIntensity = 1.00
 	light2.AmbientIntensity = 0.00
-	light2.ConstAttenuation = 0.2
-	light2.LinearAttenuation = 0.2
-	light2.QuadraticAttenuation = 0.2
+	light2.Strength = 1.0
 	renderer.ActiveLights[1] = light2
 	light2.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{2.0, -3.0, -3.0})
 
