@@ -4,6 +4,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -23,6 +24,13 @@ import (
 	opengl "github.com/tbogdala/fizzle/graphicsprovider/opengl"
 	input "github.com/tbogdala/fizzle/input/glfwinput"
 	forward "github.com/tbogdala/fizzle/renderer/forward"
+)
+
+// block of flags set on the command line
+var (
+	flagModelFilepath     string
+	flagDiffuseFilepath   string
+	flagNormalmapFilepath string
 )
 
 const (
@@ -57,13 +65,21 @@ var (
 	customObj *fizzle.Renderable
 )
 
-// GLFW must run on the same OS thread.
 func init() {
+	// GLFW must run on the same OS thread.
 	runtime.LockOSThread()
+
+	// setup some command-line flags
+	flag.StringVar(&flagModelFilepath, "m", "../assets/models/basic_cube.gombz", "the GOMBZ binary of the model to load")
+	flag.StringVar(&flagDiffuseFilepath, "td", "../assets/textures/TestCube_D.png", "the diffuse texture to use")
+	flag.StringVar(&flagNormalmapFilepath, "tn", "../assets/textures/TestCube_N.png", "the normalmap texture to use for bump mapping")
 }
 
 // main is the entry point for the application.
 func main() {
+	// parse the command line options
+	flag.Parse()
+
 	// -------------------------------------------------------------------------
 	// Window and GUI creation
 	// -------------------------------------------------------------------------
@@ -142,8 +158,6 @@ func main() {
 	shininess := float32(10.0)
 	color := [4]int{255, 0, 0, 255}
 	specular := [4]int{255, 255, 255, 255}
-	diffuseTexFilepath := "../assets/textures/TestCube_D.png"
-	normalmapTexFilepath := "../assets/textures/TestCube_N.png"
 
 	materialWindow := uiman.NewWindow("Property", 0.01, 0.85, 0.3, 0.25, func(wnd *gui.Window) {
 		const colWidth = 0.33
@@ -177,12 +191,12 @@ func main() {
 
 		wnd.Separator()
 		pressedLoadDiffuse, _ := wnd.Button("BtnLoadDiffuseTex", "Load Diffuse")
-		wnd.Editbox("EBDiffuseTex", &diffuseTexFilepath)
+		wnd.Editbox("EBDiffuseTex", &flagDiffuseFilepath)
 
 		if pressedLoadDiffuse {
-			glTexID, err := fizzle.LoadImageToTexture(diffuseTexFilepath)
+			glTexID, err := fizzle.LoadImageToTexture(flagDiffuseFilepath)
 			if err != nil {
-				fmt.Printf("Failed to load the diffuse texture: %s.\n%v", diffuseTexFilepath, err)
+				fmt.Printf("Failed to load the diffuse texture: %s.\n%v", flagDiffuseFilepath, err)
 			} else {
 				r := getCurrentRenderable()
 				r.Core.Tex0 = glTexID
@@ -191,12 +205,12 @@ func main() {
 
 		wnd.StartRow()
 		pressedLoadNormalmap, _ := wnd.Button("BtnLoadNormalsTex", "Load Normalmap")
-		wnd.Editbox("EBNormalmapTex", &normalmapTexFilepath)
+		wnd.Editbox("EBNormalmapTex", &flagNormalmapFilepath)
 
 		if pressedLoadNormalmap {
-			glTexID, err := fizzle.LoadImageToTexture(normalmapTexFilepath)
+			glTexID, err := fizzle.LoadImageToTexture(flagNormalmapFilepath)
 			if err != nil {
-				fmt.Printf("Failed to load the normal texture: %s.\n%v", normalmapTexFilepath, err)
+				fmt.Printf("Failed to load the normal texture: %s.\n%v", flagNormalmapFilepath, err)
 			} else {
 				r := getCurrentRenderable()
 				r.Core.Tex1 = glTexID
@@ -266,7 +280,6 @@ func main() {
 	lightWindow.ShowScrollBar = true
 	lightWindow.IsScrollable = true
 
-	customFilepath := "../assets/models/basic_cube.gombz"
 	objCtrlWindow := uiman.NewWindow("ObjControl", 0.01, 0.99, 0.4, 0.4, func(wnd *gui.Window) {
 		wnd.Checkbox("RotateObjs", &rotateObj)
 		wnd.Text("Rotate Object")
@@ -298,13 +311,13 @@ func main() {
 			// add UI to add custom models
 			wnd.Separator()
 			pressedLoad, _ := wnd.Button("ModelEBBtn", "Load")
-			wnd.Editbox("ModelEB", &customFilepath)
+			wnd.Editbox("ModelEB", &flagModelFilepath)
 
 			// do we need to load a custom file?
 			if pressedLoad {
-				err = loadCustomModel(customFilepath)
+				err = loadCustomModel(flagModelFilepath)
 				if err != nil {
-					fmt.Printf("Failed to load the model file: %s\n%v", customFilepath, err)
+					fmt.Printf("Failed to load the model file: %s\n%v", flagModelFilepath, err)
 				}
 			}
 		}
