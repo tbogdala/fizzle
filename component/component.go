@@ -63,10 +63,10 @@ type CollisionRef struct {
 	Type uint8
 
 	// Min is the minimum point for AABB type colliders
-	Min  mgl.Vec3
+	Min mgl.Vec3
 
 	// Max is the maximum point for AABB type colliders
-	Max  mgl.Vec3
+	Max mgl.Vec3
 
 	// Radius is the size of the Sphere type of collider
 	Radius float32
@@ -176,7 +176,6 @@ func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]
 		// assign material properties if specified
 		if c.Material != nil {
 			cmRenderable.Core.DiffuseColor = c.Material.Diffuse
-			cmRenderable.ShaderName = c.Material.ShaderName
 			loadedShader, okay := shaders[c.Material.ShaderName]
 			if okay {
 				cmRenderable.Core.Shader = loadedShader
