@@ -67,7 +67,7 @@ vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 		}
 
 		vec3 incidence;
-		float attenuation = 1.0;
+		float attenuation = LIGHT_STRENGTH[i];
 		vec3 light_direction = LIGHT_DIRECTION[i]; // in world space
 
 		if (light_direction.x == 0.0 && light_direction.y == 0.0 && light_direction.z == 0.0) {

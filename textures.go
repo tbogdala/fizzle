@@ -81,6 +81,14 @@ func loadDecodedPNG(img image.Image) (*image.NRGBA, error) {
 	return rgbaFlipped, nil
 }
 
+// GenerateMipmaps will generate the mipmap textures for a given texture object.
+func GenerateMipmaps(t graphics.Texture) {
+	gfx.ActiveTexture(graphics.TEXTURE0)
+	gfx.BindTexture(graphics.TEXTURE_2D, t)
+	gfx.GenerateMipmap(graphics.TEXTURE_2D)
+	gfx.BindTexture(graphics.TEXTURE_2D, 0)
+}
+
 // LoadRGBAToTexture takes a byte slice and throws it into an OpenGL texture.
 func LoadRGBAToTexture(rgba []byte, imageSize int32) graphics.Texture {
 	return LoadRGBAToTextureExt(rgba, imageSize, graphics.LINEAR, graphics.LINEAR, graphics.REPEAT, graphics.REPEAT)

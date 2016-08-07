@@ -15,6 +15,9 @@ import (
 // ComponentMesh defines a mesh reference for a component and everything
 // needed to draw it.
 type ComponentMesh struct {
+	// The material description of the component
+	Material *ComponentMaterial
+
 	// BinFile is a filepath should be relative to component file
 	BinFile string
 
@@ -24,6 +27,9 @@ type ComponentMesh struct {
 
 	// Offset is the location offset of the mesh in the component.
 	Offset mgl.Vec3
+
+	// Scale is the scale for the mesh in the component.
+	Scale mgl.Vec3
 
 	// Parent is the owning Component object
 	Parent *Component
@@ -46,6 +52,16 @@ type ComponentMaterial struct {
 
 	// Diffuse color for the material
 	Diffuse mgl.Vec4
+
+	// Specular color for the material
+	Specular mgl.Vec4
+
+	// Shininess is how shiny the material is.
+	// Setting to 0 removes the specular effect.
+	Shininess float32
+
+	// Indicates if mipmaps should be generated for the textures getting loaded.
+	GenerateMipmaps bool
 }
 
 const (
@@ -90,9 +106,6 @@ type Component struct {
 	// All of the meshes that are part of this component
 	Meshes []*ComponentMesh
 
-	// The material description of the component
-	Material *ComponentMaterial
-
 	// ChildReferences can be specified to include other components
 	// to be contained in this component.
 	ChildReferences []*ComponentChildRef
@@ -134,7 +147,6 @@ func (c *Component) Clone() *Component {
 	clone.ChildReferences = c.ChildReferences
 	clone.Collisions = c.Collisions
 	clone.Properties = c.Properties
-	clone.Material = c.Material
 	clone.componentDirPath = c.componentDirPath
 	clone.cachedRenderable = c.cachedRenderable
 
@@ -170,17 +182,8 @@ func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]
 	// comnponents only create new render nodes for the meshs defined and
 	// not for referenced components
 	for _, compMesh := range c.Meshes {
-		cmRenderable := createRenderableForMesh(tm, compMesh)
+		cmRenderable := createRenderableForMesh(tm, shaders, compMesh)
 		group.AddChild(cmRenderable)
-
-		// assign material properties if specified
-		if c.Material != nil {
-			cmRenderable.Core.DiffuseColor = c.Material.Diffuse
-			loadedShader, okay := shaders[c.Material.ShaderName]
-			if okay {
-				cmRenderable.Core.Shader = loadedShader
-			}
-		}
 
 		// cache it for later
 		c.cachedRenderable = cmRenderable
@@ -209,16 +212,45 @@ func (cm *ComponentMesh) GetVertices() ([]mgl.Vec3, error) {
 
 // createRenderableForMesh does the work of creating the Renderable and putting all of
 // the mesh data into VBOs.
-func createRenderableForMesh(tm *fizzle.TextureManager, compMesh *ComponentMesh) *fizzle.Renderable {
+func createRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader, compMesh *ComponentMesh) *fizzle.Renderable {
 	// create the new renderable
 	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
 
-	// assign the texture
-	if len(compMesh.Textures) > 0 {
-		var okay bool
+	// if a scale is set, copy it over to the renderable
+	if compMesh.Scale[0] != 0.0 || compMesh.Scale[1] != 0.0 || compMesh.Scale[2] != 0.0 {
+		r.Scale = compMesh.Scale
+	}
+
+	// assign the textures
+	var okay bool
+	textureCount := len(compMesh.Textures)
+	if textureCount > 0 {
 		r.Core.Tex0, okay = tm.GetTexture(compMesh.Textures[0])
 		if !okay {
 			groggy.Log("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Textures[0])
+		}
+		if compMesh.Material.GenerateMipmaps {
+			fizzle.GenerateMipmaps(r.Core.Tex0)
+		}
+	}
+	if textureCount > 1 {
+		r.Core.Tex1, okay = tm.GetTexture(compMesh.Textures[1])
+		if !okay {
+			groggy.Log("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Textures[1])
+		}
+		if compMesh.Material.GenerateMipmaps {
+			fizzle.GenerateMipmaps(r.Core.Tex1)
+		}
+	}
+
+	// assign material properties if specified
+	if compMesh.Material != nil {
+		r.Core.DiffuseColor = compMesh.Material.Diffuse
+		r.Core.SpecularColor = compMesh.Material.Specular
+		r.Core.Shininess = compMesh.Material.Shininess
+		loadedShader, okay := shaders[compMesh.Material.ShaderName]
+		if okay {
+			r.Core.Shader = loadedShader
 		}
 	}
 
