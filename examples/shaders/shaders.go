@@ -241,7 +241,7 @@ func main() {
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(colWidth)
 		wnd.Text("Strength")
-		wnd.DragSliderUFloat("LStr", 0.01, &light.Strength)
+		wnd.DragSliderUFloat("LStr", 0.1, &light.Strength)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(colWidth)

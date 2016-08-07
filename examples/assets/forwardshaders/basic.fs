@@ -17,6 +17,7 @@ uniform vec3 LIGHT_POSITION[MAX_LIGHTS];
 uniform vec4 LIGHT_DIFFUSE[MAX_LIGHTS];
 uniform float LIGHT_DIFFUSE_INTENSITY[MAX_LIGHTS];
 uniform float LIGHT_AMBIENT_INTENSITY[MAX_LIGHTS];
+uniform float LIGHT_SPECULAR_INTENSITY[MAX_LIGHTS];
 uniform vec3 LIGHT_DIRECTION[MAX_LIGHTS];
 uniform float LIGHT_CONST_ATTENUATION[MAX_LIGHTS];
 uniform float LIGHT_LINEAR_ATTENUATION[MAX_LIGHTS];
@@ -97,7 +98,7 @@ vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 
 		vec3 ambient = LIGHT_DIFFUSE[i].rgb * LIGHT_AMBIENT_INTENSITY[i] * attenuation;
 		vec3 diffuse = LIGHT_DIFFUSE[i].rgb * LIGHT_DIFFUSE_INTENSITY[i] * diffuseF * attenuation;
-		vec3 specular = LIGHT_DIFFUSE[i].rgb * specularF * attenuation;
+		vec3 specular = LIGHT_DIFFUSE[i].rgb * LIGHT_SPECULAR_INTENSITY[i] * specularF * attenuation;
 
 		scattered_light += ambient + diffuse;
 		reflected_light += specular; 
