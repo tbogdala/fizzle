@@ -83,6 +83,9 @@ func main() {
 
 	// put a light in there
 	light := renderer.NewDirectionalLight(mgl.Vec3{1.0, -0.5, -1.0})
+	light.AmbientIntensity = 0.3
+	light.DiffuseIntensity = 0.5
+	light.SpecularIntensity = 0.3
 	renderer.ActiveLights[0] = light
 
 	// load the basic shader

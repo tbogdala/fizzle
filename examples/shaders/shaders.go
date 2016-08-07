@@ -126,6 +126,7 @@ func main() {
 
 	// put a light in there
 	light := renderer.NewPointLight(mgl.Vec3{-10.0, 5.0, 10})
+	light.SpecularIntensity = 0.3
 	renderer.ActiveLights[0] = light
 
 	// create a 2x2x2 cube to render

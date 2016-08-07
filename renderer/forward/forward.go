@@ -275,7 +275,7 @@ func (fr *ForwardRenderer) NewDirectionalLight(dir mgl.Vec3) *Light {
 	light.DiffuseIntensity = 0.70
 	light.SpecularIntensity = 0.10
 	light.AmbientIntensity = 0.30
-	light.Strength = 20.0
+	light.Strength = 1.0
 	return light
 }
 
