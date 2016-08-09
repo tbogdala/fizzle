@@ -1,6 +1,17 @@
 // Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
+/*
+
+The Component package consists of a ComponentManager type that can
+load component files defined in JSON so that application assets
+can be defined outside of the binary.
+
+Once a Component is loaded it can be used as a prototype to clone
+new Renderable instances from so that multiple objects can be
+rendered using the same OpenGL buffers to define model data.
+
+*/
 package component
 
 import (
@@ -14,12 +25,29 @@ import (
 	"github.com/tbogdala/groggy"
 )
 
+// ComponentManager loads and manages access to Component objects.
+// Component files are defined in JSON notation which is a serialized
+// version of Component.
 type ComponentManager struct {
-	storage        map[string]*Component
+	// storage is the main collection of Component objects indexed
+	// by a user-specified name.
+	storage map[string]*Component
+
+	// textureManager is a cached reference to the texture manager.
+	// This will be used while loading Components and making
+	// Renderables for components to load and get references to
+	// textures.
 	textureManager *fizzle.TextureManager
-	loadedShaders  map[string]*fizzle.RenderShader
+
+	// loadedShaders is a collection of shader programs indexed by
+	// a user-specified string. Individual Components can reference
+	// these shaders by name and upon Renderable construction, the
+	// correct shader will be set.
+	loadedShaders map[string]*fizzle.RenderShader
 }
 
+// NewComponentManager creates a new ComponentManager object using the
+// the texture manager and shader collection specified.
 func NewComponentManager(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader) *ComponentManager {
 	cm := new(ComponentManager)
 	cm.storage = make(map[string]*Component)
@@ -29,7 +57,7 @@ func NewComponentManager(tm *fizzle.TextureManager, shaders map[string]*fizzle.R
 }
 
 // Destroy will destroy all of the contained Component objects and
-// reset the storage map.
+// reset the component storage map.
 func (cm *ComponentManager) Destroy() {
 	for _, c := range cm.storage {
 		c.Destroy()
@@ -63,7 +91,8 @@ func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.
 		_, childFileName := filepath.Split(cref.File)
 		crComponent, okay := cm.GetComponent(childFileName)
 		if !okay {
-			groggy.Logsf("ERROR", "GetRenderableInstance: Component %s has a ChildInstance (%s) that wasn't loaded.\n", component.Name, cref.File)
+			groggy.Logsf("ERROR", "GetRenderableInstance: Component %s has a ChildInstance (%s) that wasn't loaded.\n",
+				component.Name, cref.File)
 			continue
 		}
 

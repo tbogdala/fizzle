@@ -1,4 +1,4 @@
-// Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
 package fizzle
@@ -326,7 +326,7 @@ func (c *YawPitchCamera) GetRotation() mgl.Quat {
 func (c *YawPitchCamera) SetRotation(q mgl.Quat) {
 	c.rotation = q
 
-	c.roll = float32(math.Atan2(float64(2.0 * q.Y()* q.W - 2.0 * q.X() * q.Z()), float64(1.0 - 2.0 * q.Y() * q.Y() - 2.0 * q.Z() * q.Z())))
-	c.pitch = float32(math.Atan2(float64(2.0 * q.X()* q.W - 2.0 * q.Y() * q.Z()), float64(1.0 - 2.0 * q.X() * q.X() - 2.0 * q.Z() * q.Z())))
-	c.yaw = float32(math.Asin(float64(2.0 * q.X()* q.Y() + 2.0 * q.Z() * q.W)))
+	c.roll = float32(math.Atan2(float64(2.0*q.Y()*q.W-2.0*q.X()*q.Z()), float64(1.0-2.0*q.Y()*q.Y()-2.0*q.Z()*q.Z())))
+	c.pitch = float32(math.Atan2(float64(2.0*q.X()*q.W-2.0*q.Y()*q.Z()), float64(1.0-2.0*q.X()*q.X()-2.0*q.Z()*q.Z())))
+	c.yaw = float32(math.Asin(float64(2.0*q.X()*q.Y() + 2.0*q.Z()*q.W)))
 }

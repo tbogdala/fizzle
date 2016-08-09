@@ -1,6 +1,15 @@
-// Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
+/*
+
+Renderer is a package that defines a common interface for the
+deferred and forward renderers.
+
+Client applications will need to import a subpackage to create
+instances of concrete implementations of Renderer.
+
+*/
 package renderer
 
 import (
@@ -12,16 +21,36 @@ import (
 // Renderer is the common interface between the built-in deferred or forward
 // style renderers.
 type Renderer interface {
+	// Init should initialize the renderer.
 	Init(width, height int32) error
+
+	// Destroy should free all resources needed for the renderer.
 	Destroy()
+
+	// ChangeResolution should advise the renderer there's a new screen
+	// resolution to render too.
 	ChangeResolution(width, height int32)
+
+	// GetResolution returns the width and height of the renderer's known screen size.
 	GetResolution() (int32, int32)
+
+	// GetGraphics returns an object that can be used to make low-level OpenGL calls.
 	GetGraphics() graphics.GraphicsProvider
+
+	// SetGraphics should set the OpenGL implementation the renderer should use.
 	SetGraphics(gp graphics.GraphicsProvider)
 
+	// DrawRenderable draws the Renderable with the shader specified on the object.
 	DrawRenderable(r *fizzle.Renderable, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
+
+	// DrawRenderableWithShader will draw the Renderable with the shader specified
+	// in the function call instead of the one in the object.
 	DrawRenderableWithShader(r *fizzle.Renderable, shader *fizzle.RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
+
+	// DrawLines draws the renderable as a GL_LINES type of object.
 	DrawLines(r *fizzle.Renderable, shader *fizzle.RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
+
+	// EndRenderFrame should be called to finish the rendering of a frame.
 	EndRenderFrame()
 }
 

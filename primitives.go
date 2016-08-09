@@ -859,16 +859,16 @@ const (
 // MapUvToCubemap takes a UV coordinate that is in range ([0..1],[0..1]) with
 // respect to one side and returns a UV coordinate s and t value that is mapped
 // to a single cubemap texture looking something like this:
-//       .____.
-//       |    |
-//       | T  |
-// .____.|____.____.____.
+//      .____.
+//      |    |
+//      | T  |
+// .____.____.____.____.
 // |    |    |    |    |
 // |  L |  F | R  | Bk |
 // .----.----.----.----.
-//     |    |
-//     | Bt |
-//     .----.
+//      |    |
+//      | Bt |
+//      .----.
 //
 // The resulting coordintes are for a texture wrapped around the outside
 // of the cube.

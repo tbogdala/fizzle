@@ -1,6 +1,16 @@
-// Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
+/*
+
+Forward is a package that defines an OpenGL forward renderer.
+
+At present both lights and shadows are present only in their basic form.
+
+For more information, look at the `examples` folder and a set
+of shaders can be found in `examples/assets/forwardshaders`.
+
+*/
 package forward
 
 import (
@@ -510,11 +520,13 @@ func (fr *ForwardRenderer) DrawRenderable(r *fizzle.Renderable, binder renderer.
 		return
 	}
 
-	// if the renderable is a group, just try to draw the children
+	// draw the child renderables
+	for _, child := range r.Children {
+		fr.DrawRenderable(child, binder, perspective, view, camera)
+	}
+
+	// if the renderable is a group just draw the children
 	if r.IsGroup {
-		for _, child := range r.Children {
-			fr.DrawRenderable(child, binder, perspective, view, camera)
-		}
 		return
 	}
 
@@ -534,11 +546,13 @@ func (fr *ForwardRenderer) DrawRenderableWithShader(r *fizzle.Renderable, shader
 		return
 	}
 
-	// if the renderable is a group, just try to draw the children
+	// draw the child renderables
+	for _, child := range r.Children {
+		fr.DrawRenderableWithShader(child, shader, binder, perspective, view, camera)
+	}
+
+	// if the renderable is a group just draw the children
 	if r.IsGroup {
-		for _, child := range r.Children {
-			fr.DrawRenderableWithShader(child, shader, binder, perspective, view, camera)
-		}
 		return
 	}
 
@@ -557,11 +571,13 @@ func (fr *ForwardRenderer) DrawLines(r *fizzle.Renderable, shader *fizzle.Render
 		return
 	}
 
-	// if the renderable is a group, just try to draw the children
+	// draw the children
+	for _, child := range r.Children {
+		fr.DrawLines(child, shader, binder, perspective, view, camera)
+	}
+
+	// if the renderable is a group just draw the children
 	if r.IsGroup {
-		for _, child := range r.Children {
-			fr.DrawLines(child, shader, binder, perspective, view, camera)
-		}
 		return
 	}
 
