@@ -92,7 +92,7 @@ func (cone *ConeSpawner) CreateRenderable() *fizzle.Renderable {
 	const circleSegments = 16
 	const sideSegments = 8
 
-	cone.volumeRenderable = fizzle.CreateWireframeConeSegmentXZ("color", 0, 0, 0, cone.BottomRadius, cone.TopRadius, cone.Length, circleSegments, sideSegments)
+	cone.volumeRenderable = fizzle.CreateWireframeConeSegmentXZ(0, 0, 0, cone.BottomRadius, cone.TopRadius, cone.Length, circleSegments, sideSegments)
 	return cone.volumeRenderable
 }
 

@@ -76,7 +76,7 @@ func (cube *CubeSpawner) NewParticle() (p Particle) {
 // CreateRenderable creates a cached renderable for the spawner that represents
 // the spawning volume for particles.
 func (cube *CubeSpawner) CreateRenderable() *fizzle.Renderable {
-	cube.volumeRenderable = fizzle.CreateWireframeCube("color", cube.BottomLeft[0], cube.BottomLeft[1], cube.BottomLeft[2],
+	cube.volumeRenderable = fizzle.CreateWireframeCube(cube.BottomLeft[0], cube.BottomLeft[1], cube.BottomLeft[2],
 		cube.TopRight[0], cube.TopRight[1], cube.TopRight[2])
 	return cube.volumeRenderable
 }
