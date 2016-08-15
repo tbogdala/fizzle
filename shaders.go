@@ -1,4 +1,4 @@
-// Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
 package fizzle
@@ -15,8 +15,13 @@ import (
 // RenderShader is an OpenGL shader that is used for easier access
 // to uniforms and attributes at runtime.
 type RenderShader struct {
-	Prog      graphics.Program
-	uniCache  map[string]int32
+	// Prog is the OpenGL program associated with the RenderShader.
+	Prog graphics.Program
+
+	// uniCache is the cache of uniform locations.
+	uniCache map[string]int32
+
+	// attrCache is the cache of attribute locations.
 	attrCache map[string]int32
 }
 
@@ -93,7 +98,7 @@ func (rs *RenderShader) AssertAttribsExist(names ...string) error {
 	return nil
 }
 
-// Destroy deallocates the shader from OpenGL
+// Destroy deallocates the shader from OpenGL.
 func (rs *RenderShader) Destroy() {
 	gfx.DeleteProgram(rs.Prog)
 }
@@ -101,17 +106,20 @@ func (rs *RenderShader) Destroy() {
 // PreLinkBinder is a prototype for a function to be called before a shader program is linked
 type PreLinkBinder func(p graphics.Program)
 
-// LoadShaderProgramFromFiles loads the glsl shaders from the files specified.
+// LoadShaderProgramFromFiles loads the GLSL shaders from the files specified. This function
+// expects that the vertex and fragment shader files can be opened by appending the '.vs' and '.fs'
+// extensions respectively to the baseFilename. preLink is an optional function that will be
+// called just prior to linking the shaders into a program.
 func LoadShaderProgramFromFiles(baseFilename string, prelink PreLinkBinder) (*RenderShader, error) {
 	vsBytes, err := ioutil.ReadFile(baseFilename + ".vs")
 	if err != nil {
-		fmt.Errorf("Failed to read the vertex shader \"%s\".\n%v\n", baseFilename+".vs", err)
+		fmt.Errorf("Failed to read the vertex shader \"%s.vs\".\n%v", baseFilename, err)
 	}
 	vsBuffer := bytes.NewBuffer(vsBytes)
 
 	fsBytes, err := ioutil.ReadFile(baseFilename + ".fs")
 	if err != nil {
-		fmt.Errorf("Failed to read the fragment shader \"%s\".\n%v\n", baseFilename+".fs", err)
+		fmt.Errorf("Failed to read the fragment shader \"%s.fs\".\n%v", baseFilename, err)
 	}
 	fsBuffer := bytes.NewBuffer(fsBytes)
 
@@ -119,7 +127,8 @@ func LoadShaderProgramFromFiles(baseFilename string, prelink PreLinkBinder) (*Re
 	return LoadShaderProgram(vsBuffer.String(), fsBuffer.String(), prelink)
 }
 
-// LoadShaderProgram loads shader objects, compiles and then attaches them to a new program
+// LoadShaderProgram loads shaders from code passed in as strings, compiles and then attaches them to a new program.
+// preLink is an optional function that will be called just prior to linking the shaders into a program.
 func LoadShaderProgram(vertShader, fragShader string, prelink PreLinkBinder) (*RenderShader, error) {
 	// create the program
 	prog := gfx.CreateProgram()

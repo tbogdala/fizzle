@@ -1,4 +1,4 @@
-// Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
 package fizzle
@@ -14,70 +14,162 @@ import (
 // RenderableCore contains data that is needed to draw an object on the screen.
 // Further, data here can be shared between multiple Renderable instances.
 type RenderableCore struct {
-	Shader   *RenderShader
+	// Shader is the program used to render this object; This can be overridden
+	// by using a DrawWithShader* function.
+	Shader *RenderShader
+
+	// Skeleton is the animatable skeleton object for the renderable.
 	Skeleton *Skeleton
 
-	Tex0          graphics.Texture // typically diffuse
-	Tex1          graphics.Texture // typically normal map
-	DiffuseColor  mgl.Vec4
+	// Tex0 is the first texture for the renderable and is mapped to
+	// the diffuse texture by convention.
+	Tex0 graphics.Texture
+
+	// Tex1 is the first texture for the renderable and is mapped to
+	// the diffuse normalmap by convention.
+	Tex1 graphics.Texture
+
+	// DiffuseColor is the material color for the renderable. This is
+	// displayed outright by the shader or often blended with the
+	// diffuse texture.
+	DiffuseColor mgl.Vec4
+
+	// SpecularColor is the material specular color for the renderable
+	// and is used to control the color of the specular highlight.
+	//
+	// It can be thought of the topcoat layer color to the DiffuseColor's
+	// base paint layer color.
 	SpecularColor mgl.Vec4
 
-	// Shininess is the exponent used while calculating specular highlights
+	// Shininess is the specular coefficient used to control the tightness
+	// of the specular highlight. It represents the power the specular factor will
+	// be raised to -- therefore values between (0.0 - 1.0) will yield different
+	// results than values >= 1.0.
 	Shininess float32
 
-	Vao            uint32
+	// Vao is the OpenGL vertex array object for the renderable.
+	Vao uint32
+
+	// VaoInitialized indicates whether or not the Vao has been bound yet.
 	VaoInitialized bool
 
-	VertVBO        graphics.Buffer
-	UvVBO          graphics.Buffer
-	NormsVBO       graphics.Buffer
-	TangentsVBO    graphics.Buffer
-	ElementsVBO    graphics.Buffer
-	BoneFidsVBO    graphics.Buffer
+	// VertVBO indicates the VBO that contains the vertex data.
+	VertVBO graphics.Buffer
+
+	// UvVBO indicates the VBO that contains the UV data.
+	UvVBO graphics.Buffer
+
+	// NormsVBO indicates the VBO that contains the normal vector data.
+	NormsVBO graphics.Buffer
+
+	// TangentsVBO indicates the VBO that contains the tangent vector data.
+	TangentsVBO graphics.Buffer
+
+	// ElementsVBO indicates the VBO that defines the element indices data.
+	ElementsVBO graphics.Buffer
+
+	// BoneFidsVBO indicates the VBO that defines what bones affect a given vertex.
+	// These are passed to the shader as floats due to better compatability with GLSL.
+	BoneFidsVBO graphics.Buffer
+
+	// BoneWeightsVBO indicates the VBO that defines how strong a bone affects a given vertex.
 	BoneWeightsVBO graphics.Buffer
-	ComboVBO1      graphics.Buffer
-	ComboVBO2      graphics.Buffer
 
-	VBOStride            int32
-	VertVBOOffset        int
-	UvVBOOffset          int
-	NormsVBOOffset       int
-	TangentsVBOOffset    int
-	BoneFidsVBOOffset    int
+	// ComboVBO1 is a user-customizable VBO object to be bound to the RenderShader.
+	ComboVBO1 graphics.Buffer
+
+	// ComboVBO2 is a user-customizable VBO object to be bound to the RenderShader.
+	ComboVBO2 graphics.Buffer
+
+	// VBOStride should be set to the total number of bytes that exist in a VBO for
+	// a single object.
+	//
+	// This is set to non-zero when members like VertVBO, UvVBO,
+	// NormsVBO, etc... are set tot the same VBO object but the data is interleaved.
+	// When this is the case, the corresponding Offset members (e.g. VertVBOOffset)
+	// should be set as well.
+	VBOStride int32
+
+	// VertVBOOffset is the offset in bytes from the start of a vertex definition needed
+	// to read the vertex information.
+	VertVBOOffset int
+
+	// UvVBOOffset is the offset in bytes from the start of a vertex definition needed
+	// to read the UV information.
+	UvVBOOffset int
+
+	// NormsVBOOffset is the offset in bytes from the start of a vertex definition needed
+	// to read the normal vector information.
+	NormsVBOOffset int
+
+	// TangentsVBOOffset is the offset in bytes from the start of a vertex definition needed
+	// to read the tangent vector information.
+	TangentsVBOOffset int
+
+	// BoneFidsVBOOffset is the offset in bytes from the start of a vertex definition needed
+	// to read the bone float id information.
+	BoneFidsVBOOffset int
+
+	// BoneWeightsVBOOffset is the offset in bytes from the start of a vertex definition needed
+	// to read the bone weighting information.
 	BoneWeightsVBOOffset int
-	ComboVBO1Offset      int
-	ComboVBO2Offset      int
 
+	// ComboVBO1Offset is the offset in bytes from the start of a vertex definition needed
+	// to read the customizable information.
+	ComboVBO1Offset int
+
+	// ComboVBO2Offset is the offset in bytes from the start of a vertex definition needed
+	// to read the customizable information.
+	ComboVBO2Offset int
+
+	// IsDestroyed should be set to true if the Renderable has been Destroy()'d.
 	IsDestroyed bool
 }
 
-// Rectangle3D defines a rectangular 3d structure by two points
+// Rectangle3D defines a rectangular 3d structure by two points.
 type Rectangle3D struct {
+	// Bottom defines the bottom corner opposite of Top.
 	Bottom mgl.Vec3
-	Top    mgl.Vec3
+
+	// TOp defines the top corner opposite of Bottom.
+	Top mgl.Vec3
 }
 
-// DeltaX is the change of the X-axis component of Rectangle3D
+// DeltaX is the change of the X-axis component of a Rectangle3D.
 func (rect *Rectangle3D) DeltaX() float32 {
 	return rect.Top[0] - rect.Bottom[0]
 }
 
-// DeltaY is the change of the Y-axis component of Rectangle3D
+// DeltaY is the change of the Y-axis component of a Rectangle3D.
 func (rect *Rectangle3D) DeltaY() float32 {
 	return rect.Top[1] - rect.Bottom[1]
 }
 
-// DeltaZ is the change of the Z-axis component of Rectangle3D
+// DeltaZ is the change of the Z-axis component of a Rectangle3D.
 func (rect *Rectangle3D) DeltaZ() float32 {
 	return rect.Top[2] - rect.Bottom[2]
 }
 
 // Renderable defines the data necessary to draw an object in OpenGL.
+// This structure focuses more on 'instance' type of data which is
+// typically not sharable between multiple Renderable instances.
 type Renderable struct {
-	FaceCount     uint32
-	Scale         mgl.Vec3
-	Location      mgl.Vec3
-	Rotation      mgl.Quat
+	// FaceCount specifies how many elements to draw when rendered.
+	FaceCount uint32
+
+	// Scale is the scaling vector for the Renderable used to modify
+	// the size of the object.
+	Scale mgl.Vec3
+
+	// Location is the world-space location of Renderable.
+	Location mgl.Vec3
+
+	// Rotation is the world-space rotation quaternion of the Renderable, which is
+	// different than LocalRotation and the pivot is {0,0,0} in world-space.
+	Rotation mgl.Quat
+
+	// LocalRotation is the local rotation quaternion for the Renderable, which is
+	// different than the Rotation property and pivots around the model's origin.
 	LocalRotation mgl.Quat
 
 	// AnimationTime keeps track of the time value to use for the animation
@@ -87,15 +179,28 @@ type Renderable struct {
 	// BoundingRect is the unscaled, unrotated bounding rectangle for the renderable.
 	BoundingRect Rectangle3D
 
+	// IsVisible should be set to true if the object is to be rendered.
 	IsVisible bool
-	IsGroup   bool
 
-	Core     *RenderableCore
-	Parent   *Renderable
+	// IsGroup should be set to true if the renderable should only render its children objects
+	// and that this Renderable itself should not be drawn.
+	IsGroup bool
+
+	// Core is the RenderableCore object that contains the renderable data that can
+	// be shadered between multiple Renderable objects if needed.
+	Core *RenderableCore
+
+	// Parent can be set to a Renderable that should be considered this Renderable's
+	// 'Parent' which will make some properties relative to this parent object (e.g.
+	// Location).
+	Parent *Renderable
+
+	// Children is a slice of Renderables that are the Renderable's children objects
+	// that should be drawn with this renderable.
 	Children []*Renderable
 }
 
-// NewRenderable creates a new Renderable object and a new RenderableCore
+// NewRenderable creates a new Renderable object and a new RenderableCore.
 func NewRenderable() *Renderable {
 	r := new(Renderable)
 	r.Location = mgl.Vec3{0.0, 0.0, 0.0}
@@ -110,7 +215,7 @@ func NewRenderable() *Renderable {
 	return r
 }
 
-// NewRenderableCore creates a new RenderableCore object
+// NewRenderableCore creates a new RenderableCore object.
 func NewRenderableCore() *RenderableCore {
 	rc := new(RenderableCore)
 	rc.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
@@ -120,13 +225,13 @@ func NewRenderableCore() *RenderableCore {
 	return rc
 }
 
-// Destroy releases the RenderableCore data
+// Destroy releases the RenderableCore data.
 func (r *Renderable) Destroy() {
 	r.Core.DestroyCore()
 }
 
 // DestroyCore releases the OpenGL VBO and VAO objects but does not release
-// things that could be shared like Tex0.
+// things that could be shared like Tex0 and then marks the object as destroyed.
 func (r *RenderableCore) DestroyCore() {
 	gfx.DeleteBuffer(r.VertVBO)
 	gfx.DeleteBuffer(r.UvVBO)
@@ -166,7 +271,7 @@ func (r *Renderable) Clone() *Renderable {
 	return clone
 }
 
-// HasSkeleton returns true if the renderable has bones associated with it.
+// HasSkeleton returns true if the Renderable has bones associated with it.
 func (r *Renderable) HasSkeleton() bool {
 	if r.Core.Skeleton != nil {
 		return true
@@ -174,7 +279,7 @@ func (r *Renderable) HasSkeleton() bool {
 	return false
 }
 
-// HasSkeletonDeep returns true if the renderable, or any child, has bones associated with it.
+// HasSkeletonDeep returns true if the Renderable, or any child, has bones associated with it.
 func (r *Renderable) HasSkeletonDeep() bool {
 	if r.Core.Skeleton != nil {
 		return true
@@ -192,8 +297,8 @@ func (r *Renderable) HasSkeletonDeep() bool {
 // RenderableMapF defines the type of a function that can be passed to Renderable.Map().
 type RenderableMapF func(r *Renderable)
 
-// Map takes a function as a parameter that will be called for the renderable and all
-// child Renderable objects (as well as their children, etc...)
+// Map takes a function as a parameter that will be called for the Renderable and all
+// child Renderable objects recursively.
 func (r *Renderable) Map(f RenderableMapF) {
 	// call the function for the renderable first
 	f(r)
@@ -204,7 +309,8 @@ func (r *Renderable) Map(f RenderableMapF) {
 	}
 }
 
-// GetTransformMat4 creates a transform matrix: scale * transform
+// GetTransformMat4 creates a transform matrix that can be used to transform
+// a vertex of the Renderable into world space.
 func (r *Renderable) GetTransformMat4() mgl.Mat4 {
 	scaleMat := mgl.Scale3D(r.Scale[0], r.Scale[1], r.Scale[2])
 	transMat := mgl.Translate3D(r.Location[0], r.Location[1], r.Location[2])
@@ -220,14 +326,13 @@ func (r *Renderable) GetTransformMat4() mgl.Mat4 {
 	return parentTransform.Mul4(modelTransform)
 }
 
-// AddChild sets the Renderable to be a child of the parent renderable.
+// AddChild sets the Renderable passed in as a child of the renderable.
 func (r *Renderable) AddChild(child *Renderable) {
 	r.Children = append(r.Children, child)
 	child.Parent = r
 }
 
-// GetBoundingRect returns a bounding Rectangle3D for all of the vertices
-// passed in.
+// GetBoundingRect calculates a bounding Rectangle3D for all of the vertices pssed in.
 func GetBoundingRect(verts []float32) (r Rectangle3D) {
 	var minx, miny, minz float32 = math.MaxFloat32, math.MaxFloat32, math.MaxFloat32
 	var maxx, maxy, maxz float32 = math.MaxFloat32 * -1, math.MaxFloat32 * -1, math.MaxFloat32 * -1
@@ -264,6 +369,8 @@ func GetBoundingRect(verts []float32) (r Rectangle3D) {
 	return r
 }
 
+// CreateFromGombz creates a new Renderable based on model data from
+// a GOMBZ file. (http://www.github.com/tbogdala/gombz)
 func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
 	// calculate the memory size of floats used to calculate total memory size of float arrays
 	const floatSize = 4

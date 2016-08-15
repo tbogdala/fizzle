@@ -1,12 +1,14 @@
-// Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
 /*
 
 Fizzle is a library to make rendering graphics via OpenGL easier.
 
-*/
+At present, the best way to learn how to use the library is to
+look at the example applications in the 'examples' folder.
 
+*/
 package fizzle
 
 import (
@@ -19,7 +21,7 @@ import (
 var gfx graphics.GraphicsProvider
 
 // GetGraphics returns the currently initialized GraphicsProvider
-// if one has been indeed initizlied.
+// if one has been set using SetGraphics().
 func GetGraphics() graphics.GraphicsProvider {
 	return gfx
 }
@@ -30,12 +32,12 @@ func SetGraphics(g graphics.GraphicsProvider) {
 	gfx = g
 }
 
-// DegreesToRadians converts degrees to radians
+// DegreesToRadians converts degrees to radians.
 func DegreesToRadians(x float64) float64 {
 	return x * 0.017453292519943296
 }
 
-// RadiansToDegrees converts radians to degrees
+// RadiansToDegrees converts radians to degrees.
 func RadiansToDegrees(x float64) float64 {
 	return x * 57.2957795130823229
 }

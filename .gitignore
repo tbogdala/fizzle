@@ -1,6 +1,7 @@
-examples/cube
-examples/joystick
-examples/lights_forward
+examples/cube/cube
+examples/joystick/joystick
+examples/lightsforward/lightsforward
+examples/shaders/shaders
 examples/*.exe
 examples/*.dll
 *.exe

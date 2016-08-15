@@ -1,4 +1,4 @@
-// Copyright 2015, Timothy Bogdala <tdb@animal-machine.com>
+// Copyright 2016, Timothy Bogdala <tdb@animal-machine.com>
 // See the LICENSE file for more details.
 
 package fizzle
@@ -19,7 +19,7 @@ import (
 type TextureArrayIndexes map[string]int32
 
 // TextureArray encapsulates the map of texture indexes within a texture array and
-// the texture array itself.
+// the texture array OpenGL object itself.
 type TextureArray struct {
 	// TextureIndexes is a map between the texture name to an index in the texture array object.
 	TextureIndexes TextureArrayIndexes
@@ -37,8 +37,8 @@ func NewTextureArray(texsize int32, count int32) *TextureArray {
 	ta.Texture = gfx.GenTexture()
 	gfx.BindTexture(graphics.TEXTURE_2D_ARRAY, ta.Texture)
 
-	// I thought this could be used for mipmap generation, but it causes crashes on some
-	// Intel drivers.
+	// NOTE: I thought this could be used for mipmap generation, but it causes crashes on some
+	// Intel drivers so it's left at 1.
 	const levels int32 = 1
 
 	// create the texture array with the specified number of levels that's big enough
@@ -94,7 +94,8 @@ func LoadRGBAToTexture(rgba []byte, imageSize int32) graphics.Texture {
 	return LoadRGBAToTextureExt(rgba, imageSize, graphics.LINEAR, graphics.LINEAR, graphics.REPEAT, graphics.REPEAT)
 }
 
-// LoadRGBAToTextureExt takes a byte slice and throws it into an OpenGL texture.
+// LoadRGBAToTextureExt takes a byte slice and throws it into an OpenGL texture and takes
+// a set of flags to set texture parameters for filtering and texture wrapping.
 func LoadRGBAToTextureExt(rgba []byte, imageSize, magFilter, minFilter, wrapS, wrapT int32) graphics.Texture {
 	tex := gfx.GenTexture()
 	gfx.ActiveTexture(graphics.TEXTURE0)
@@ -112,7 +113,8 @@ func LoadRGBToTexture(rgb []byte, imageSize int32) graphics.Texture {
 	return LoadRGBToTextureExt(rgb, imageSize, graphics.LINEAR, graphics.LINEAR, graphics.REPEAT, graphics.REPEAT)
 }
 
-// LoadRGBToTextureExt takes a byte slice and throws it into an OpenGL texture.
+// LoadRGBToTextureExt takes a byte slice and throws it into an OpenGL texture and takes
+// a set of flags to set texture parameters for filtering and texture wrapping.
 func LoadRGBToTextureExt(rgb []byte, imageSize, magFilter, minFilter, wrapS, wrapT int32) graphics.Texture {
 	tex := gfx.GenTexture()
 	gfx.ActiveTexture(graphics.TEXTURE0)
@@ -148,7 +150,7 @@ func LoadImageToTexture(filePath string) (graphics.Texture, error) {
 }
 
 // LoadPNGToTexture loads a byte slice as a PNG image and buffers it into
-// a new GL texture.
+// a new OpenGL texture.
 func LoadPNGToTexture(data []byte) (graphics.Texture, error) {
 	tex := gfx.GenTexture()
 	gfx.ActiveTexture(graphics.TEXTURE0)
