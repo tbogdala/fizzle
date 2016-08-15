@@ -84,7 +84,7 @@ type ParticleSpawner interface {
 type Emitter struct {
 	Owner      *System
 	Particles  []Particle
-	Billboard  graphics.Texture
+	Texture    graphics.Texture
 	Shader     graphics.Program
 	Properties EmitterProperties
 	Spawner    ParticleSpawner
@@ -99,17 +99,17 @@ type Emitter struct {
 // EmitterProperties describes the behavior of an Emitter object and is it's own
 // type to facilitate sharing of parameter defaults and serialization.
 type EmitterProperties struct {
-	BillboardFilepath string
-	MaxParticles      uint
-	SpawnRate         uint     // particles per second
-	Velocity          mgl.Vec3 // should be normalized
-	Speed             float32
-	Acceleration      mgl.Vec3
-	TTL               float64  // in seconds
-	Origin            mgl.Vec3 // relative to Emitter.Owner.Origin
-	Rotation          mgl.Quat
-	Color             mgl.Vec4
-	Size              float32
+	TextureFilepath string
+	MaxParticles    uint
+	SpawnRate       uint     // particles per second
+	Velocity        mgl.Vec3 // should be normalized
+	Speed           float32
+	Acceleration    mgl.Vec3
+	TTL             float64  // in seconds
+	Origin          mgl.Vec3 // relative to Emitter.Owner.Origin
+	Rotation        mgl.Quat
+	Color           mgl.Vec4
+	Size            float32
 }
 
 // Particle is an individual particle in an Emitter.
@@ -196,13 +196,13 @@ func (e *Emitter) GetLocation() mgl.Vec3 {
 	return e.Owner.Origin.Add(e.Properties.Origin)
 }
 
-// LoadBillboard will load the Properties.BillboardFilepath and create
+// LoadTexture will load the Properties.TextureFilepath and create
 // an OpenGL texture with it.
-func (e *Emitter) LoadBillboard() error {
+func (e *Emitter) LoadTexture() error {
 	var err error
-	e.Billboard, err = fizzle.LoadImageToTexture(e.Properties.BillboardFilepath)
+	e.Texture, err = fizzle.LoadImageToTexture(e.Properties.TextureFilepath)
 	if err != nil {
-		return fmt.Errorf("Failed to load the billboard texture: %s. %v", e.Properties.BillboardFilepath, err)
+		return fmt.Errorf("Failed to load the particle emitter texture: %s. %v", e.Properties.TextureFilepath, err)
 	}
 
 	return nil
@@ -311,7 +311,7 @@ func (e *Emitter) Draw(projection mgl.Mat4, view mgl.Mat4) {
 	shaderTex0 := gfx.GetUniformLocation(e.Shader, "TEX")
 	if shaderTex0 >= 0 {
 		gfx.ActiveTexture(graphics.TEXTURE0)
-		gfx.BindTexture(graphics.TEXTURE_2D, e.Billboard)
+		gfx.BindTexture(graphics.TEXTURE_2D, e.Texture)
 		gfx.Uniform1i(shaderTex0, 0)
 	}
 

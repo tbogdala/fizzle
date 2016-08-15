@@ -23,13 +23,13 @@ import (
 )
 
 var (
-	windowWidth       = 1280
-	windowHeight      = 720
-	mainWindow        *glfw.Window
-	uiman             *gui.Manager
-	renderer          *forward.ForwardRenderer
-	billboardFilepath = "../../examples/assets/textures/explosion00.png"
-	colorShader       = "../../examples/assets/forwardshaders/color"
+	windowWidth     = 1280
+	windowHeight    = 720
+	mainWindow      *glfw.Window
+	uiman           *gui.Manager
+	renderer        *forward.ForwardRenderer
+	textureFilepath = "../../examples/assets/textures/explosion00.png"
+	colorShader     = "../../examples/assets/forwardshaders/color"
 )
 
 const (
@@ -179,7 +179,7 @@ func main() {
 	// create a particle system
 	particleSystem := particles.NewSystem(gfx)
 	emitter := particleSystem.NewEmitter(nil)
-	emitter.Properties.BillboardFilepath = billboardFilepath
+	emitter.Properties.TextureFilepath = textureFilepath
 	emitter.Properties.MaxParticles = 300
 	emitter.Properties.SpawnRate = 40
 	emitter.Properties.Size = 32.0
@@ -189,8 +189,8 @@ func main() {
 	emitter.Properties.TTL = 3.0
 	emitter.Shader = particleShader.Prog
 
-	// load the billboard
-	err = emitter.LoadBillboard()
+	// load the texture
+	err = emitter.LoadTexture()
 	if err != nil {
 		panic(err.Error())
 	}
@@ -265,12 +265,12 @@ func main() {
 
 		wnd.Separator()
 		wnd.RequestItemWidthMin(textWidth)
-		loadBillboardPressed, _ := wnd.Button("LoadBillboard", "Load Billboard")
-		wnd.Editbox("billboardedit", &props.BillboardFilepath)
+		loadBillboardPressed, _ := wnd.Button("LoadTexture", "Load Texture")
+		wnd.Editbox("textureedit", &props.TextureFilepath)
 		if loadBillboardPressed {
-			err := emitter.LoadBillboard()
+			err := emitter.LoadTexture()
 			if err != nil {
-				fmt.Printf("Failed to load new billobard: %v\n", err)
+				fmt.Printf("Failed to load new texture: %v\n", err)
 			}
 		}
 
