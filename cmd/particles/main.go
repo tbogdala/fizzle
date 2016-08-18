@@ -238,10 +238,13 @@ func main() {
 		wnd.Space(0.05)
 		wnd.Checkbox("isEmitting", &emitter.Owner.IsEmitting)
 		wnd.Text("Is Emitting")
+
 		// setup the controls to switch between spawnwers
 		wnd.Separator()
-		prevPressed, _ := wnd.Button("prevSpawner", " < ")
-		nextPressed, _ := wnd.Button("nextSpawner", " > ")
+		wnd.RequestItemWidthMin(0.1)
+		prevPressed, _ := wnd.Button("prevSpawner", "<")
+		wnd.RequestItemWidthMin(0.1)
+		nextPressed, _ := wnd.Button("nextSpawner", ">")
 		ki := getSpawnerIndex(emitter.Spawner)
 		if prevPressed {
 			if ki > 0 {
