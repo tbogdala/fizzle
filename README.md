@@ -1,8 +1,9 @@
-FIZZLE
-======
+FIZZLE v0.1.0
+=============
 
 Fizzle is an OpenGL rendering engine written in the [Go][golang] programming language
-that currently has a deferred rendering pipeline.
+that currently has a forward rendering pipeline and a prototype deferred renderer
+as well.
 
 In some regards, it is the spiritual successor to my first 3d engine, [PortableGLUE][pg].
 
@@ -11,7 +12,9 @@ UNDER CONSTRUCTION
 ==================
 
 The engine is currently in an alpha state, but you are welcome to see how
-it's progressing.
+it's progressing.  Any API break should increment the minor version number and
+any patch release tags should remain compatible even in development 0.x versions.
+
 
 Requirements
 ------------
@@ -21,6 +24,7 @@ Requirements
 * [Freetype][ftgo] - for dynamic font texture generation
 * [Groggy][groggy] - for flexible logging
 * [Gombz][gombz] - provides a serializable data structure for 3d models and animations
+* [EweyGewey][ewey] - (optional) some examples use OpenGL GUI library in the lines of imgui
 
 Additionally, a backend graphics provider needs to be used. At present, fizzle
 supports the following:
@@ -68,9 +72,7 @@ Current Features
 * forward rendering engine with limited dynamic lighting
 * limited dynamic shadow support
 * able to define components using JSON files
-* support for freetype compatible fonts
 * skeletal animations
-* the basics of as UI system (Note: currently very primitive)
 * basic camera support
 
 
@@ -101,4 +103,5 @@ Fizzle is released under the BSD license. See the [LICENSE][license-link] file f
 [opengles2]: https://github.com/remogatto/opengles2
 [mgl]: https://github.com/go-gl/mathgl
 [ftgo]: https://github.com/golang/freetype
+[ewey]: https://github.com/tbogdala/eweygewey
 [license-link]: https://raw.githubusercontent.com/tbogdala/fizzle/master/LICENSE
