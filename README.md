@@ -68,12 +68,13 @@ accessible to Go tools.
 Current Features
 ----------------
 
-* deferred rendering engine
 * forward rendering engine with limited dynamic lighting
 * limited dynamic shadow support
 * able to define components using JSON files
 * skeletal animations
 * basic camera support
+* basic particle editor (cmd/particles)
+* basic shader explorer (examples/shaders)
 
 
 TODO
