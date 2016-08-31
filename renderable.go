@@ -220,7 +220,7 @@ func NewRenderableCore() *RenderableCore {
 	rc := new(RenderableCore)
 	rc.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	rc.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	rc.Shininess = 0.01
+	rc.Shininess = 1.00
 	rc.Vao = gfx.GenVertexArray()
 	return rc
 }

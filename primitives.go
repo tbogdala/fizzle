@@ -329,8 +329,12 @@ func CreateWireframeCube(xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable
 	return r
 }
 
-// CreateLine makes a line between a two points
-// rendered as graphics.LINES.
+// CreateLine makes a line between a two points rendered as graphics.LINES.
+func CreateLineV(a, b mgl.Vec3) *Renderable {
+	return CreateLine(a[0], a[1], a[2], b[0], b[1], b[2])
+}
+
+// CreateLine makes a line between a two points rendered as graphics.LINES.
 func CreateLine(x0, y0, z0, x1, y1, z1 float32) *Renderable {
 	// calculate the memory size of floats used to calculate total memory size of float arrays
 	const floatSize = 4
