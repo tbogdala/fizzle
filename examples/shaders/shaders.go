@@ -200,7 +200,7 @@ func main() {
 				fmt.Printf("Failed to load the diffuse texture: %s.\n%v", flagDiffuseFilepath, err)
 			} else {
 				r := getCurrentRenderable()
-				r.Core.Tex0 = glTexID
+				r.Core.Tex[0] = glTexID
 			}
 		}
 
@@ -214,7 +214,7 @@ func main() {
 				fmt.Printf("Failed to load the normal texture: %s.\n%v", flagNormalmapFilepath, err)
 			} else {
 				r := getCurrentRenderable()
-				r.Core.Tex1 = glTexID
+				r.Core.Tex[1] = glTexID
 			}
 		}
 

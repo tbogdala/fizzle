@@ -16,16 +16,15 @@ import (
 // needed to draw it.
 type ComponentMesh struct {
 	// The material describes visual attirbutes of the component.
-	Material *ComponentMaterial
+	Material ComponentMaterial
+
+	// SrcFile is a filepath, relative to the component file,
+	// for the source binary of the model to load.
+	SrcFile string
 
 	// BinFile is a filepath should be relative to component file
-	// for the binary of the model to load.
+	// for the Gombz binary of the model to load.
 	BinFile string
-
-	// Textures specifies the texture files to load for mesh, relative
-	// to the component file. They will be found to RenderableCore
-	// Tex* properties in order defined.
-	Textures []string
 
 	// Offset is the location offset of the mesh in the component
 	// specified in local coordinates.
@@ -35,10 +34,20 @@ type ComponentMesh struct {
 	Scale mgl.Vec3
 
 	// Parent is the owning Component object, if any.
-	Parent *Component
+	Parent *Component `json:"-"`
 
 	// SrcMesh is the cached mesh data either from BinFile.
-	SrcMesh *gombz.Mesh
+	SrcMesh *gombz.Mesh `json:"-"`
+}
+
+// NewComponentMesh creates a new ComponentMesh object with sane defaults.
+func NewComponentMesh() *ComponentMesh {
+	cm := new(ComponentMesh)
+	cm.Scale = mgl.Vec3{1,1,1}
+	cm.Material.Diffuse = mgl.Vec4{1,1,1,1}
+	cm.Material.Specular = mgl.Vec4{1,1,1,1}
+	cm.Material.GenerateMipmaps = true
+	return cm
 }
 
 // ComponentChildRef defines a reference to another component JSON file
@@ -65,6 +74,11 @@ type ComponentMaterial struct {
 
 	// GenerateMipmaps indicates if mipmaps should be generated for the textures getting loaded.
 	GenerateMipmaps bool
+
+	// Textures specifies the texture files to load for mesh, relative
+	// to the component file. They will be found to RenderableCore
+	// Tex* properties in order defined.
+	Textures []string
 }
 
 const (
@@ -190,7 +204,7 @@ func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]
 	// comnponents only create new render nodes for the meshs defined and
 	// not for referenced components
 	for _, compMesh := range c.Meshes {
-		cmRenderable := createRenderableForMesh(tm, shaders, compMesh)
+		cmRenderable := CreateRenderableForMesh(tm, shaders, compMesh)
 		group.AddChild(cmRenderable)
 
 		// cache it for later
@@ -208,7 +222,7 @@ func (cm *ComponentMesh) GetFullBinFilePath() string {
 // GetFullTexturePath returns the full file path for the mesh texture. The textureIndex
 // is an index into ComponentMesh.Textures to pull the texture name to build the path for.
 func (cm *ComponentMesh) GetFullTexturePath(textureIndex int) string {
-	return cm.Parent.componentDirPath + cm.Textures[textureIndex]
+	return cm.Parent.componentDirPath + cm.Material.Textures[textureIndex]
 }
 
 // GetVertices returns the vector slice containing the vertices for the mesh from
@@ -220,9 +234,9 @@ func (cm *ComponentMesh) GetVertices() ([]mgl.Vec3, error) {
 	return cm.SrcMesh.Vertices, nil
 }
 
-// createRenderableForMesh does the work of creating the Renderable and putting all of
+// CreateRenderableForMesh does the work of creating the Renderable and putting all of
 // the mesh data into VBOs.
-func createRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader, compMesh *ComponentMesh) *fizzle.Renderable {
+func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader, compMesh *ComponentMesh) *fizzle.Renderable {
 	// create the new renderable
 	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
 
@@ -233,35 +247,24 @@ func createRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizz
 
 	// assign the textures
 	var okay bool
-	textureCount := len(compMesh.Textures)
-	if textureCount > 0 {
-		r.Core.Tex0, okay = tm.GetTexture(compMesh.Textures[0])
+	textureCount := len(compMesh.Material.Textures)
+	for i:=0; i<textureCount; i++ {
+		r.Core.Tex[i], okay = tm.GetTexture(compMesh.Material.Textures[i])
 		if !okay {
-			groggy.Log("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Textures[0])
+			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.Textures[i])
 		}
 		if compMesh.Material.GenerateMipmaps {
-			fizzle.GenerateMipmaps(r.Core.Tex0)
-		}
-	}
-	if textureCount > 1 {
-		r.Core.Tex1, okay = tm.GetTexture(compMesh.Textures[1])
-		if !okay {
-			groggy.Log("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Textures[1])
-		}
-		if compMesh.Material.GenerateMipmaps {
-			fizzle.GenerateMipmaps(r.Core.Tex1)
+			fizzle.GenerateMipmaps(r.Core.Tex[i])
 		}
 	}
 
 	// assign material properties if specified
-	if compMesh.Material != nil {
-		r.Core.DiffuseColor = compMesh.Material.Diffuse
-		r.Core.SpecularColor = compMesh.Material.Specular
-		r.Core.Shininess = compMesh.Material.Shininess
-		loadedShader, okay := shaders[compMesh.Material.ShaderName]
-		if okay {
-			r.Core.Shader = loadedShader
-		}
+	r.Core.DiffuseColor = compMesh.Material.Diffuse
+	r.Core.SpecularColor = compMesh.Material.Specular
+	r.Core.Shininess = compMesh.Material.Shininess
+	loadedShader, okay := shaders[compMesh.Material.ShaderName]
+	if okay {
+		r.Core.Shader = loadedShader
 	}
 
 	return r

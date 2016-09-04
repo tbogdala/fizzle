@@ -13,10 +13,23 @@ instances of concrete implementations of Renderer.
 package renderer
 
 import (
+	"fmt"
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 )
+
+var (
+	shaderTexUniformNames [fizzle.MaxRenderableTextures]string
+	shaderTexValidUniformNames [fizzle.MaxRenderableTextures]string
+)
+
+func init() {
+	for i:=0; i<fizzle.MaxRenderableTextures; i++ {
+		shaderTexUniformNames[i] = fmt.Sprintf("MATERIAL_TEX_%d", i)
+		shaderTexValidUniformNames[i] = fmt.Sprintf("MATERIAL_TEX_%d_VALID", i)
+	}
+}
 
 // Renderer is the common interface between the built-in deferred or forward
 // style renderers.
@@ -106,36 +119,21 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 		gfx.Uniform1f(shaderShiny, r.Core.Shininess)
 	}
 
-	shaderTex0 := shader.GetUniformLocation("MATERIAL_TEX_0")
-	if shaderTex0 >= 0 {
-		gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
-		gfx.BindTexture(graphics.TEXTURE_2D, r.Core.Tex0)
-		gfx.Uniform1i(shaderTex0, texturesBound)
-		texturesBound++
+	for texI:=0; texI<fizzle.MaxRenderableTextures; texI++ {
+		shaderTex := shader.GetUniformLocation(shaderTexUniformNames[texI])
+		if shaderTex >= 0 {
+			gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
+			gfx.BindTexture(graphics.TEXTURE_2D, r.Core.Tex[texI])
+			gfx.Uniform1i(shaderTex, texturesBound)
+			texturesBound++
 
-		shaderTex0Valid := shader.GetUniformLocation("MATERIAL_TEX_0_VALID")
-		if shaderTex0Valid >= 0 {
-			if r.Core.Tex0 > 0 {
-				gfx.Uniform1f(shaderTex0Valid, 1.0)
-			} else {
-				gfx.Uniform1f(shaderTex0Valid, 0.0)
-			}
-		}
-	}
-
-	shaderTex1 := shader.GetUniformLocation("MATERIAL_TEX_1")
-	if shaderTex1 >= 0 {
-		gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
-		gfx.BindTexture(graphics.TEXTURE_2D, r.Core.Tex1)
-		gfx.Uniform1i(shaderTex1, texturesBound)
-		texturesBound++
-
-		shaderTex1Valid := shader.GetUniformLocation("MATERIAL_TEX_1_VALID")
-		if shaderTex1Valid >= 0 {
-			if r.Core.Tex1 > 0 {
-				gfx.Uniform1f(shaderTex1Valid, 1.0)
-			} else {
-				gfx.Uniform1f(shaderTex1Valid, 0.0)
+			shaderTexValid := shader.GetUniformLocation(shaderTexValidUniformNames[texI])
+			if shaderTexValid >= 0 {
+				if r.Core.Tex[texI] > 0 {
+					gfx.Uniform1f(shaderTexValid, 1.0)
+				} else {
+					gfx.Uniform1f(shaderTexValid, 0.0)
+				}
 			}
 		}
 	}

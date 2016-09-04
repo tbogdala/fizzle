@@ -156,12 +156,12 @@ func (cm *ComponentManager) LoadComponentFromBytes(jsonBytes []byte, storageName
 
 	// load the associated textures
 	for meshIndex, compMesh := range component.Meshes {
-		for i := range compMesh.Textures {
-			_, err = cm.textureManager.LoadTexture(compMesh.Textures[i], compMesh.GetFullTexturePath(i))
+		for i := range compMesh.Material.Textures {
+			_, err = cm.textureManager.LoadTexture(compMesh.Material.Textures[i], compMesh.GetFullTexturePath(i))
 			if err != nil {
-				groggy.Logsf("ERROR", "Mesh #%d failed to load texture: %s", meshIndex, compMesh.Textures[i])
+				groggy.Logsf("ERROR", "Mesh #%d failed to load texture: %s", meshIndex, compMesh.Material.Textures[i])
 			} else {
-				groggy.Logsf("DEBUG", "Mesh #%d loaded texture: %s", meshIndex, compMesh.Textures[i])
+				groggy.Logsf("DEBUG", "Mesh #%d loaded texture: %s", meshIndex, compMesh.Material.Textures[i])
 			}
 		}
 	}

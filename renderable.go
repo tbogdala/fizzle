@@ -11,6 +11,12 @@ import (
 	"github.com/tbogdala/gombz"
 )
 
+const (
+	// MaxRenderableTextures is the maximum number of textures that can get assigned
+	// to a renderable.
+	MaxRenderableTextures = 8
+)
+
 // RenderableCore contains data that is needed to draw an object on the screen.
 // Further, data here can be shared between multiple Renderable instances.
 type RenderableCore struct {
@@ -21,13 +27,8 @@ type RenderableCore struct {
 	// Skeleton is the animatable skeleton object for the renderable.
 	Skeleton *Skeleton
 
-	// Tex0 is the first texture for the renderable and is mapped to
-	// the diffuse texture by convention.
-	Tex0 graphics.Texture
-
-	// Tex1 is the first texture for the renderable and is mapped to
-	// the diffuse normalmap by convention.
-	Tex1 graphics.Texture
+	// Tex is the array of textures for the renderable.
+	Tex [MaxRenderableTextures]graphics.Texture
 
 	// DiffuseColor is the material color for the renderable. This is
 	// displayed outright by the shader or often blended with the

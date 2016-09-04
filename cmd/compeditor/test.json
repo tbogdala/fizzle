@@ -1,0 +1,47 @@
+{
+    "Name": "BoxSkelly",
+    "Location": [
+        0,
+        0,
+        0
+    ],
+    "Meshes": [
+        {
+            "Material": {
+                "ShaderName": "Basic",
+                "Diffuse": [
+                    1,
+                    0.11363703,
+                    0.71590936,
+                    1
+                ],
+                "Specular": [
+                    1,
+                    1,
+                    1,
+                    1
+                ],
+                "Shininess": 0,
+                "GenerateMipmaps": true,
+                "Textures": [
+                    "BoxSkelly_1024_D.png"
+                ]
+            },
+            "SrcFile": "BoxSkelly.obj",
+            "BinFile": "BoxSkelly.gombz",
+            "Offset": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1,
+                1,
+                1
+            ]
+        }
+    ],
+    "ChildReferences": null,
+    "Collisions": null,
+    "Properties": null
+}
