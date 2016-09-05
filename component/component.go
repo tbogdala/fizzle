@@ -33,6 +33,14 @@ type ComponentMesh struct {
 	// Scale is the scaling vector for the mesh in the component.
 	Scale mgl.Vec3
 
+	// RotationAxis is the axis by which to rotate the mesh around; this
+	// is only valid if RotationDegrees is non-zero.
+	RotationAxis mgl.Vec3
+
+	// RotationDegrees is the amount of rotation to apply to this mesh along
+	// the axis specified by RotationAxis.
+	RotationDegrees float32
+
 	// Parent is the owning Component object, if any.
 	Parent *Component `json:"-"`
 
@@ -43,9 +51,9 @@ type ComponentMesh struct {
 // NewComponentMesh creates a new ComponentMesh object with sane defaults.
 func NewComponentMesh() *ComponentMesh {
 	cm := new(ComponentMesh)
-	cm.Scale = mgl.Vec3{1,1,1}
-	cm.Material.Diffuse = mgl.Vec4{1,1,1,1}
-	cm.Material.Specular = mgl.Vec4{1,1,1,1}
+	cm.Scale = mgl.Vec3{1, 1, 1}
+	cm.Material.Diffuse = mgl.Vec4{1, 1, 1, 1}
+	cm.Material.Specular = mgl.Vec4{1, 1, 1, 1}
 	cm.Material.GenerateMipmaps = true
 	return cm
 }
@@ -245,10 +253,15 @@ func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizz
 		r.Scale = compMesh.Scale
 	}
 
+	// Create a quaternion if rotation parameters are set
+	if compMesh.RotationDegrees != 0.0 {
+		r.Rotation = mgl.QuatRotate(mgl.DegToRad(compMesh.RotationDegrees), compMesh.RotationAxis)
+	}
+
 	// assign the textures
 	var okay bool
 	textureCount := len(compMesh.Material.Textures)
-	for i:=0; i<textureCount; i++ {
+	for i := 0; i < textureCount; i++ {
 		r.Core.Tex[i], okay = tm.GetTexture(compMesh.Material.Textures[i])
 		if !okay {
 			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.Textures[i])

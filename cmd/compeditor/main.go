@@ -9,15 +9,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 	assimp "github.com/tbogdala/assimp-go"
-	gombz "github.com/tbogdala/gombz"
 	gui "github.com/tbogdala/eweygewey"
 	guiinput "github.com/tbogdala/eweygewey/glfwinput"
+	gombz "github.com/tbogdala/gombz"
 
 	fizzle "github.com/tbogdala/fizzle"
 	component "github.com/tbogdala/fizzle/component"
@@ -33,7 +34,7 @@ var (
 	camera              *fizzle.OrbitCamera
 	uiman               *gui.Manager
 	renderer            *forward.ForwardRenderer
-	textureMan *fizzle.TextureManager
+	textureMan          *fizzle.TextureManager
 	basicShader         *fizzle.RenderShader
 	basicShaderFilepath = "../../examples/assets/forwardshaders/basic"
 
@@ -56,7 +57,7 @@ var (
 
 type componentRenderable struct {
 	ComponentMesh *component.ComponentMesh
-	Renderable *fizzle.Renderable
+	Renderable    *fizzle.Renderable
 }
 
 // GLFW event handling must run on the main OS thread. If this doesn't get
@@ -71,11 +72,17 @@ func init() {
 }
 
 func makeRenderableForMesh(compMesh *component.ComponentMesh) *fizzle.Renderable {
+	prefixDir := ""
+	if len(flagComponentFile) > 0 {
+		prefixDir, _ = filepath.Split(flagComponentFile)
+	}
+
 	// attempt to load the mesh from the source file if one is specified
 	if compMesh.SrcFile != "" {
-		srcMeshes, parseErr := assimp.ParseFile(compMesh.SrcFile)
+		meshFilepath := prefixDir + compMesh.SrcFile
+		srcMeshes, parseErr := assimp.ParseFile(meshFilepath)
 		if parseErr != nil {
-			fmt.Printf("Failed to load source mesh %s: %v\n", compMesh.SrcFile, parseErr)
+			fmt.Printf("Failed to load source mesh %s: %v\n", meshFilepath, parseErr)
 		} else {
 			if len(srcMeshes) > 0 {
 				compMesh.SrcMesh = srcMeshes[0]
@@ -83,13 +90,14 @@ func makeRenderableForMesh(compMesh *component.ComponentMesh) *fizzle.Renderable
 			}
 		}
 	} else if compMesh.BinFile != "" {
-		gombzBytes, err := ioutil.ReadFile(compMesh.BinFile)
+		gombzFilepath := prefixDir + compMesh.BinFile
+		gombzBytes, err := ioutil.ReadFile(gombzFilepath)
 		if err != nil {
-			fmt.Printf("Failed to load Gombz bytes from %s: %v\n", compMesh.BinFile, err)
+			fmt.Printf("Failed to load Gombz bytes from %s: %v\n", gombzFilepath, err)
 		} else {
 			compMesh.SrcMesh, err = gombz.DecodeMesh(gombzBytes)
 			if err != nil {
-				fmt.Printf("Failed to decode Gombz mesh from %s: %v\n", compMesh.BinFile, err)
+				fmt.Printf("Failed to decode Gombz mesh from %s: %v\n", gombzFilepath, err)
 			} else {
 				fmt.Printf("Loaded gombz mesh: %s\n", compMesh.SrcFile)
 			}
@@ -105,10 +113,16 @@ func makeRenderableForMesh(compMesh *component.ComponentMesh) *fizzle.Renderable
 	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
 	r.Core.Shader = basicShader
 
+	// Create a quaternion if rotation parameters are set
+	if compMesh.RotationDegrees != 0.0 {
+		r.Rotation = mgl.QuatRotate(mgl.DegToRad(compMesh.RotationDegrees), compMesh.RotationAxis)
+	}
+
 	// store the new renderable with the component mesh it belongs to
 	compRenderable.ComponentMesh = compMesh
 	compRenderable.Renderable = r
 	visibleMeshes[compMesh.SrcFile] = compRenderable
+
 	return r
 }
 
@@ -136,11 +150,17 @@ func createMeshWindow(newCompMesh *component.ComponentMesh, screenX, screenY flo
 			if err != nil {
 				fmt.Printf("Error while serializing Gombz mesh: %v\n", err)
 			} else {
-				err = ioutil.WriteFile(newCompMesh.BinFile, gombzBytes, 0744)
+				prefixDir := ""
+				if len(flagComponentFile) > 0 {
+					prefixDir, _ = filepath.Split(flagComponentFile)
+				}
+
+				gombzFilepath := prefixDir + newCompMesh.BinFile
+				err = ioutil.WriteFile(gombzFilepath, gombzBytes, 0744)
 				if err != nil {
-					 fmt.Printf("Error while writing Gombz file: %v\n", err)
+					fmt.Printf("Error while writing Gombz file: %v\n", err)
 				} else {
-					fmt.Printf("Wrote Gombz file: %s\n", newCompMesh.BinFile)
+					fmt.Printf("Wrote Gombz file: %s\n", gombzFilepath)
 				}
 			}
 		}
@@ -164,6 +184,21 @@ func createMeshWindow(newCompMesh *component.ComponentMesh, screenX, screenY flo
 		wnd.DragSliderFloat("MeshScaleY", 0.1, &newCompMesh.Scale[1])
 		wnd.RequestItemWidthMax(width3Col)
 		wnd.DragSliderFloat("MeshScaleZ", 0.1, &newCompMesh.Scale[2])
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Rotation Axis")
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("MeshRotationAxisX", 0.1, &newCompMesh.RotationAxis[0])
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("MeshRotationAxisY", 0.1, &newCompMesh.RotationAxis[1])
+		wnd.RequestItemWidthMax(width3Col)
+		wnd.DragSliderFloat("MeshRotationAxisZ", 0.1, &newCompMesh.RotationAxis[2])
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Rotation Degrees")
+		wnd.DragSliderFloat("MeshRotationDegrees", 0.1, &newCompMesh.RotationDegrees)
 
 		// ------------------------------------------------
 		// material settings
@@ -215,8 +250,14 @@ func createMeshWindow(newCompMesh *component.ComponentMesh, screenX, screenY flo
 				textureToDelete = i
 			}
 			if loadTexture {
+				prefixDir := ""
+				if len(flagComponentFile) > 0 {
+					prefixDir, _ = filepath.Split(flagComponentFile)
+				}
+
 				texFile := newCompMesh.Material.Textures[i]
-				_, err := textureMan.LoadTexture(texFile, texFile)
+				texFilepath := prefixDir + texFile
+				_, err := textureMan.LoadTexture(texFile, texFilepath)
 				if err != nil {
 					fmt.Printf("Failed to load texture %s: %v\n", texFile, err)
 				} else {
@@ -227,7 +268,9 @@ func createMeshWindow(newCompMesh *component.ComponentMesh, screenX, screenY flo
 
 		// did we try to delete a texture
 		if textureToDelete != -1 {
-			newCompMesh.Material.Textures = append(newCompMesh.Material.Textures[:textureToDelete], newCompMesh.Material.Textures[textureToDelete+1:]...)
+			newCompMesh.Material.Textures = append(
+				newCompMesh.Material.Textures[:textureToDelete],
+				newCompMesh.Material.Textures[textureToDelete+1:]...)
 		}
 
 		wnd.StartRow()
@@ -391,12 +434,17 @@ func main() {
 			compRenderable.Renderable.Location = compRenderable.ComponentMesh.Offset
 			compRenderable.Renderable.Scale = compRenderable.ComponentMesh.Scale
 			compRenderable.Renderable.Core.DiffuseColor = compRenderable.ComponentMesh.Material.Diffuse
+			if compRenderable.ComponentMesh.RotationDegrees != 0.0 {
+				compRenderable.Renderable.Rotation = mgl.QuatRotate(
+					mgl.DegToRad(compRenderable.ComponentMesh.RotationDegrees),
+					compRenderable.ComponentMesh.RotationAxis)
+			}
 			compRenderable.Renderable.Core.SpecularColor = compRenderable.ComponentMesh.Material.Specular
 			compRenderable.Renderable.Core.Shininess = compRenderable.ComponentMesh.Material.Shininess
 
 			// assign textures
 			textures := compRenderable.ComponentMesh.Material.Textures
-			for i:=0; i<len(textures); i++ {
+			for i := 0; i < len(textures); i++ {
 				glTex, texFound := textureMan.GetTexture(textures[i])
 				if texFound {
 					compRenderable.Renderable.Core.Tex[i] = glTex
