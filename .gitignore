@@ -4,7 +4,16 @@ examples/lightsforward/lightsforward
 examples/shaders/shaders
 examples/*.exe
 examples/*.dll
+
 *.exe
 *.dll
 *.swp
+
 cmd/particles/particles
+cmd/particles/particles.exe
+
+cmd/compeditor/compeditor
+cmd/compeditor/compeditor.exe
+
+.floo
+.flooignore

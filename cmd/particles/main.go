@@ -162,7 +162,7 @@ func main() {
 	renderer.ChangeResolution(particleWindowSize, particleWindowSize)
 	defer renderer.Destroy()
 
-	// load the diffuse shader
+	// load the particle shader
 	particleShader, err := fizzle.LoadShaderProgram(particles.VertShader330, particles.FragShader330, nil)
 	if err != nil {
 		panic("Failed to compile and link the particle shader program! " + err.Error())

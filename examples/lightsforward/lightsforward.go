@@ -124,8 +124,8 @@ func main() {
 	floorPlane.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
 	floorPlane.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
 	floorPlane.Core.Shininess = 3.0
-	floorPlane.Core.Tex0 = diffuseTex
-	floorPlane.Core.Tex1 = normalsTex
+	floorPlane.Core.Tex[0] = diffuseTex
+	floorPlane.Core.Tex[1] = normalsTex
 	floorPlane.Core.Shader = basicShader
 
 	// create the test cube to rotate
@@ -134,8 +134,8 @@ func main() {
 	testCube.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
 	testCube.Location = mgl.Vec3{-2.5, 1.0, 0.0}
 	testCube.Core.Shininess = 6.0
-	testCube.Core.Tex0 = diffuseTex
-	testCube.Core.Tex1 = normalsTex
+	testCube.Core.Tex[0] = diffuseTex
+	testCube.Core.Tex[1] = normalsTex
 	testCube.Core.Shader = basicShader
 
 	// enable shadow mapping in the renderer
@@ -234,7 +234,7 @@ func renderShadowMapUITex(r *fizzle.Renderable, shadow graphics.Texture) {
 	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_COMPARE_MODE, graphics.NONE)
 	gfx.BindTexture(graphics.TEXTURE_2D, 0)
 
-	r.Core.Tex0 = shadow
+	r.Core.Tex[0] = shadow
 	width, height := renderer.GetResolution()
 	ortho := mgl.Ortho(0, float32(width), 0, float32(height), -10, 10)
 	view := mgl.Ident4()
