@@ -36,17 +36,23 @@ var (
 	renderer            *forward.ForwardRenderer
 	textureMan          *fizzle.TextureManager
 	basicShader         *fizzle.RenderShader
-	basicShaderFilepath = "../../examples/assets/forwardshaders/basic"
+	basicShaderFilepath = "../../examples/assets/forwardshaders/basicSkinned"
 
 	clearColor = gui.ColorIToV(32, 32, 32, 32)
 
 	visibleMeshes map[string]*componentRenderable
+	theComponent  component.Component
+
+	appStartTime time.Time
+	totalTime    float64
 )
 
 const (
 	fontScale    = 14
 	fontFilepath = "../../examples/assets/Oswald-Heavy.ttf"
 	fontGlyphs   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890., :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
+
+	compMeshWindowTitle = "ComponentMesh"
 )
 
 // block of flags set on the command line
@@ -55,9 +61,12 @@ var (
 	flagComponentFile string
 )
 
+// componentRenderable is used to tie together state for the component mesh,
+// the renderable for this component mesh and any other state information relating.
 type componentRenderable struct {
-	ComponentMesh *component.ComponentMesh
-	Renderable    *fizzle.Renderable
+	ComponentMesh     *component.ComponentMesh
+	Renderable        *fizzle.Renderable
+	AnimationsEnabled []bool
 }
 
 // GLFW event handling must run on the main OS thread. If this doesn't get
@@ -69,6 +78,17 @@ func init() {
 	runtime.LockOSThread()
 	flag.IntVar(&flagDesktopNumber, "desktop", -1, "the index of the desktop to create the main window on")
 	flag.StringVar(&flagComponentFile, "cf", "component.json", "the name of the component file to load and save")
+}
+
+// getCompRenderableByName will return a *componentRenderable for a given
+// ComponentMesh name from visibleMeshes
+func getCompRenderableByName(compMeshName string) *componentRenderable {
+	for _, cr := range visibleMeshes {
+		if cr.ComponentMesh.Name == compMeshName {
+			return cr
+		}
+	}
+	return nil
 }
 
 func makeRenderableForMesh(compMesh *component.ComponentMesh) *fizzle.Renderable {
@@ -121,17 +141,53 @@ func makeRenderableForMesh(compMesh *component.ComponentMesh) *fizzle.Renderable
 	// store the new renderable with the component mesh it belongs to
 	compRenderable.ComponentMesh = compMesh
 	compRenderable.Renderable = r
-	visibleMeshes[compMesh.SrcFile] = compRenderable
+
+	// setup the animation enable flag slice
+	compRenderable.AnimationsEnabled = []bool{}
+	for i := 0; i < len(compMesh.SrcMesh.Animations); i++ {
+		compRenderable.AnimationsEnabled = append(compRenderable.AnimationsEnabled, false)
+	}
+
+	visibleMeshes[compMesh.Name] = compRenderable
 
 	return r
 }
 
 func createMeshWindow(newCompMesh *component.ComponentMesh, screenX, screenY float32) {
 	// FIXME: find a better spot to spawn potentially
-	meshWnd := uiman.NewWindow("Component Mesh", screenX, screenY, 0.35, 0.25, func(wnd *gui.Window) {
+	meshWnd := uiman.NewWindow(compMeshWindowTitle, screenX, screenY, 0.35, 0.5, func(wnd *gui.Window) {
 		const textWidth = 0.2
 		const width3Col = 0.8 / 3.0
 		const width4Col = 0.2
+
+		compRenderable := getCompRenderableByName(newCompMesh.Name)
+		if newCompMesh.SrcMesh != nil && compRenderable != nil && len(newCompMesh.SrcMesh.Animations) > 0 {
+			ani := newCompMesh.SrcMesh.Animations[0]
+			wnd.RequestItemWidthMin(textWidth)
+			wnd.Text("Animation: ")
+			wnd.Text(ani.Name)
+
+			wnd.StartRow()
+			wnd.Text(fmt.Sprintf("Duration: %v", ani.Duration))
+			wnd.StartRow()
+			wnd.Text(fmt.Sprintf("Ticks Per Second: %v", ani.TicksPerSecond))
+
+			wnd.StartRow()
+			wnd.Checkbox("RunAnimations", &compRenderable.AnimationsEnabled[0])
+			wnd.Text("Run Animation")
+			if compRenderable.AnimationsEnabled[0] {
+				aniTime := float32(math.Mod(totalTime*float64(ani.TicksPerSecond), float64(ani.Duration)))
+				compRenderable.Renderable.Core.Skeleton.Animate(&ani, aniTime)
+			}
+
+			wnd.Separator()
+		}
+
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Name")
+		wnd.Editbox("meshNameEditbox", &newCompMesh.Name)
+
+		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Source")
 		loadSource, _ := wnd.Button("meshLoadSrcButton", "L")
@@ -189,11 +245,11 @@ func createMeshWindow(newCompMesh *component.ComponentMesh, screenX, screenY flo
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Rotation Axis")
 		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshRotationAxisX", 0.1, &newCompMesh.RotationAxis[0])
+		wnd.DragSliderFloat("MeshRotationAxisX", 0.01, &newCompMesh.RotationAxis[0])
 		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshRotationAxisY", 0.1, &newCompMesh.RotationAxis[1])
+		wnd.DragSliderFloat("MeshRotationAxisY", 0.01, &newCompMesh.RotationAxis[1])
 		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshRotationAxisZ", 0.1, &newCompMesh.RotationAxis[2])
+		wnd.DragSliderFloat("MeshRotationAxisZ", 0.01, &newCompMesh.RotationAxis[2])
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
@@ -287,7 +343,40 @@ func createMeshWindow(newCompMesh *component.ComponentMesh, screenX, screenY flo
 		wnd.Text("Generate Mipmaps")
 	})
 	meshWnd.Title = "Mesh Properties"
-	meshWnd.AutoAdjustHeight = true
+	meshWnd.AutoAdjustHeight = false
+	meshWnd.IsScrollable = true
+	meshWnd.ShowScrollBar = true
+}
+
+func doLoadComponentFile(filepath string) {
+	existingCompJSON, err := ioutil.ReadFile(filepath)
+	if err == nil {
+		err := json.Unmarshal(existingCompJSON, &theComponent)
+		if err != nil {
+			fmt.Printf("Failed to load component %s: %v\n", filepath, err)
+		} else {
+			fmt.Printf("Loaded component: %s\n", filepath)
+
+			// destroy all existing renderables
+			for _, r := range visibleMeshes {
+				r.Renderable.Destroy()
+				r.Renderable = nil
+			}
+			visibleMeshes = make(map[string]*componentRenderable)
+
+			// open windows for all existing meshes
+			screenX := float32(0.64)
+			screenY := float32(0.70)
+			for _, compMesh := range theComponent.Meshes {
+				createMeshWindow(compMesh, screenX, screenY)
+				if compMesh.SrcFile != "" {
+					makeRenderableForMesh(compMesh)
+				}
+				screenX += 0.05
+				screenY -= 0.05
+			}
+		}
+	}
 }
 
 func main() {
@@ -339,35 +428,14 @@ func main() {
 
 	/////////////////////////////////////////////////////////////////////////////
 	// setup the component and user interface
-	var theComponent component.Component
 	visibleMeshes = make(map[string]*componentRenderable)
 
 	// if the component file passed in as a flag exists, try to load it
-	existingCompJSON, err := ioutil.ReadFile(flagComponentFile)
-	if err == nil {
-		err := json.Unmarshal(existingCompJSON, &theComponent)
-		if err != nil {
-			fmt.Printf("Failed to load component: %v\n", err)
-		} else {
-			fmt.Printf("Loaded component: %s\n", flagComponentFile)
-
-			// open windows for all existing meshes
-			screenX := float32(0.64)
-			screenY := float32(0.70)
-			for _, compMesh := range theComponent.Meshes {
-				createMeshWindow(compMesh, screenX, screenY)
-				if compMesh.SrcFile != "" {
-					makeRenderableForMesh(compMesh)
-				}
-				screenX += 0.05
-				screenY -= 0.05
-			}
-		}
-	}
+	doLoadComponentFile(flagComponentFile)
 
 	// create a window for operating on the component file
 	componentWindow := uiman.NewWindow("Component", 0.74, 0.99, 0.25, 0.25, func(wnd *gui.Window) {
-		wnd.Button("componentFileLoadButton", "Load")
+		loadComponent, _ := wnd.Button("componentFileLoadButton", "Load")
 		saveComponent, _ := wnd.Button("componentFileSaveButton", "Save")
 		wnd.Editbox("componentFileEditbox", &flagComponentFile)
 		if saveComponent {
@@ -382,6 +450,21 @@ func main() {
 			} else {
 				fmt.Printf("Failed to serialize component to JSON: %v\n", jsonErr)
 			}
+		} else if loadComponent {
+			// remove all existing mesh windows
+			meshWindows := uiman.GetWindowsByFilter(func(w *gui.Window) bool {
+				if w.ID == compMeshWindowTitle {
+					return true
+				}
+				return false
+			})
+
+			for _, meshWnd := range meshWindows {
+				uiman.RemoveWindow(meshWnd)
+			}
+
+			// load the component file again and create mesh windows / renderables
+			doLoadComponentFile(flagComponentFile)
 		}
 
 		wnd.Separator()
@@ -392,6 +475,7 @@ func main() {
 		addMesh, _ := wnd.Button("componentFileAddMeshButton", "+Mesh")
 		if addMesh {
 			newCompMesh := component.NewComponentMesh()
+			newCompMesh.Name = fmt.Sprintf("Mesh %d", len(theComponent.Meshes)+1)
 			theComponent.Meshes = append(theComponent.Meshes, newCompMesh)
 			createMeshWindow(newCompMesh, 0.64, 0.70)
 		}
@@ -411,9 +495,11 @@ func main() {
 	gfx.BlendFunc(graphics.SRC_ALPHA, graphics.ONE_MINUS_SRC_ALPHA)
 
 	lastFrame := time.Now()
+	appStartTime := time.Now()
 	for !mainWindow.ShouldClose() {
 		// calculate the difference in time to control rotation speed
 		thisFrame := time.Now()
+		totalTime = thisFrame.Sub(appStartTime).Seconds()
 		frameDelta := thisFrame.Sub(lastFrame).Seconds()
 
 		// check for input

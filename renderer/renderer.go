@@ -20,12 +20,12 @@ import (
 )
 
 var (
-	shaderTexUniformNames [fizzle.MaxRenderableTextures]string
+	shaderTexUniformNames      [fizzle.MaxRenderableTextures]string
 	shaderTexValidUniformNames [fizzle.MaxRenderableTextures]string
 )
 
 func init() {
-	for i:=0; i<fizzle.MaxRenderableTextures; i++ {
+	for i := 0; i < fizzle.MaxRenderableTextures; i++ {
 		shaderTexUniformNames[i] = fmt.Sprintf("MATERIAL_TEX_%d", i)
 		shaderTexValidUniformNames[i] = fmt.Sprintf("MATERIAL_TEX_%d_VALID", i)
 	}
@@ -119,7 +119,7 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 		gfx.Uniform1f(shaderShiny, r.Core.Shininess)
 	}
 
-	for texI:=0; texI<fizzle.MaxRenderableTextures; texI++ {
+	for texI := 0; texI < fizzle.MaxRenderableTextures; texI++ {
 		shaderTex := shader.GetUniformLocation(shaderTexUniformNames[texI])
 		if shaderTex >= 0 {
 			gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
@@ -179,18 +179,20 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 		gfx.VertexAttribPointer(uint32(shaderTangent), 3, graphics.FLOAT, false, r.Core.VBOStride, gfx.PtrOffset(r.Core.TangentsVBOOffset))
 	}
 
-	shaderBoneFids := shader.GetAttribLocation("VERTEX_BONE_IDS")
-	if shaderBoneFids >= 0 {
-		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.BoneFidsVBO)
-		gfx.EnableVertexAttribArray(uint32(shaderBoneFids))
-		gfx.VertexAttribPointer(uint32(shaderBoneFids), 4, graphics.FLOAT, false, r.Core.VBOStride, gfx.PtrOffset(r.Core.BoneFidsVBOOffset))
-	}
+	if r.Core.Skeleton != nil {
+		shaderBoneFids := shader.GetAttribLocation("VERTEX_BONE_IDS")
+		if shaderBoneFids >= 0 {
+			gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.BoneFidsVBO)
+			gfx.EnableVertexAttribArray(uint32(shaderBoneFids))
+			gfx.VertexAttribPointer(uint32(shaderBoneFids), 4, graphics.FLOAT, false, r.Core.VBOStride, gfx.PtrOffset(r.Core.BoneFidsVBOOffset))
+		}
 
-	shaderBoneWeights := shader.GetAttribLocation("VERTEX_BONE_WEIGHTS")
-	if shaderBoneWeights >= 0 {
-		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
-		gfx.EnableVertexAttribArray(uint32(shaderBoneWeights))
-		gfx.VertexAttribPointer(uint32(shaderBoneWeights), 4, graphics.FLOAT, false, r.Core.VBOStride, gfx.PtrOffset(r.Core.BoneWeightsVBOOffset))
+		shaderBoneWeights := shader.GetAttribLocation("VERTEX_BONE_WEIGHTS")
+		if shaderBoneWeights >= 0 {
+			gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.BoneWeightsVBO)
+			gfx.EnableVertexAttribArray(uint32(shaderBoneWeights))
+			gfx.VertexAttribPointer(uint32(shaderBoneWeights), 4, graphics.FLOAT, false, r.Core.VBOStride, gfx.PtrOffset(r.Core.BoneWeightsVBOOffset))
+		}
 	}
 
 	// if a custom binder function was passed in then call it

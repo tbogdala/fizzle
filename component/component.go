@@ -15,6 +15,9 @@ import (
 // ComponentMesh defines a mesh reference for a component and everything
 // needed to draw it.
 type ComponentMesh struct {
+	// Name is the user identifier for the mesh in the component.
+	Name string
+
 	// The material describes visual attirbutes of the component.
 	Material ComponentMaterial
 
