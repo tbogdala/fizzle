@@ -1,4 +1,4 @@
-FIZZLE v0.1.0
+FIZZLE v0.2.0
 =============
 
 Fizzle is an OpenGL rendering engine written in the [Go][golang] programming language
@@ -24,7 +24,7 @@ Requirements
 * [Freetype][ftgo] - for dynamic font texture generation
 * [Groggy][groggy] - for flexible logging
 * [Gombz][gombz] - provides a serializable data structure for 3d models and animations
-* [EweyGewey][ewey] - (optional) some examples use OpenGL GUI library in the lines of imgui
+* [EweyGewey][ewey] (v0.2.0) some examples and editors use this GUI library
 
 Additionally, a backend graphics provider needs to be used. At present, fizzle
 supports the following:
