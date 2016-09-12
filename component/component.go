@@ -12,14 +12,14 @@ import (
 	"github.com/tbogdala/groggy"
 )
 
-// ComponentMesh defines a mesh reference for a component and everything
+// Mesh defines a mesh reference for a component and everything
 // needed to draw it.
-type ComponentMesh struct {
+type Mesh struct {
 	// Name is the user identifier for the mesh in the component.
 	Name string
 
 	// The material describes visual attirbutes of the component.
-	Material ComponentMaterial
+	Material Material
 
 	// SrcFile is a filepath, relative to the component file,
 	// for the source binary of the model to load.
@@ -51,9 +51,9 @@ type ComponentMesh struct {
 	SrcMesh *gombz.Mesh `json:"-"`
 }
 
-// NewComponentMesh creates a new ComponentMesh object with sane defaults.
-func NewComponentMesh() *ComponentMesh {
-	cm := new(ComponentMesh)
+// NewMesh creates a new Mesh object with sane defaults.
+func NewMesh() *Mesh {
+	cm := new(Mesh)
 	cm.Scale = mgl.Vec3{1, 1, 1}
 	cm.Material.Diffuse = mgl.Vec4{1, 1, 1, 1}
 	cm.Material.Specular = mgl.Vec4{1, 1, 1, 1}
@@ -61,15 +61,30 @@ func NewComponentMesh() *ComponentMesh {
 	return cm
 }
 
-// ComponentChildRef defines a reference to another component JSON file
+// ChildRef defines a reference to another component JSON file
 // so that Components can be built from other Component parts.
-type ComponentChildRef struct {
-	File     string
+type ChildRef struct {
+	// File is the component file to load as a child object and the location should
+	// be relative to the main component's file path.
+	File string
+
+	// Location is the location of the child object in the component.
 	Location mgl.Vec3
+
+	// RotationAxis is the axis by which to rotate the child component around; this
+	// is only valid if RotationDegrees is non-zero.
+	RotationAxis mgl.Vec3
+
+	// RotationDegrees is the amount of rotation to apply to this child component along
+	// the axis specified by RotationAxis.
+	RotationDegrees float32
+
+	// Scale is the scaling vector for the child component in the component.
+	Scale mgl.Vec3
 }
 
-// ComponentMaterial defines the visual appearance of the component.
-type ComponentMaterial struct {
+// Material defines the visual appearance of the component.
+type Material struct {
 	// ShaderName is the name of the shader program to use for rendering.
 	ShaderName string
 
@@ -98,6 +113,9 @@ const (
 
 	// ColliderTypeSphere is for sphere colliders.
 	ColliderTypeSphere = 1
+
+	// ColliderTypeCount is the number of collider types supported.
+	ColliderTypeCount = 2
 )
 
 // CollisionRef specifies a collision object within the component
@@ -105,7 +123,7 @@ const (
 // structure for different collider properties.
 type CollisionRef struct {
 	// Type is the type of collider from the enum above (e.g. ColliderTypeAABB, etc...).
-	Type uint8
+	Type int8
 
 	// Min is the minimum point for AABB type colliders.
 	Min mgl.Vec3
@@ -135,11 +153,11 @@ type Component struct {
 	Location mgl.Vec3
 
 	// Meshes is a slice of the meshes that are parts of this component.
-	Meshes []*ComponentMesh
+	Meshes []*Mesh
 
 	// ChildReferences can be specified to include other components
 	// to be contained in this component.
-	ChildReferences []*ComponentChildRef
+	ChildReferences []*ChildRef
 
 	// Collision objects for the component; currently the fizzle library doesn't
 	// do anything specific with this and choice of collision library is left to
@@ -226,19 +244,19 @@ func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]
 }
 
 // GetFullBinFilePath returns the full file path for the mesh binary file (gombz format).
-func (cm *ComponentMesh) GetFullBinFilePath() string {
+func (cm *Mesh) GetFullBinFilePath() string {
 	return cm.Parent.componentDirPath + cm.BinFile
 }
 
 // GetFullTexturePath returns the full file path for the mesh texture. The textureIndex
-// is an index into ComponentMesh.Textures to pull the texture name to build the path for.
-func (cm *ComponentMesh) GetFullTexturePath(textureIndex int) string {
+// is an index into Mesh.Textures to pull the texture name to build the path for.
+func (cm *Mesh) GetFullTexturePath(textureIndex int) string {
 	return cm.Parent.componentDirPath + cm.Material.Textures[textureIndex]
 }
 
 // GetVertices returns the vector slice containing the vertices for the mesh from
 // the cached source gombz structure.
-func (cm *ComponentMesh) GetVertices() ([]mgl.Vec3, error) {
+func (cm *Mesh) GetVertices() ([]mgl.Vec3, error) {
 	if cm.SrcMesh == nil {
 		return nil, fmt.Errorf("No internal data present for component mesh to get vertices from.")
 	}
@@ -247,7 +265,7 @@ func (cm *ComponentMesh) GetVertices() ([]mgl.Vec3, error) {
 
 // CreateRenderableForMesh does the work of creating the Renderable and putting all of
 // the mesh data into VBOs.
-func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader, compMesh *ComponentMesh) *fizzle.Renderable {
+func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader, compMesh *Mesh) *fizzle.Renderable {
 	// create the new renderable
 	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
 
@@ -258,7 +276,7 @@ func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizz
 
 	// Create a quaternion if rotation parameters are set
 	if compMesh.RotationDegrees != 0.0 {
-		r.Rotation = mgl.QuatRotate(mgl.DegToRad(compMesh.RotationDegrees), compMesh.RotationAxis)
+		r.LocalRotation = mgl.QuatRotate(mgl.DegToRad(compMesh.RotationDegrees), compMesh.RotationAxis)
 	}
 
 	// assign the textures

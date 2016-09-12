@@ -11,6 +11,7 @@ uniform mat4 MV_MATRIX;
 uniform vec3 CAMERA_WORLD_POSITION;
 uniform mat4 SHADOW_MATRIX[MAX_LIGHTS];
 uniform mat4 BONES[MAX_BONES];
+uniform float HAS_BONES;
 in vec3 VERTEX_POSITION;
 in vec3 VERTEX_NORMAL;
 in vec3 VERTEX_TANGENT;
@@ -57,7 +58,7 @@ skinnedData calculateSkinnedData() {
 void main()
 {
 	skinnedData skinned;
-	if (VERTEX_BONE_IDS[0] != 0.0 || VERTEX_BONE_IDS[0] != 0.0 || VERTEX_BONE_IDS[0] != 0.0 || VERTEX_BONE_IDS[0] != 0.0) {
+	if (HAS_BONES > 0.0) {
 		skinned = calculateSkinnedData();
 	} else {
 		skinned.position = vec4(VERTEX_POSITION, 1.0);

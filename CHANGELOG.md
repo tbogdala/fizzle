@@ -1,7 +1,21 @@
+Changes since v0.2.0
+====================
+
+* APIBREAK: Many `fizzle/component` changes, including API breaks.
+
+* NEW: 'HAS_BONES' uniform float in shaders now identifies whether or not
+  a skeleton is present in the renderable.
+
+* BUG: Fixed skeletal animation in basicSkinned shader for bone id 0 not
+  being transformed.
+
+* BUG: Many fixes to `cmd/compeditor` and broader support for features
+  found in `fizzle/component`.
+
 Changes since v0.1.0
 ====================
 
-* APIBREAK: Many `fizzle/component` changes, including API breaks
+* APIBREAK: Many `fizzle/component` changes, including API breaks.
 * APIBREAK: Renderable.Core.Tex0 and Tex1 have been replaced with
   Renderable.Core.Tex which is a slice of texture OpenGL objects.
   The maximum number of textures is set with `MaxRenderableTextures`.

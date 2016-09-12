@@ -3,7 +3,7 @@
 
 /*
 
-The Component package consists of a ComponentManager type that can
+Package component consists of a Manager type that can
 load component files defined in JSON so that application assets
 can be defined outside of the binary.
 
@@ -25,10 +25,10 @@ import (
 	"github.com/tbogdala/groggy"
 )
 
-// ComponentManager loads and manages access to Component objects.
+// Manager loads and manages access to Component objects.
 // Component files are defined in JSON notation which is a serialized
 // version of Component.
-type ComponentManager struct {
+type Manager struct {
 	// storage is the main collection of Component objects indexed
 	// by a user-specified name.
 	storage map[string]*Component
@@ -46,10 +46,10 @@ type ComponentManager struct {
 	loadedShaders map[string]*fizzle.RenderShader
 }
 
-// NewComponentManager creates a new ComponentManager object using the
+// NewManager creates a new Manager object using the
 // the texture manager and shader collection specified.
-func NewComponentManager(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader) *ComponentManager {
-	cm := new(ComponentManager)
+func NewManager(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader) *Manager {
+	cm := new(Manager)
 	cm.storage = make(map[string]*Component)
 	cm.textureManager = tm
 	cm.loadedShaders = shaders
@@ -58,7 +58,7 @@ func NewComponentManager(tm *fizzle.TextureManager, shaders map[string]*fizzle.R
 
 // Destroy will destroy all of the contained Component objects and
 // reset the component storage map.
-func (cm *ComponentManager) Destroy() {
+func (cm *Manager) Destroy() {
 	for _, c := range cm.storage {
 		c.Destroy()
 	}
@@ -67,14 +67,14 @@ func (cm *ComponentManager) Destroy() {
 
 // AddComponent adds a new component to the collection. If one existed previous using
 // the same name, then it is overwritten.
-func (cm *ComponentManager) AddComponent(name string, component *Component) {
+func (cm *Manager) AddComponent(name string, component *Component) {
 	cm.storage[name] = component
 }
 
 // GetComponent returns a component from storage that matches the name specified.
 // A bool is returned as the second value to indicate whether or not the component
 // was found in storage.
-func (cm *ComponentManager) GetComponent(name string) (*Component, bool) {
+func (cm *Manager) GetComponent(name string) (*Component, bool) {
 	crComponent, okay := cm.storage[name]
 	return crComponent, okay
 }
@@ -82,7 +82,7 @@ func (cm *ComponentManager) GetComponent(name string) (*Component, bool) {
 // GetRenderableInstance gets the renderable from the component and clones it to
 // a new instance. It then loops over all child references and calls GetRenderableInstance
 // for all of them, creating new clones for each, recursively.
-func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.Renderable {
+func (cm *Manager) GetRenderableInstance(component *Component) *fizzle.Renderable {
 	compRenderable := component.GetRenderable(cm.textureManager, cm.loadedShaders)
 	r := compRenderable.Clone()
 
@@ -113,7 +113,7 @@ func (cm *ComponentManager) GetRenderableInstance(component *Component) *fizzle.
 // LoadComponentFromFile loads a component from a JSON file and stores it under
 // the name speicified. This function returns the new component and a possible
 // error value.
-func (cm *ComponentManager) LoadComponentFromFile(filename string, storageName string) (*Component, error) {
+func (cm *Manager) LoadComponentFromFile(filename string, storageName string) (*Component, error) {
 	// split the directory path to the component file
 	componentDirPath, _ := filepath.Split(filename)
 
@@ -135,7 +135,7 @@ func (cm *ComponentManager) LoadComponentFromFile(filename string, storageName s
 // under the name specified. componentDirPath can be set to aid the finding of
 // parts of the component to load. This function returns the new component and
 // a possible error value.
-func (cm *ComponentManager) LoadComponentFromBytes(jsonBytes []byte, storageName string, componentDirPath string) (*Component, error) {
+func (cm *Manager) LoadComponentFromBytes(jsonBytes []byte, storageName string, componentDirPath string) (*Component, error) {
 	// attempt to decode the json
 	component := new(Component)
 	err := json.Unmarshal(jsonBytes, component)
@@ -188,7 +188,7 @@ func (cm *ComponentManager) LoadComponentFromBytes(jsonBytes []byte, storageName
 	return component, nil
 }
 
-func loadMeshForComponent(component *Component, compMesh *ComponentMesh) error {
+func loadMeshForComponent(component *Component, compMesh *Mesh) error {
 	// setup a pointer back to the parent
 	compMesh.Parent = component
 

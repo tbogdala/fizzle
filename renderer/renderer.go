@@ -138,6 +138,15 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 		}
 	}
 
+	shaderHasBones := shader.GetUniformLocation("HAS_BONES")
+	if shaderHasBones >= 0 {
+		if r.Core.Skeleton != nil && len(r.Core.Skeleton.Bones) > 0 {
+			gfx.Uniform1f(shaderHasBones, 1.0)
+		} else {
+			gfx.Uniform1f(shaderHasBones, 0.0)
+
+		}
+	}
 	shaderBones := shader.GetUniformLocation("BONES")
 	if shaderBones >= 0 && r.Core.Skeleton != nil && len(r.Core.Skeleton.Bones) > 0 {
 		gfx.UniformMatrix4fv(shaderBones, int32(len(r.Core.Skeleton.Bones)), false, r.Core.Skeleton.PoseTransforms)
