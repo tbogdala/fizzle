@@ -37,11 +37,8 @@ var (
 	uiman                      *gui.Manager
 	renderer                   *forward.ForwardRenderer
 	textureMan                 *fizzle.TextureManager
-	colorShader                *fizzle.RenderShader
 	colorShaderFilepath        = "../../examples/assets/forwardshaders/color"
-	basicShader                *fizzle.RenderShader
 	basicShaderFilepath        = "../../examples/assets/forwardshaders/basic"
-	basicSkinnedShader         *fizzle.RenderShader
 	basicSkinnedShaderFilepath = "../../examples/assets/forwardshaders/basicSkinned"
 
 	clearColor = gui.ColorIToV(32, 32, 32, 32)
@@ -113,6 +110,28 @@ func init() {
 	flag.StringVar(&flagComponentFile, "cf", "component.json", "the name of the component file to load and save")
 }
 
+// guiAddDragSliderVec3 adds drag slider floats for a Vec3.
+func guiAddDragSliderVec3(wnd *gui.Window, widthS float32, idPrefix string, index int, speed float32, v *mgl.Vec3) {
+	wnd.RequestItemWidthMax(widthS)
+	wnd.DragSliderFloat(fmt.Sprintf("%s%d_0", idPrefix, index), speed, &v[0])
+	wnd.RequestItemWidthMax(widthS)
+	wnd.DragSliderFloat(fmt.Sprintf("%s%d_1", idPrefix, index), speed, &v[1])
+	wnd.RequestItemWidthMax(widthS)
+	wnd.DragSliderFloat(fmt.Sprintf("%s%d_2", idPrefix, index), speed, &v[2])
+}
+
+// guiAddSliderVec4 adds slider floats for a Vec4.
+func guiAddSliderVec4(wnd *gui.Window, widthS float32, idPrefix string, index int, v *mgl.Vec4, min, max float32) {
+	wnd.RequestItemWidthMax(widthS)
+	wnd.SliderFloat(fmt.Sprintf("%s%d_0", idPrefix, index), &v[0], min, max)
+	wnd.RequestItemWidthMax(widthS)
+	wnd.SliderFloat(fmt.Sprintf("%s%d_1", idPrefix, index), &v[1], min, max)
+	wnd.RequestItemWidthMax(widthS)
+	wnd.SliderFloat(fmt.Sprintf("%s%d_2", idPrefix, index), &v[2], min, max)
+	wnd.RequestItemWidthMax(widthS)
+	wnd.SliderFloat(fmt.Sprintf("%s%d_3", idPrefix, index), &v[3], min, max)
+}
+
 // getMeshRenderableByName will return a *meshRenderable for a given
 // ComponentMesh name from visibleMeshes
 func getMeshRenderableByName(compMeshName string) *meshRenderable {
@@ -125,10 +144,7 @@ func getMeshRenderableByName(compMeshName string) *meshRenderable {
 }
 
 func makeRenderableForMesh(compMesh *component.Mesh) *fizzle.Renderable {
-	prefixDir := ""
-	if len(flagComponentFile) > 0 {
-		prefixDir, _ = filepath.Split(flagComponentFile)
-	}
+	prefixDir := getComponentPrefix()
 
 	// attempt to load the mesh from the source file if one is specified
 	if compMesh.SrcFile != "" {
@@ -164,7 +180,7 @@ func makeRenderableForMesh(compMesh *component.Mesh) *fizzle.Renderable {
 
 	compRenderable := new(meshRenderable)
 	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
-	r.Core.Shader = basicSkinnedShader
+	r.Core.Shader = shaders["BasicSkinned"]
 	r.Location = compMesh.Offset
 	r.Scale = compMesh.Scale
 
@@ -186,6 +202,55 @@ func makeRenderableForMesh(compMesh *component.Mesh) *fizzle.Renderable {
 	visibleMeshes[compMesh.Name] = compRenderable
 
 	return r
+}
+
+// doSaveGombz saves a component Mesh out to a gombz file at the
+// location specified by BinFile.
+func doSaveGombz(compMesh *component.Mesh) error {
+	gombzBytes, err := compMesh.SrcMesh.Encode()
+	if err != nil {
+		return fmt.Errorf("Error while serializing Gombz mesh: %v", err)
+	}
+
+	prefixDir := getComponentPrefix()
+	gombzFilepath := prefixDir + compMesh.BinFile
+	err = ioutil.WriteFile(gombzFilepath, gombzBytes, 0744)
+	if err != nil {
+		return fmt.Errorf("Error while writing Gombz file: %v", err)
+	}
+
+	fmt.Printf("Wrote Gombz file: %s\n", gombzFilepath)
+	return nil
+}
+
+// doLoadTexture loads a relative filepath texture into the
+// texture manager.
+func doLoadTexture(texFile string) error {
+	prefixDir := getComponentPrefix()
+	texFilepath := prefixDir + texFile
+	_, err := textureMan.LoadTexture(texFile, texFilepath)
+	if err != nil {
+		return fmt.Errorf("Failed to load texture %s: %v", texFile, err)
+	}
+
+	fmt.Printf("Loaded texture: %s\n", texFile)
+	return nil
+}
+
+func doDeleteTexture(texIndex int, matTextures []string) []string {
+	if texIndex == 0 && len(matTextures) == 1 {
+		return []string{}
+	} else if texIndex == 0 {
+		return matTextures[1:]
+	} else if texIndex == len(matTextures)-1 {
+		return matTextures[:texIndex]
+	}
+	return append(matTextures[:texIndex], matTextures[texIndex+1:]...)
+}
+
+func doAnimation(animation *gombz.Animation, renderable *fizzle.Renderable, totalTime float64) {
+	aniTime := float32(math.Mod(totalTime*float64(animation.TicksPerSecond), float64(animation.Duration)))
+	renderable.Core.Skeleton.Animate(animation, aniTime)
 }
 
 func createMeshWindow(newCompMesh *component.Mesh, screenX, screenY float32) {
@@ -214,54 +279,23 @@ func createMeshWindow(newCompMesh *component.Mesh, screenX, screenY float32) {
 		saveGombz, _ := wnd.Button("meshSaveBinButton", "S")
 		wnd.Editbox("meshBinaryFileEditbox", &newCompMesh.BinFile)
 		if saveGombz && newCompMesh.SrcMesh != nil {
-			gombzBytes, err := newCompMesh.SrcMesh.Encode()
-			if err != nil {
-				fmt.Printf("Error while serializing Gombz mesh: %v\n", err)
-			} else {
-				prefixDir := ""
-				if len(flagComponentFile) > 0 {
-					prefixDir, _ = filepath.Split(flagComponentFile)
-				}
-
-				gombzFilepath := prefixDir + newCompMesh.BinFile
-				err = ioutil.WriteFile(gombzFilepath, gombzBytes, 0744)
-				if err != nil {
-					fmt.Printf("Error while writing Gombz file: %v\n", err)
-				} else {
-					fmt.Printf("Wrote Gombz file: %s\n", gombzFilepath)
-				}
-			}
+			doSaveGombz(newCompMesh)
 		}
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Offset")
-		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshOffsetX", 0.1, &newCompMesh.Offset[0])
-		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshOffsetY", 0.1, &newCompMesh.Offset[1])
-		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshOffsetZ", 0.1, &newCompMesh.Offset[2])
+		guiAddDragSliderVec3(wnd, width3Col, "MeshOffset", 0, 0.1, &newCompMesh.Offset)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Scale")
-		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshScaleX", 0.1, &newCompMesh.Scale[0])
-		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshScaleY", 0.1, &newCompMesh.Scale[1])
-		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshScaleZ", 0.1, &newCompMesh.Scale[2])
+		guiAddDragSliderVec3(wnd, width3Col, "MeshScale", 0, 0.1, &newCompMesh.Scale)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Rotation Axis")
-		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshRotationAxisX", 0.01, &newCompMesh.RotationAxis[0])
-		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshRotationAxisY", 0.01, &newCompMesh.RotationAxis[1])
-		wnd.RequestItemWidthMax(width3Col)
-		wnd.DragSliderFloat("MeshRotationAxisZ", 0.01, &newCompMesh.RotationAxis[2])
+		guiAddDragSliderVec3(wnd, width3Col, "MeshRotationAxis", 0, 0.01, &newCompMesh.RotationAxis)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
@@ -270,7 +304,6 @@ func createMeshWindow(newCompMesh *component.Mesh, screenX, screenY float32) {
 
 		// ------------------------------------------------
 		// material settings
-
 		wnd.Separator()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Shader")
@@ -279,26 +312,12 @@ func createMeshWindow(newCompMesh *component.Mesh, screenX, screenY float32) {
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Diffuse")
-		wnd.RequestItemWidthMax(width4Col)
-		wnd.SliderFloat("MaterialDiffuseR", &newCompMesh.Material.Diffuse[0], 0.0, 1.0)
-		wnd.RequestItemWidthMax(width4Col)
-		wnd.SliderFloat("MaterialDiffuseG", &newCompMesh.Material.Diffuse[1], 0.0, 1.0)
-		wnd.RequestItemWidthMax(width4Col)
-		wnd.SliderFloat("MaterialDiffuseB", &newCompMesh.Material.Diffuse[2], 0.0, 1.0)
-		wnd.RequestItemWidthMax(width4Col)
-		wnd.SliderFloat("MaterialDiffuseA", &newCompMesh.Material.Diffuse[3], 0.0, 1.0)
+		guiAddSliderVec4(wnd, width4Col, "MaterialDiffuse", 0, &newCompMesh.Material.Diffuse, 0.0, 1.0)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
 		wnd.Text("Specular")
-		wnd.RequestItemWidthMax(width4Col)
-		wnd.SliderFloat("MaterialSpecularR", &newCompMesh.Material.Specular[0], 0.0, 1.0)
-		wnd.RequestItemWidthMax(width4Col)
-		wnd.SliderFloat("MaterialSpecularG", &newCompMesh.Material.Specular[1], 0.0, 1.0)
-		wnd.RequestItemWidthMax(width4Col)
-		wnd.SliderFloat("MaterialSpecularB", &newCompMesh.Material.Specular[2], 0.0, 1.0)
-		wnd.RequestItemWidthMax(width4Col)
-		wnd.SliderFloat("MaterialSpecularA", &newCompMesh.Material.Specular[3], 0.0, 1.0)
+		guiAddSliderVec4(wnd, width4Col, "MaterialSpecular", 0, &newCompMesh.Material.Specular, 0.0, 1.0)
 
 		wnd.StartRow()
 		wnd.RequestItemWidthMin(textWidth)
@@ -318,27 +337,13 @@ func createMeshWindow(newCompMesh *component.Mesh, screenX, screenY float32) {
 				textureToDelete = i
 			}
 			if loadTexture {
-				prefixDir := ""
-				if len(flagComponentFile) > 0 {
-					prefixDir, _ = filepath.Split(flagComponentFile)
-				}
-
-				texFile := newCompMesh.Material.Textures[i]
-				texFilepath := prefixDir + texFile
-				_, err := textureMan.LoadTexture(texFile, texFilepath)
-				if err != nil {
-					fmt.Printf("Failed to load texture %s: %v\n", texFile, err)
-				} else {
-					fmt.Printf("Loaded texture: %s\n", texFile)
-				}
+				doLoadTexture(newCompMesh.Material.Textures[i])
 			}
 		}
 
 		// did we try to delete a texture
 		if textureToDelete != -1 {
-			newCompMesh.Material.Textures = append(
-				newCompMesh.Material.Textures[:textureToDelete],
-				newCompMesh.Material.Textures[textureToDelete+1:]...)
+			newCompMesh.Material.Textures = doDeleteTexture(textureToDelete, newCompMesh.Material.Textures)
 		}
 
 		wnd.StartRow()
@@ -368,8 +373,7 @@ func createMeshWindow(newCompMesh *component.Mesh, screenX, screenY float32) {
 				wnd.Checkbox(fmt.Sprintf("RunAnimations %d", aniIndex), &compRenderable.AnimationsEnabled[0])
 				wnd.Text(animation.Name)
 				if compRenderable.AnimationsEnabled[0] {
-					aniTime := float32(math.Mod(totalTime*float64(animation.TicksPerSecond), float64(animation.Duration)))
-					compRenderable.Renderable.Core.Skeleton.Animate(&animation, aniTime)
+					doAnimation(&animation, compRenderable.Renderable, totalTime)
 				}
 			}
 
@@ -380,6 +384,31 @@ func createMeshWindow(newCompMesh *component.Mesh, screenX, screenY float32) {
 	meshWnd.AutoAdjustHeight = false
 	meshWnd.IsScrollable = true
 	meshWnd.ShowScrollBar = true
+}
+
+// getComponentPrefix gets the prefix directory for the current component filename.
+func getComponentPrefix() string {
+	prefixDir := ""
+	if len(flagComponentFile) > 0 {
+		prefixDir, _ = filepath.Split(flagComponentFile)
+	}
+	return prefixDir
+}
+
+// loadAllReferenceTextures loads any referenced textures in the Mesh's material.
+func loadAllReferenceTextures(compMesh *component.Mesh) {
+	for _, texFile := range compMesh.Material.Textures {
+		prefixDir := getComponentPrefix()
+
+		texFilepath := prefixDir + texFile
+		_, err := textureMan.LoadTexture(texFile, texFilepath)
+		if err != nil {
+			fmt.Printf("Failed to load texture %s: %v\n", texFilepath, err)
+		} else {
+			fmt.Printf("Loaded texture: %s\n", texFile)
+		}
+	}
+
 }
 
 func doLoadComponentFile(componentFilepath string) {
@@ -407,31 +436,407 @@ func doLoadComponentFile(componentFilepath string) {
 			screenX := float32(meshWndX)
 			screenY := float32(meshWndY)
 			for _, compMesh := range theComponent.Meshes {
+				loadAllReferenceTextures(compMesh)
 				createMeshWindow(compMesh, screenX, screenY)
 				if compMesh.SrcFile != "" {
 					makeRenderableForMesh(compMesh)
 				}
 				screenX += 0.05
 				screenY -= 0.05
-
-				// load any referenced textures
-				for _, texFile := range compMesh.Material.Textures {
-					prefixDir := ""
-					if len(flagComponentFile) > 0 {
-						prefixDir, _ = filepath.Split(flagComponentFile)
-					}
-
-					texFilepath := prefixDir + texFile
-					_, err := textureMan.LoadTexture(texFile, texFilepath)
-					if err != nil {
-						fmt.Printf("Failed to load texture %s: %v\n", texFile, err)
-					} else {
-						fmt.Printf("Loaded texture: %s\n", texFile)
-					}
-				}
 			}
 		}
 	}
+}
+
+// doSaveComponent saves the component to a file.
+func doSaveComponent(comp *component.Component, filepath string) error {
+	compJSON, jsonErr := json.MarshalIndent(comp, "", "    ")
+	if jsonErr == nil {
+		fileErr := ioutil.WriteFile(filepath, compJSON, 0744)
+		if fileErr != nil {
+			return fmt.Errorf("Failed to write component: %v\n", fileErr)
+		}
+	} else {
+		return fmt.Errorf("Failed to serialize component to JSON: %v\n", jsonErr)
+	}
+
+	return nil
+}
+
+// doAddChildReference adds a new child component reference.
+func doAddChildReference(comp *component.Component) {
+	newChildRef := new(component.ChildRef)
+	newChildRef.Scale = mgl.Vec3{1, 1, 1}
+	comp.ChildReferences = append(comp.ChildReferences, newChildRef)
+}
+
+// doAddCollider ends up adding a collider (defaults to sphere).
+func doAddCollider(comp *component.Component) {
+	newCollider := new(component.CollisionRef)
+	newCollider.Type = component.ColliderTypeSphere
+	newCollider.Radius = 1.0
+	comp.Collisions = append(comp.Collisions, newCollider)
+}
+
+// doAddMesh adds a new mesh to the component.
+func doAddMesh() {
+	newCompMesh := component.NewMesh()
+	newCompMesh.Name = fmt.Sprintf("Mesh %d", len(theComponent.Meshes)+1)
+	theComponent.Meshes = append(theComponent.Meshes, newCompMesh)
+	createMeshWindow(newCompMesh, meshWndX, meshWndY)
+}
+
+// doShowMeshWindow will show a mesh property window for a given Mesh
+func doShowMeshWindow(compMesh *component.Mesh) {
+	meshWindow := uiman.GetWindow(fmt.Sprintf("%s%s", compMeshWindowID, compMesh.Name))
+	if meshWindow == nil {
+		createMeshWindow(compMesh, meshWndX, meshWndY)
+	}
+}
+
+// doHideMeshWindow will hide a mesh property window for a given Mesh
+func doHideMeshWindow(compMesh *component.Mesh) {
+	meshWindow := uiman.GetWindow(fmt.Sprintf("%s%s", compMeshWindowID, compMesh.Name))
+	if meshWindow != nil {
+		uiman.RemoveWindow(meshWindow)
+	}
+}
+
+// closeAllMeshWindows closes all of the windows with an ID that starts
+// with compMeshWindowID.
+func closeAllMeshWindows() {
+	// remove all existing mesh windows
+	meshWindows := uiman.GetWindowsByFilter(func(w *gui.Window) bool {
+		if strings.HasPrefix(w.ID, compMeshWindowID) {
+			return true
+		}
+		return false
+	})
+
+	for _, meshWnd := range meshWindows {
+		uiman.RemoveWindow(meshWnd)
+	}
+}
+
+func doPrevColliderType(collider *component.CollisionRef) {
+	collider.Type = collider.Type - 1
+	if collider.Type < 0 {
+		collider.Type = component.ColliderTypeCount - 1
+	}
+}
+
+func doNextColliderType(collider *component.CollisionRef) {
+	collider.Type = collider.Type + 1
+	if collider.Type >= component.ColliderTypeCount {
+		collider.Type = 0
+	}
+}
+
+// doUpdateVisibleCollider checks the visibleColliders slice at an index to see
+// if the collider's renderable needs to get created or updated.
+// returns a potentially new slice of []*colliderRenderable because a new
+// renderable may have been added.
+func doUpdateVisibleCollider(colliderRenderables []*colliderRenderable, collider *component.CollisionRef, colliderIndex int) []*colliderRenderable {
+	// is the collider index within the length of renderables we have? If so, update it.
+	if len(colliderRenderables) > colliderIndex {
+		visCollider := colliderRenderables[colliderIndex]
+
+		switch collider.Type {
+		case component.ColliderTypeAABB:
+			if !visCollider.Collider.Min.ApproxEqual(collider.Min) ||
+				!visCollider.Collider.Max.ApproxEqual(collider.Max) ||
+				visCollider.Collider.Type != collider.Type {
+				visCollider.Collider = *collider
+				visCollider.Renderable = fizzle.CreateWireframeCube(collider.Min[0], collider.Min[1], collider.Min[2],
+					collider.Max[0], collider.Max[1], collider.Max[2])
+			}
+		case component.ColliderTypeSphere:
+			if !visCollider.Collider.Offset.ApproxEqual(collider.Offset) ||
+				math.Abs(float64(visCollider.Collider.Radius-collider.Radius)) > 0.01 ||
+				visCollider.Collider.Type != collider.Type {
+				visCollider.Collider = *collider
+				visCollider.Renderable = fizzle.CreateWireframeCircle(
+					collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Y)
+				visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
+					collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.Y|fizzle.Z))
+				visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
+					collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Z))
+			}
+		}
+	} else {
+		// append a new visible collider
+		visCollider := new(colliderRenderable)
+		visCollider.Collider = *collider
+
+		switch collider.Type {
+		case component.ColliderTypeAABB:
+			visCollider.Renderable = fizzle.CreateWireframeCube(collider.Min[0], collider.Min[1], collider.Min[2],
+				collider.Max[0], collider.Max[1], collider.Max[2])
+		case component.ColliderTypeSphere:
+			visCollider.Renderable = fizzle.CreateWireframeCircle(
+				collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Y)
+			visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
+				collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.Y|fizzle.Z))
+			visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
+				collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Z))
+		}
+
+		colliderRenderables = append(colliderRenderables, visCollider)
+	}
+
+	return colliderRenderables
+}
+
+// doLoadChildComponent loads a component through the global component manager.
+// It returns a new slice of child components since a new one may be added if
+// there is no error.
+func doLoadChildComponent(childComps []*component.Component, childRef *component.ChildRef) ([]*component.Component, error) {
+	prefixDir := getComponentPrefix()
+	fullFilepath := prefixDir + childRef.File
+	newChildComponent, err := componentMan.LoadComponentFromFile(fullFilepath, childRef.File)
+	if err != nil {
+		return childComps, fmt.Errorf("Failed to load child component: %s\n%v\n", fullFilepath, err)
+	}
+
+	fmt.Printf("Loaded child component: %s\n", childRef.File)
+	childComps = append(childComps, newChildComponent)
+	childRefFilenames[childRef.File] = newChildComponent.Name
+	return childComps, nil
+}
+
+// removeStaleChildComponents remove any visible child components that no longer have a reference
+func removeStaleChildComponents(childComps []*component.Component, parentComp *component.Component, refFilenames map[string]string) []*component.Component {
+	childComponentsThatSurvive := childComponents[:0]
+	for _, ref := range parentComp.ChildReferences {
+		compNameToFind, okay := refFilenames[ref.File]
+		if !okay {
+			continue
+		}
+
+		for _, childCompToTest := range childComps {
+			if compNameToFind == childCompToTest.Name {
+				childComponentsThatSurvive = append(childComponentsThatSurvive, childCompToTest)
+				break
+			}
+		}
+	}
+	return childComponentsThatSurvive
+}
+
+// createComponentWindow creates the main component window GUI.
+func createComponentWindow(sX, sY, sW, sH float32) *gui.Window {
+	// create a window for operating on the component file
+	componentWindow := uiman.NewWindow("Component", sX, sY, sW, sH, func(wnd *gui.Window) {
+		loadComponent, _ := wnd.Button("componentFileLoadButton", "Load")
+		saveComponent, _ := wnd.Button("componentFileSaveButton", "Save")
+		wnd.Editbox("componentFileEditbox", &flagComponentFile)
+		if saveComponent {
+			err := doSaveComponent(&theComponent, flagComponentFile)
+			if err != nil {
+				fmt.Printf("Failed to save the component.\n%v\n", err)
+			} else {
+				fmt.Printf("Saved the component file: %s\n", flagComponentFile)
+			}
+		}
+
+		if loadComponent {
+			// remove all existing mesh windows
+			closeAllMeshWindows()
+			// load the component file again and create mesh windows / renderables
+			doLoadComponentFile(flagComponentFile)
+		}
+
+		wnd.Separator()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Name")
+		wnd.Editbox("componentNameEditbox", &theComponent.Name)
+
+		// do the user interface for mesh windows
+		wnd.Separator()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Meshes:")
+		addMesh, _ := wnd.Button("componentFileAddMeshButton", "Add Mesh")
+		if addMesh {
+			doAddMesh()
+		}
+
+		meshesThatSurvive := theComponent.Meshes[:0]
+		for compMeshIndex, compMesh := range theComponent.Meshes {
+			wnd.StartRow()
+			wnd.RequestItemWidthMin(textWidth)
+			wnd.Text(fmt.Sprintf("%s", compMesh.Name))
+			showMeshWnd, _ := wnd.Button(fmt.Sprintf("buttonShowMesh%d", compMeshIndex), "Show")
+			hideMeshWnd, _ := wnd.Button(fmt.Sprintf("buttonHideMesh%d", compMeshIndex), "Hide")
+			deleteMesh, _ := wnd.Button(fmt.Sprintf("buttonDeleteMesh%d", compMeshIndex), "Delete")
+			if showMeshWnd {
+				doShowMeshWindow(compMesh)
+			}
+			if hideMeshWnd || deleteMesh {
+				doHideMeshWindow(compMesh)
+			}
+			if !deleteMesh {
+				meshesThatSurvive = append(meshesThatSurvive, compMesh)
+			}
+		}
+		// FIXME: not Destroying renderables for meshes that don't survive
+		theComponent.Meshes = meshesThatSurvive
+
+		// do the user interface for colliders
+		wnd.Separator()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Colliders: ")
+		addNewCollider, _ := wnd.Button("buttonAddCollider", "Add Collider")
+		if addNewCollider {
+			doAddCollider(&theComponent)
+		}
+
+		collidersThatSurvive := theComponent.Collisions[:0]
+		visibleCollidersThatSurvive := visibleColliders[:0]
+		for colliderIndex, collider := range theComponent.Collisions {
+			wnd.StartRow()
+			wnd.RequestItemWidthMin(textWidth)
+			wnd.Text(fmt.Sprintf("Collider %d:", colliderIndex))
+
+			delCollider, _ := wnd.Button(fmt.Sprintf("buttonDeleteCollider%d", colliderIndex), "X")
+			prevColliderType, _ := wnd.Button(fmt.Sprintf("buttonPrevColliderType%d", colliderIndex), "<")
+			nextColliderType, _ := wnd.Button(fmt.Sprintf("buttonNextColliderType%d", colliderIndex), ">")
+
+			if !delCollider {
+				collidersThatSurvive = append(collidersThatSurvive, collider)
+
+				if prevColliderType {
+					doPrevColliderType(collider)
+				}
+				if nextColliderType {
+					doNextColliderType(collider)
+				}
+
+				switch collider.Type {
+				case component.ColliderTypeAABB:
+					wnd.Text("Axis Aligned Bounding Box")
+					wnd.StartRow()
+					wnd.Space(textWidth)
+					wnd.RequestItemWidthMin(width4Col)
+					wnd.Text("Min")
+					guiAddDragSliderVec3(wnd, width4Col, "ColliderMin", colliderIndex, 0.01, &collider.Min)
+
+					wnd.StartRow()
+					wnd.Space(textWidth)
+					wnd.RequestItemWidthMin(width4Col)
+					wnd.Text("Max")
+					guiAddDragSliderVec3(wnd, width4Col, "ColliderMax", colliderIndex, 0.01, &collider.Max)
+
+				case component.ColliderTypeSphere:
+					wnd.Text("Sphere")
+					wnd.StartRow()
+					wnd.Space(textWidth)
+					wnd.RequestItemWidthMin(width4Col)
+					wnd.Text("Offset")
+					guiAddDragSliderVec3(wnd, width4Col, "ColliderOffset", colliderIndex, 0.01, &collider.Offset)
+
+					wnd.StartRow()
+					wnd.Space(textWidth)
+					wnd.RequestItemWidthMin(width4Col)
+					wnd.Text("Radius")
+					wnd.DragSliderFloat(fmt.Sprintf("ColliderRadius%d", colliderIndex), 0.01, &collider.Radius)
+				default:
+					wnd.Text(fmt.Sprintf("Unknown collider (%d)!", collider.Type))
+				}
+
+				// see if we need to update the renderable if it exists already
+				visibleColliders = doUpdateVisibleCollider(visibleColliders, collider, colliderIndex)
+				visibleCollidersThatSurvive = append(visibleCollidersThatSurvive, visibleColliders[colliderIndex])
+			}
+		}
+		theComponent.Collisions = collidersThatSurvive
+		visibleColliders = visibleCollidersThatSurvive
+
+		wnd.Separator()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("Child Components:")
+		addChildComponent, _ := wnd.Button("addChildComponent", "Add Child")
+		if addChildComponent {
+			doAddChildReference(&theComponent)
+		}
+
+		childRefsThatSurvive := theComponent.ChildReferences[:0]
+		for childRefIndex, childRef := range theComponent.ChildReferences {
+			wnd.StartRow()
+			wnd.RequestItemWidthMin(textWidth)
+			wnd.Text("File:")
+			removeReference, _ := wnd.Button(fmt.Sprintf("childRefRemove%d", childRefIndex), "X")
+			loadChildReference, _ := wnd.Button(fmt.Sprintf("childRefLoad%d", childRefIndex), "L")
+			wnd.Editbox(fmt.Sprintf("childRefFileEditbox%d", childRefIndex), &childRef.File)
+
+			wnd.StartRow()
+			wnd.Space(textWidth)
+			wnd.RequestItemWidthMin(width4Col)
+			wnd.Text("Offset")
+			guiAddDragSliderVec3(wnd, width4Col, "childRefLocation", childRefIndex, 0.01, &childRef.Location)
+
+			wnd.StartRow()
+			wnd.Space(textWidth)
+			wnd.RequestItemWidthMin(width4Col)
+			wnd.Text("Scale")
+			guiAddDragSliderVec3(wnd, width4Col, "childRefScale", childRefIndex, 0.01, &childRef.Scale)
+
+			wnd.StartRow()
+			wnd.Space(textWidth)
+			wnd.RequestItemWidthMin(width4Col)
+			wnd.Text("Rot Axis")
+			guiAddDragSliderVec3(wnd, width4Col, "childRefRotAxis", childRefIndex, 0.01, &childRef.RotationAxis)
+
+			wnd.StartRow()
+			wnd.Space(textWidth)
+			wnd.RequestItemWidthMin(width4Col)
+			wnd.Text("Rot Deg")
+			wnd.DragSliderFloat(fmt.Sprintf("childRefRotDeg%d", childRefIndex), 0.1, &childRef.RotationDegrees)
+
+			if !removeReference {
+				childRefsThatSurvive = append(childRefsThatSurvive, childRef)
+			}
+			if loadChildReference {
+				var err error
+				childComponents, err = doLoadChildComponent(childComponents, childRef)
+				if err != nil {
+					fmt.Printf("Failed to load child component.\n%v\n", err)
+				}
+			}
+		}
+		theComponent.ChildReferences = childRefsThatSurvive
+
+		// remove any visible child components that no longer have a reference
+		childComponents = removeStaleChildComponents(childComponents, &theComponent, childRefFilenames)
+	})
+	return componentWindow
+}
+
+// updateVisibleMesh copies the settings from the ComponentMesh part of meshRenderable
+// to the Renderable so that it renders correctly.
+// This also gets attempts to get textures from textureMan as well.
+func updateVisibleMesh(compRenderable *meshRenderable) {
+	// push all settings from the component to the renderable
+	compRenderable.Renderable.Location = compRenderable.ComponentMesh.Offset
+	compRenderable.Renderable.Scale = compRenderable.ComponentMesh.Scale
+	compRenderable.Renderable.Core.DiffuseColor = compRenderable.ComponentMesh.Material.Diffuse
+	if compRenderable.ComponentMesh.RotationDegrees != 0.0 {
+		compRenderable.Renderable.LocalRotation = mgl.QuatRotate(
+			mgl.DegToRad(compRenderable.ComponentMesh.RotationDegrees),
+			compRenderable.ComponentMesh.RotationAxis)
+	}
+
+	compRenderable.Renderable.Core.SpecularColor = compRenderable.ComponentMesh.Material.Specular
+	compRenderable.Renderable.Core.Shininess = compRenderable.ComponentMesh.Material.Shininess
+
+	// assign textures
+	textures := compRenderable.ComponentMesh.Material.Textures
+	for i := 0; i < len(textures); i++ {
+		glTex, texFound := textureMan.GetTexture(textures[i])
+		if texFound {
+			compRenderable.Renderable.Core.Tex[i] = glTex
+		}
+	}
+
 }
 
 func main() {
@@ -470,31 +875,29 @@ func main() {
 	textureMan = fizzle.NewTextureManager()
 
 	// load the basic shader
-	basicShader, err = fizzle.LoadShaderProgramFromFiles(basicShaderFilepath, nil)
+	basicShader, err := fizzle.LoadShaderProgramFromFiles(basicShaderFilepath, nil)
 	if err != nil {
 		panic("Failed to compile and link the basic shader program! " + err.Error())
 	}
-	defer basicShader.Destroy()
 
 	// load the basic skinned shader
-	basicSkinnedShader, err = fizzle.LoadShaderProgramFromFiles(basicSkinnedShaderFilepath, nil)
+	basicSkinnedShader, err := fizzle.LoadShaderProgramFromFiles(basicSkinnedShaderFilepath, nil)
 	if err != nil {
 		panic("Failed to compile and link the basic skinned shader program! " + err.Error())
 	}
-	defer basicSkinnedShader.Destroy()
 
 	// load the color shader
-	colorShader, err = fizzle.LoadShaderProgramFromFiles(colorShaderFilepath, nil)
+	colorShader, err := fizzle.LoadShaderProgramFromFiles(colorShaderFilepath, nil)
 	if err != nil {
 		panic("Failed to compile and link the color shader program! " + err.Error())
 	}
-	defer colorShader.Destroy()
 
-	// setup the component manager
 	shaders = make(map[string]*fizzle.RenderShader)
 	shaders["Basic"] = basicShader
 	shaders["BasicSkinned"] = basicSkinnedShader
 	shaders["Color"] = colorShader
+
+	// setup the component manager
 	componentMan = component.NewManager(textureMan, shaders)
 
 	// setup the camera to look at the component
@@ -516,319 +919,8 @@ func main() {
 	// if the component file passed in as a flag exists, try to load it
 	doLoadComponentFile(flagComponentFile)
 
-	// create a window for operating on the component file
-	componentWindow := uiman.NewWindow("Component", 0.01, 0.99, 0.25, 0.5, func(wnd *gui.Window) {
-		loadComponent, _ := wnd.Button("componentFileLoadButton", "Load")
-		saveComponent, _ := wnd.Button("componentFileSaveButton", "Save")
-		wnd.Editbox("componentFileEditbox", &flagComponentFile)
-		if saveComponent {
-			compJSON, jsonErr := json.MarshalIndent(theComponent, "", "    ")
-			if jsonErr == nil {
-				fileErr := ioutil.WriteFile(flagComponentFile, compJSON, 0744)
-				if fileErr != nil {
-					fmt.Printf("Failed to write component: %v\n", fileErr)
-				} else {
-					fmt.Printf("Saved the component file: %s\n", flagComponentFile)
-				}
-			} else {
-				fmt.Printf("Failed to serialize component to JSON: %v\n", jsonErr)
-			}
-		} else if loadComponent {
-			// remove all existing mesh windows
-			meshWindows := uiman.GetWindowsByFilter(func(w *gui.Window) bool {
-				if strings.HasPrefix(w.ID, compMeshWindowID) {
-					return true
-				}
-				return false
-			})
-
-			for _, meshWnd := range meshWindows {
-				uiman.RemoveWindow(meshWnd)
-			}
-
-			// load the component file again and create mesh windows / renderables
-			doLoadComponentFile(flagComponentFile)
-		}
-
-		wnd.Separator()
-		wnd.RequestItemWidthMin(textWidth)
-		wnd.Text("Name")
-		wnd.Editbox("componentNameEditbox", &theComponent.Name)
-
-		// do the user interface for mesh windows
-		wnd.Separator()
-		wnd.RequestItemWidthMin(textWidth)
-		wnd.Text("Meshes:")
-		addMesh, _ := wnd.Button("componentFileAddMeshButton", "Add Mesh")
-		if addMesh {
-			newCompMesh := component.NewMesh()
-			newCompMesh.Name = fmt.Sprintf("Mesh %d", len(theComponent.Meshes)+1)
-			theComponent.Meshes = append(theComponent.Meshes, newCompMesh)
-			createMeshWindow(newCompMesh, meshWndX, meshWndY)
-		}
-
-		meshesThatSurvive := theComponent.Meshes[:0]
-		for compMeshIndex, compMesh := range theComponent.Meshes {
-			wnd.StartRow()
-			wnd.RequestItemWidthMin(textWidth)
-			wnd.Text(fmt.Sprintf("%s", compMesh.Name))
-			showMeshWnd, _ := wnd.Button(fmt.Sprintf("buttonShowMesh%d", compMeshIndex), "Show")
-			hideMeshWnd, _ := wnd.Button(fmt.Sprintf("buttonHideMesh%d", compMeshIndex), "Hide")
-			deleteMesh, _ := wnd.Button(fmt.Sprintf("buttonDeleteMesh%d", compMeshIndex), "Delete")
-			if showMeshWnd {
-				meshWindow := uiman.GetWindow(fmt.Sprintf("%s%s", compMeshWindowID, compMesh.Name))
-				if meshWindow == nil {
-					createMeshWindow(compMesh, meshWndX, meshWndY)
-				}
-			}
-			if hideMeshWnd || deleteMesh {
-				meshWindow := uiman.GetWindow(fmt.Sprintf("%s%s", compMeshWindowID, compMesh.Name))
-				if meshWindow != nil {
-					uiman.RemoveWindow(meshWindow)
-				}
-			}
-			if !deleteMesh {
-				meshesThatSurvive = append(meshesThatSurvive, compMesh)
-			}
-		}
-		// FIXME: not Destroying renderables for meshes that don't survive
-		theComponent.Meshes = meshesThatSurvive
-
-		// do the user interface for colliders
-		wnd.Separator()
-		wnd.RequestItemWidthMin(textWidth)
-		wnd.Text("Colliders: ")
-		addNewCollider, _ := wnd.Button("buttonAddCollider", "Add Collider")
-		if addNewCollider {
-			// create a new sphere collider
-			newCollider := new(component.CollisionRef)
-			newCollider.Type = component.ColliderTypeSphere
-			newCollider.Radius = 1.0
-			theComponent.Collisions = append(theComponent.Collisions, newCollider)
-		}
-
-		collidersThatSurvive := theComponent.Collisions[:0]
-		visibleCollidersThatSurvive := visibleColliders[:0]
-		for colliderIndex, collider := range theComponent.Collisions {
-			wnd.StartRow()
-			wnd.RequestItemWidthMin(textWidth)
-			wnd.Text(fmt.Sprintf("Collider %d:", colliderIndex))
-
-			delCollider, _ := wnd.Button(fmt.Sprintf("buttonDeleteCollider%d", colliderIndex), "X")
-			prevColliderType, _ := wnd.Button(fmt.Sprintf("buttonPrevColliderType%d", colliderIndex), "<")
-			nextColliderType, _ := wnd.Button(fmt.Sprintf("buttonNextColliderType%d", colliderIndex), ">")
-
-			if !delCollider {
-				collidersThatSurvive = append(collidersThatSurvive, collider)
-
-				if prevColliderType {
-					collider.Type = collider.Type - 1
-					if collider.Type < 0 {
-						collider.Type = component.ColliderTypeCount - 1
-					}
-				}
-				if nextColliderType {
-					collider.Type = collider.Type + 1
-					if collider.Type >= component.ColliderTypeCount {
-						collider.Type = 0
-					}
-				}
-
-				switch collider.Type {
-				case component.ColliderTypeAABB:
-					wnd.Text("Axis Aligned Bounding Box")
-					wnd.StartRow()
-					wnd.Space(textWidth)
-					wnd.RequestItemWidthMin(width4Col)
-					wnd.Text("Min")
-					wnd.RequestItemWidthMax(width4Col)
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderMinX%d", colliderIndex), 0.01, &collider.Min[0])
-					wnd.RequestItemWidthMax(width4Col)
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderMinY%d", colliderIndex), 0.01, &collider.Min[1])
-					wnd.RequestItemWidthMax(width4Col)
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderMinZ%d", colliderIndex), 0.01, &collider.Min[2])
-
-					wnd.StartRow()
-					wnd.Space(textWidth)
-					wnd.RequestItemWidthMin(width4Col)
-					wnd.Text("Max")
-					wnd.RequestItemWidthMax(width4Col)
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderMaxX%d", colliderIndex), 0.01, &collider.Max[0])
-					wnd.RequestItemWidthMax(width4Col)
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderMaxY%d", colliderIndex), 0.01, &collider.Max[1])
-					wnd.RequestItemWidthMax(width4Col)
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderMaxZ%d", colliderIndex), 0.01, &collider.Max[2])
-
-				case component.ColliderTypeSphere:
-					wnd.Text("Sphere")
-					wnd.StartRow()
-					wnd.Space(textWidth)
-					wnd.RequestItemWidthMin(width4Col)
-					wnd.Text("Offset")
-					wnd.RequestItemWidthMax(width4Col)
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderOffsetX%d", colliderIndex), 0.01, &collider.Offset[0])
-					wnd.RequestItemWidthMax(width4Col)
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderOffsetY%d", colliderIndex), 0.01, &collider.Offset[1])
-					wnd.RequestItemWidthMax(width4Col)
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderOffsetZ%d", colliderIndex), 0.01, &collider.Offset[2])
-
-					wnd.StartRow()
-					wnd.Space(textWidth)
-					wnd.RequestItemWidthMin(width4Col)
-					wnd.Text("Radius")
-					wnd.DragSliderFloat(fmt.Sprintf("ColliderRadius%d", colliderIndex), 0.01, &collider.Radius)
-				default:
-					wnd.Text(fmt.Sprintf("Unknown collider (%d)!", collider.Type))
-				}
-
-				// see if we need to update the renderable if it exists already
-				if len(visibleColliders) > colliderIndex {
-					visCollider := visibleColliders[colliderIndex]
-
-					switch collider.Type {
-					case component.ColliderTypeAABB:
-						if !visCollider.Collider.Min.ApproxEqual(collider.Min) ||
-							!visCollider.Collider.Max.ApproxEqual(collider.Max) ||
-							visCollider.Collider.Type != collider.Type {
-							visCollider.Collider = *collider
-							visCollider.Renderable = fizzle.CreateWireframeCube(collider.Min[0], collider.Min[1], collider.Min[2],
-								collider.Max[0], collider.Max[1], collider.Max[2])
-						}
-					case component.ColliderTypeSphere:
-						if !visCollider.Collider.Offset.ApproxEqual(collider.Offset) ||
-							math.Abs(float64(visCollider.Collider.Radius-collider.Radius)) > 0.01 ||
-							visCollider.Collider.Type != collider.Type {
-							visCollider.Collider = *collider
-							visCollider.Renderable = fizzle.CreateWireframeCircle(
-								collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Y)
-							visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
-								collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.Y|fizzle.Z))
-							visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
-								collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Z))
-						}
-					}
-					// FIXME: not Destroying renderables for visCol's that don't survive
-					visibleCollidersThatSurvive = append(visibleCollidersThatSurvive, visCollider)
-				} else {
-					// append a new visible collider
-					visCollider := new(colliderRenderable)
-					visCollider.Collider = *collider
-
-					switch collider.Type {
-					case component.ColliderTypeAABB:
-						visCollider.Renderable = fizzle.CreateWireframeCube(collider.Min[0], collider.Min[1], collider.Min[2],
-							collider.Max[0], collider.Max[1], collider.Max[2])
-					case component.ColliderTypeSphere:
-						visCollider.Renderable = fizzle.CreateWireframeCircle(
-							collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Y)
-						visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
-							collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.Y|fizzle.Z))
-						visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
-							collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Z))
-					}
-					visibleCollidersThatSurvive = append(visibleCollidersThatSurvive, visCollider)
-				}
-			}
-		}
-		theComponent.Collisions = collidersThatSurvive
-		visibleColliders = visibleCollidersThatSurvive
-
-		wnd.Separator()
-		wnd.RequestItemWidthMin(textWidth)
-		wnd.Text("Child Components:")
-		addChildComponent, _ := wnd.Button("addChildComponent", "Add Child")
-		if addChildComponent {
-			newChildRef := new(component.ChildRef)
-			newChildRef.Scale = mgl.Vec3{1, 1, 1}
-			theComponent.ChildReferences = append(theComponent.ChildReferences, newChildRef)
-		}
-
-		childRefsThatSurvive := theComponent.ChildReferences[:0]
-		for childRefIndex, childRef := range theComponent.ChildReferences {
-			wnd.StartRow()
-			wnd.RequestItemWidthMin(textWidth)
-			wnd.Text("File:")
-			removeReference, _ := wnd.Button(fmt.Sprintf("childRefRemove%d", childRefIndex), "X")
-			loadChildReference, _ := wnd.Button(fmt.Sprintf("childRefLoad%d", childRefIndex), "L")
-			wnd.Editbox(fmt.Sprintf("childRefFileEditbox%d", childRefIndex), &childRef.File)
-
-			wnd.StartRow()
-			wnd.Space(textWidth)
-			wnd.RequestItemWidthMin(width4Col)
-			wnd.Text("Offset")
-			wnd.RequestItemWidthMax(width4Col)
-			wnd.DragSliderFloat(fmt.Sprintf("childRefLocationX%d", childRefIndex), 0.01, &childRef.Location[0])
-			wnd.RequestItemWidthMax(width4Col)
-			wnd.DragSliderFloat(fmt.Sprintf("childRefLocationY%d", childRefIndex), 0.01, &childRef.Location[1])
-			wnd.RequestItemWidthMax(width4Col)
-			wnd.DragSliderFloat(fmt.Sprintf("childRefLocationZ%d", childRefIndex), 0.01, &childRef.Location[2])
-
-			wnd.StartRow()
-			wnd.Space(textWidth)
-			wnd.RequestItemWidthMin(width4Col)
-			wnd.Text("Scale")
-			wnd.RequestItemWidthMax(width4Col)
-			wnd.DragSliderFloat(fmt.Sprintf("childRefScaleX%d", childRefIndex), 0.01, &childRef.Scale[0])
-			wnd.RequestItemWidthMax(width4Col)
-			wnd.DragSliderFloat(fmt.Sprintf("childRefScaleY%d", childRefIndex), 0.01, &childRef.Scale[1])
-			wnd.RequestItemWidthMax(width4Col)
-			wnd.DragSliderFloat(fmt.Sprintf("childRefScaleZ%d", childRefIndex), 0.01, &childRef.Scale[2])
-
-			wnd.StartRow()
-			wnd.Space(textWidth)
-			wnd.RequestItemWidthMin(width4Col)
-			wnd.Text("Rot Axis")
-			wnd.RequestItemWidthMax(width4Col)
-			wnd.DragSliderFloat(fmt.Sprintf("childRefRotAxisX%d", childRefIndex), 0.01, &childRef.RotationAxis[0])
-			wnd.RequestItemWidthMax(width4Col)
-			wnd.DragSliderFloat(fmt.Sprintf("childRefRotAxisY%d", childRefIndex), 0.01, &childRef.RotationAxis[1])
-			wnd.RequestItemWidthMax(width4Col)
-			wnd.DragSliderFloat(fmt.Sprintf("childRefRotAxisZ%d", childRefIndex), 0.01, &childRef.RotationAxis[2])
-
-			wnd.StartRow()
-			wnd.Space(textWidth)
-			wnd.RequestItemWidthMin(width4Col)
-			wnd.Text("Rot Deg")
-			wnd.DragSliderFloat(fmt.Sprintf("childRefRotDeg%d", childRefIndex), 0.1, &childRef.RotationDegrees)
-
-			if !removeReference {
-				childRefsThatSurvive = append(childRefsThatSurvive, childRef)
-			}
-			if loadChildReference {
-				prefixDir := ""
-				if len(flagComponentFile) > 0 {
-					prefixDir, _ = filepath.Split(flagComponentFile)
-				}
-				newChildComponent, err := componentMan.LoadComponentFromFile(prefixDir+childRef.File, childRef.File)
-				if err != nil {
-					fmt.Printf("Failed to load child component: %s\n%v\n", childRef.File, err)
-				} else {
-					fmt.Printf("Loaded child component: %s\n", childRef.File)
-					childComponents = append(childComponents, newChildComponent)
-					childRefFilenames[childRef.File] = newChildComponent.Name
-				}
-			}
-		}
-		theComponent.ChildReferences = childRefsThatSurvive
-
-		// remove any visible child components that no longer have a reference
-		childComponentsThatSurvive := childComponents[:0]
-		for _, ref := range theComponent.ChildReferences {
-			compNameToFind, okay := childRefFilenames[ref.File]
-			if !okay {
-				continue
-			}
-
-			for _, childCompToTest := range childComponents {
-				if compNameToFind == childCompToTest.Name {
-					childComponentsThatSurvive = append(childComponentsThatSurvive, childCompToTest)
-					break
-				}
-			}
-		}
-		childComponents = childComponentsThatSurvive
-
-	})
+	// create the main component window
+	componentWindow := createComponentWindow(0.01, 0.99, 0.25, 0.5)
 	componentWindow.Title = "Component File"
 	componentWindow.ShowTitleBar = false
 	componentWindow.ShowScrollBar = true
@@ -868,25 +960,7 @@ func main() {
 		// draw the meshes that are visible
 		for _, compRenderable := range visibleMeshes {
 			// push all settings from the component to the renderable
-			compRenderable.Renderable.Location = compRenderable.ComponentMesh.Offset
-			compRenderable.Renderable.Scale = compRenderable.ComponentMesh.Scale
-			compRenderable.Renderable.Core.DiffuseColor = compRenderable.ComponentMesh.Material.Diffuse
-			if compRenderable.ComponentMesh.RotationDegrees != 0.0 {
-				compRenderable.Renderable.Rotation = mgl.QuatRotate(
-					mgl.DegToRad(compRenderable.ComponentMesh.RotationDegrees),
-					compRenderable.ComponentMesh.RotationAxis)
-			}
-			compRenderable.Renderable.Core.SpecularColor = compRenderable.ComponentMesh.Material.Specular
-			compRenderable.Renderable.Core.Shininess = compRenderable.ComponentMesh.Material.Shininess
-
-			// assign textures
-			textures := compRenderable.ComponentMesh.Material.Textures
-			for i := 0; i < len(textures); i++ {
-				glTex, texFound := textureMan.GetTexture(textures[i])
-				if texFound {
-					compRenderable.Renderable.Core.Tex[i] = glTex
-				}
-			}
+			updateVisibleMesh(compRenderable)
 
 			// draw the thing
 			renderer.DrawRenderable(compRenderable.Renderable, nil, perspective, view, camera)
@@ -918,6 +992,21 @@ func main() {
 		// update our last frame time
 		lastFrame = thisFrame
 	}
+
+	// cleanup
+	for _, vc := range visibleColliders {
+		vc.Renderable.Destroy()
+	}
+	for _, vm := range visibleMeshes {
+		vm.Renderable.Destroy()
+	}
+	textureMan.Destroy()
+	componentMan.Destroy()
+	for _, shader := range shaders {
+		shader.Destroy()
+	}
+
+	renderer.Destroy()
 }
 
 // initGraphics creates an OpenGL window and initializes the required graphics libraries.
