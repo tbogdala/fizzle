@@ -235,10 +235,10 @@ func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]
 	for _, compMesh := range c.Meshes {
 		cmRenderable := CreateRenderableForMesh(tm, shaders, compMesh)
 		group.AddChild(cmRenderable)
-
-		// cache it for later
-		c.cachedRenderable = cmRenderable
 	}
+
+	// cache it for later
+	c.cachedRenderable = group
 
 	return group
 }
@@ -268,6 +268,7 @@ func (cm *Mesh) GetVertices() ([]mgl.Vec3, error) {
 func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader, compMesh *Mesh) *fizzle.Renderable {
 	// create the new renderable
 	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
+	r.Location = compMesh.Offset
 
 	// if a scale is set, copy it over to the renderable
 	if compMesh.Scale[0] != 0.0 || compMesh.Scale[1] != 0.0 || compMesh.Scale[2] != 0.0 {
