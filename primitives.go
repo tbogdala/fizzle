@@ -11,6 +11,94 @@ import (
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 )
 
+// CreatePlaneV makes a plane of two points
+func CreatePlaneV(a, b mgl.Vec3) *Renderable {
+	verts := [12]float32{
+		a.X(), a.Y(), a.Z(),
+		b.X(), a.Y(), a.Z(),
+		a.X(), b.Y(), b.Z(),
+		b.X(), b.Y(), b.Z(),
+	}
+	indexes := [6]uint32{
+		0, 1, 2,
+		1, 3, 2,
+	}
+	uvs := [8]float32{
+		0.0, 0.0,
+		1.0, 0.0,
+		0.0, 1.0,
+		1.0, 1.0,
+	}
+	normals := [12]float32{
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+	}
+
+	return createPlaneV(a, b, verts, indexes, uvs, normals)
+}
+
+//createPlaneV analogue of original createPlane, but on input receive two points(a, b)
+func createPlaneV(a, b mgl.Vec3, verts [12]float32, indexes [6]uint32, uvs [8]float32, normals [12]float32) *Renderable {
+	const floatSize = 4
+	const uintSize = 4
+
+	// calculate the tangents based on the vertices and UVs.
+	tangents := createTangents(verts[:], indexes[:], uvs[:])
+
+	r := NewRenderable()
+	r.Core = NewRenderableCore()
+	r.FaceCount = 2
+	r.BoundingRect.Bottom = a
+	r.BoundingRect.Top = b
+
+	// create the buffer to hold all of the interleaved data
+	const numOfVerts = 4
+	vnutBuffer := make([]float32, 0, len(verts)+len(uvs)+len(normals)+len(tangents))
+	for i := 0; i < numOfVerts; i++ {
+		// add the vertex
+		vnutBuffer = append(vnutBuffer, verts[i*3])
+		vnutBuffer = append(vnutBuffer, verts[i*3+1])
+		vnutBuffer = append(vnutBuffer, verts[i*3+2])
+
+		// add the normal
+		vnutBuffer = append(vnutBuffer, normals[i*3])
+		vnutBuffer = append(vnutBuffer, normals[i*3+1])
+		vnutBuffer = append(vnutBuffer, normals[i*3+2])
+
+		// add the uv
+		vnutBuffer = append(vnutBuffer, uvs[i*2])
+		vnutBuffer = append(vnutBuffer, uvs[i*2+1])
+
+		// add the tangents
+		vnutBuffer = append(vnutBuffer, tangents[i*3])
+		vnutBuffer = append(vnutBuffer, tangents[i*3+1])
+		vnutBuffer = append(vnutBuffer, tangents[i*3+2])
+
+	}
+
+	// create a VBO to hold the vertex data
+	r.Core.VertVBO = gfx.GenBuffer()
+	r.Core.UvVBO = r.Core.VertVBO
+	r.Core.NormsVBO = r.Core.VertVBO
+	r.Core.TangentsVBO = r.Core.VertVBO
+	r.Core.VertVBOOffset = 0
+	r.Core.NormsVBOOffset = floatSize * 3
+	r.Core.UvVBOOffset = floatSize * 6
+	r.Core.TangentsVBOOffset = floatSize * 8
+	r.Core.VBOStride = floatSize * (3 + 3 + 2 + 3) // vert / normal / uv / tangent
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(vnutBuffer), gfx.Ptr(&vnutBuffer[0]), graphics.STATIC_DRAW)
+
+	// create a VBO to hold the face indexes
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
+
+	return r
+}
+
 // CreatePlaneXY makes a 2d Renderable object on the XY plane for the given size,
 // where (x0,y0) is the lower left and (x1, y1) is the upper right coordinate.
 func CreatePlaneXY(x0, y0, x1, y1 float32) *Renderable {
