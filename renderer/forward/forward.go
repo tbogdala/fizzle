@@ -534,7 +534,7 @@ func (fr *ForwardRenderer) DrawRenderable(r *fizzle.Renderable, binder renderer.
 	if binder != nil {
 		binders = append(binders, binder)
 	}
-	renderer.BindAndDraw(fr, r, r.Core.Shader, binders, perspective, view, camera, graphics.TRIANGLES)
+	renderer.BindAndDraw(fr, r, r.Material.Shader, binders, perspective, view, camera, graphics.TRIANGLES)
 }
 
 // DrawRenderableWithShader draws a Renderable object with the supplied projection and view matrixes

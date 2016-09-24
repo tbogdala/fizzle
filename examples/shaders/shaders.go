@@ -131,17 +131,19 @@ func main() {
 
 	// create a 2x2x2 cube to render
 	cube = fizzle.CreateCube(-1, -1, -1, 1, 1, 1)
-	cube.Core.Shader = basicShader
-	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
-	cube.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	cube.Core.Shininess = 10.0
+	cube.Material = fizzle.NewMaterial()
+	cube.Material.Shader = basicShader
+	cube.Material.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
+	cube.Material.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	cube.Material.Shininess = 10.0
 
 	// create a sphere to render
 	sphere = fizzle.CreateSphere(1, 16, 16)
-	sphere.Core.Shader = basicShader
-	sphere.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
-	sphere.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	sphere.Core.Shininess = 10.0
+	sphere.Material = fizzle.NewMaterial()
+	sphere.Material.Shader = basicShader
+	sphere.Material.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
+	sphere.Material.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	sphere.Material.Shininess = 10.0
 
 	// setup the camera to look at the cube
 	camera := fizzle.NewOrbitCamera(mgl.Vec3{0, 0, 0}, math.Pi/2.0, 5.0, math.Pi/2.0)
@@ -194,13 +196,14 @@ func main() {
 		pressedLoadDiffuse, _ := wnd.Button("BtnLoadDiffuseTex", "Load Diffuse")
 		wnd.Editbox("EBDiffuseTex", &flagDiffuseFilepath)
 
+		var glTexID graphics.Texture
 		if pressedLoadDiffuse {
-			glTexID, err := fizzle.LoadImageToTexture(flagDiffuseFilepath)
+			glTexID, err = fizzle.LoadImageToTexture(flagDiffuseFilepath)
 			if err != nil {
 				fmt.Printf("Failed to load the diffuse texture: %s.\n%v", flagDiffuseFilepath, err)
 			} else {
 				r := getCurrentRenderable()
-				r.Core.Tex[0] = glTexID
+				r.Material.DiffuseTex = glTexID
 			}
 		}
 
@@ -209,12 +212,12 @@ func main() {
 		wnd.Editbox("EBNormalmapTex", &flagNormalmapFilepath)
 
 		if pressedLoadNormalmap {
-			glTexID, err := fizzle.LoadImageToTexture(flagNormalmapFilepath)
+			glTexID, err = fizzle.LoadImageToTexture(flagNormalmapFilepath)
 			if err != nil {
 				fmt.Printf("Failed to load the normal texture: %s.\n%v", flagNormalmapFilepath, err)
 			} else {
 				r := getCurrentRenderable()
-				r.Core.Tex[1] = glTexID
+				r.Material.NormalsTex = glTexID
 			}
 		}
 
@@ -363,28 +366,28 @@ func main() {
 		view := camera.GetViewMatrix()
 
 		// draw the cube or the sphere
-		var activeCore *fizzle.RenderableCore
+		var activeMaterial *fizzle.Material
 		switch typeOfRender {
 		case renderCube:
-			activeCore = cube.Core
+			activeMaterial = cube.Material
 			renderer.DrawRenderable(cube, nil, perspective, view, camera)
 		case renderSphere:
-			activeCore = sphere.Core
+			activeMaterial = sphere.Material
 			renderer.DrawRenderable(sphere, nil, perspective, view, camera)
 		case renderCustom:
 			if customObj != nil {
-				activeCore = customObj.Core
+				activeMaterial = customObj.Material
 				renderer.DrawRenderable(customObj, nil, perspective, view, camera)
 			}
 		}
 
 		// update the material on the active object with the values from the editor
-		if activeCore != nil {
+		if activeMaterial != nil {
 			for i := 0; i < 4; i++ {
-				activeCore.DiffuseColor[i] = float32(color[i]) / 255.0
-				activeCore.SpecularColor[i] = float32(specular[i]) / 255.0
+				activeMaterial.DiffuseColor[i] = float32(color[i]) / 255.0
+				activeMaterial.SpecularColor[i] = float32(specular[i]) / 255.0
 			}
-			activeCore.Shininess = shininess
+			activeMaterial.Shininess = shininess
 		}
 
 		// draw the user interface
@@ -468,7 +471,8 @@ func loadCustomModel(filepath string) error {
 
 	// create the renderable for the mesh
 	customObj = fizzle.CreateFromGombz(meshData)
-	customObj.Core.Shader = basicShader
+	customObj.Material = fizzle.NewMaterial()
+	customObj.Material.Shader = basicShader
 
 	return nil
 }

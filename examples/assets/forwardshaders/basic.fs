@@ -7,10 +7,10 @@ uniform mat4 V_MATRIX;
 uniform vec4 MATERIAL_DIFFUSE;
 uniform vec4 MATERIAL_SPECULAR;
 uniform float MATERIAL_SHININESS;
-uniform sampler2D MATERIAL_TEX_0;
-uniform sampler2D MATERIAL_TEX_1;
-uniform float MATERIAL_TEX_0_VALID;
-uniform float MATERIAL_TEX_1_VALID;
+uniform sampler2D MATERIAL_TEX_DIFFUSE; // dif
+uniform sampler2D MATERIAL_TEX_NORMALS; // norm
+uniform float MATERIAL_TEX_DIFFUSE_VALID;
+uniform float MATERIAL_TEX_NORMALS_VALID;
 uniform sampler2DShadow SHADOW_MAPS[4];
 
 uniform vec3 LIGHT_POSITION[MAX_LIGHTS];
@@ -74,13 +74,13 @@ vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 			// point light
 			light_direction = LIGHT_POSITION[i] - v_model;
 			float distance = length(light_direction);
-		
-			attenuation = LIGHT_STRENGTH[i] / (1.0 + 
+
+			attenuation = LIGHT_STRENGTH[i] / (1.0 +
 				(LIGHT_CONST_ATTENUATION[i] +
 				 LIGHT_LINEAR_ATTENUATION[i] * distance +
 				 LIGHT_QUADRATIC_ATTENUATION[i] * distance * distance));
-			
-			light_direction = light_direction / distance;	
+
+			light_direction = light_direction / distance;
 			incidence = light_direction;
 	        } else {
 			// directional light
@@ -101,7 +101,7 @@ vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 		vec3 specular = LIGHT_DIFFUSE[i].rgb * LIGHT_SPECULAR_INTENSITY[i] * specularF * attenuation;
 
 		scattered_light += ambient + diffuse;
-		reflected_light += specular; 
+		reflected_light += specular;
 	}
 
 	return min(color * scattered_light + reflected_light, vec3(1.0));
@@ -110,18 +110,18 @@ vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 
 void main()
 {
-	vec4 color = MATERIAL_DIFFUSE; 
-	if (MATERIAL_TEX_0_VALID > 0.0) {
-		color *= texture(MATERIAL_TEX_0, vs_tex0_uv);
+	vec4 color = MATERIAL_DIFFUSE;
+	if (MATERIAL_TEX_DIFFUSE_VALID > 0.0) {
+		color *= texture(MATERIAL_TEX_DIFFUSE, vs_tex0_uv);
 	}
 
   	vec4 shadowFactor = CalcShadowFactor();
 
 	vec3 normal = vs_normal_model;
-	if (MATERIAL_TEX_1_VALID > 0.0) {
+	if (MATERIAL_TEX_NORMALS_VALID > 0.0) {
 		vec3 T = normalize(vs_tangent - dot(vs_tangent, vs_normal_model) * vs_normal_model);
 		vec3 BT = cross(T, vs_normal_model);
-		vec3 bump_normal = texture(MATERIAL_TEX_1, vs_tex0_uv).rgb;
+		vec3 bump_normal = texture(MATERIAL_TEX_NORMALS, vs_tex0_uv).rgb;
 		bump_normal = 2.0 * bump_normal - vec3(1.0, 1.0, 1.0);
 		mat3 TBN = mat3(T, BT, vs_normal_model);
 		normal = TBN * bump_normal;

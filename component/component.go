@@ -101,6 +101,15 @@ type Material struct {
 	// GenerateMipmaps indicates if mipmaps should be generated for the textures getting loaded.
 	GenerateMipmaps bool
 
+	// DiffuseTexture is the relative file path for the diffuse texture.
+	DiffuseTexture string
+
+	// NormalsTexture is the relative file path for the normal map texture.
+	NormalsTexture string
+
+	// SpecularTexture is the relative file path for the specular map texture.
+	SpecularTexture string
+
 	// Textures specifies the texture files to load for mesh, relative
 	// to the component file. They will be found to RenderableCore
 	// Tex* properties in order defined.
@@ -264,10 +273,12 @@ func (cm *Mesh) GetVertices() ([]mgl.Vec3, error) {
 }
 
 // CreateRenderableForMesh does the work of creating the Renderable and putting all of
-// the mesh data into VBOs.
+// the mesh data into VBOs. This also creates a new material for the renderable
+// and assigns the textures accordingly.
 func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader, compMesh *Mesh) *fizzle.Renderable {
 	// create the new renderable
 	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
+	r.Material = fizzle.NewMaterial()
 	r.Location = compMesh.Offset
 
 	// if a scale is set, copy it over to the renderable
@@ -284,22 +295,50 @@ func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizz
 	var okay bool
 	textureCount := len(compMesh.Material.Textures)
 	for i := 0; i < textureCount; i++ {
-		r.Core.Tex[i], okay = tm.GetTexture(compMesh.Material.Textures[i])
+		r.Material.CustomTex[i], okay = tm.GetTexture(compMesh.Material.Textures[i])
 		if !okay {
 			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.Textures[i])
 		}
 		if compMesh.Material.GenerateMipmaps {
-			fizzle.GenerateMipmaps(r.Core.Tex[i])
+			fizzle.GenerateMipmaps(r.Material.CustomTex[i])
+		}
+	}
+	if len(compMesh.Material.DiffuseTexture) > 0 {
+		groggy.Logsf("DEBUG", "createRenderableForMesh DiffuseTexturer loading: %s.", compMesh.Material.DiffuseTexture)
+		r.Material.DiffuseTex, okay = tm.GetTexture(compMesh.Material.DiffuseTexture)
+		if !okay {
+			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.DiffuseTexture)
+		}
+		if compMesh.Material.GenerateMipmaps {
+			fizzle.GenerateMipmaps(r.Material.DiffuseTex)
+		}
+	}
+	if len(compMesh.Material.NormalsTexture) > 0 {
+		r.Material.NormalsTex, okay = tm.GetTexture(compMesh.Material.NormalsTexture)
+		if !okay {
+			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.NormalsTexture)
+		}
+		if compMesh.Material.GenerateMipmaps {
+			fizzle.GenerateMipmaps(r.Material.NormalsTex)
+		}
+	}
+	if len(compMesh.Material.SpecularTexture) > 0 {
+		r.Material.SpecularTex, okay = tm.GetTexture(compMesh.Material.SpecularTexture)
+		if !okay {
+			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.SpecularTexture)
+		}
+		if compMesh.Material.GenerateMipmaps {
+			fizzle.GenerateMipmaps(r.Material.SpecularTex)
 		}
 	}
 
 	// assign material properties if specified
-	r.Core.DiffuseColor = compMesh.Material.Diffuse
-	r.Core.SpecularColor = compMesh.Material.Specular
-	r.Core.Shininess = compMesh.Material.Shininess
+	r.Material.DiffuseColor = compMesh.Material.Diffuse
+	r.Material.SpecularColor = compMesh.Material.Specular
+	r.Material.Shininess = compMesh.Material.Shininess
 	loadedShader, okay := shaders[compMesh.Material.ShaderName]
 	if okay {
-		r.Core.Shader = loadedShader
+		r.Material.Shader = loadedShader
 	}
 
 	return r

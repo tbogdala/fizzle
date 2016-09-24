@@ -3,6 +3,15 @@ Changes since v0.2.0
 
 * APIBREAK: Many `fizzle/component` changes, including API breaks.
 
+* APIBREAK: Added a Material struct and a pointer to one Renderable. All
+  material settings were pulled from RenderableCore and placed in Material.
+
+* APIBREAK: Specific shader uniforms were added for diffuse, normals and specular
+  textures and the basic and basicSkinned shaders were updated to use the
+  respective texture from the new Material structure for each of these. The old
+  []Tex array has been renamed to []CustomTex for custom textures not covered
+  by the standard types above.
+
 * NEW: 'HAS_BONES' uniform float in shaders now identifies whether or not
   a skeleton is present in the renderable.
 

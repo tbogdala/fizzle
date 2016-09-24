@@ -7,10 +7,10 @@ uniform mat4 V_MATRIX;
 uniform vec4 MATERIAL_DIFFUSE;
 uniform vec4 MATERIAL_SPECULAR;
 uniform float MATERIAL_SHININESS;
-uniform sampler2D MATERIAL_TEX_0;
-uniform sampler2D MATERIAL_TEX_1;
-uniform float MATERIAL_TEX_0_VALID;
-uniform float MATERIAL_TEX_1_VALID;
+uniform sampler2D MATERIAL_TEX_DIFFUSE;
+uniform sampler2D MATERIAL_TEX_NORMALS;
+uniform float MATERIAL_TEX_DIFFUSE_VALID;
+uniform float MATERIAL_TEX_NORMALS_VALID;
 uniform sampler2DShadow SHADOW_MAPS[4];
 
 uniform vec3 LIGHT_POSITION[MAX_LIGHTS];
@@ -111,17 +111,17 @@ vec3 CalcADSLights(vec3 v_model, vec3 n_model, vec3 color)
 void main()
 {
 	vec4 color = MATERIAL_DIFFUSE;
-	if (MATERIAL_TEX_0_VALID > 0.0) {
-		color *= texture(MATERIAL_TEX_0, vs_tex0_uv);
+	if (MATERIAL_TEX_DIFFUSE_VALID > 0.0) {
+		color *= texture(MATERIAL_TEX_DIFFUSE, vs_tex0_uv);
 	}
 
   	vec4 shadowFactor = CalcShadowFactor();
 
 	vec3 normal = vs_normal_model;
-	if (MATERIAL_TEX_1_VALID > 0.0) {
+	if (MATERIAL_TEX_NORMALS_VALID > 0.0) {
 		vec3 T = normalize(vs_tangent - dot(vs_tangent, vs_normal_model) * vs_normal_model);
 		vec3 BT = cross(T, vs_normal_model);
-		vec3 bump_normal = texture(MATERIAL_TEX_1, vs_tex0_uv).rgb;
+		vec3 bump_normal = texture(MATERIAL_TEX_NORMALS, vs_tex0_uv).rgb;
 		bump_normal = 2.0 * bump_normal - vec3(1.0, 1.0, 1.0);
 		mat3 TBN = mat3(T, BT, vs_normal_model);
 		normal = TBN * bump_normal;

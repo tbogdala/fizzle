@@ -119,24 +119,30 @@ func main() {
 	fmt.Printf("Loaded the normals texture at %s(%d).\n", testNormalsPath, normalsTex)
 
 	// create the floor plane
+	floorMaterial := fizzle.NewMaterial()
+	floorMaterial.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	floorMaterial.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
+	floorMaterial.Shininess = 3.0
+	floorMaterial.DiffuseTex = diffuseTex
+	floorMaterial.NormalsTex = normalsTex
+	floorMaterial.Shader = basicShader
+
 	floorPlane := fizzle.CreatePlaneXZ(-0.5, 0.5, 0.5, -0.5)
 	floorPlane.Scale = mgl.Vec3{10, 10, 10}
-	floorPlane.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	floorPlane.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
-	floorPlane.Core.Shininess = 3.0
-	floorPlane.Core.Tex[0] = diffuseTex
-	floorPlane.Core.Tex[1] = normalsTex
-	floorPlane.Core.Shader = basicShader
+	floorPlane.Material = floorMaterial
 
 	// create the test cube to rotate
+	cubeMaterial := fizzle.NewMaterial()
+	cubeMaterial.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	cubeMaterial.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
+	cubeMaterial.Shininess = 6.0
+	cubeMaterial.DiffuseTex = diffuseTex
+	cubeMaterial.NormalsTex = normalsTex
+	cubeMaterial.Shader = basicShader
+
 	testCube := fizzle.CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
-	testCube.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	testCube.Core.SpecularColor = mgl.Vec4{0.3, 0.3, 0.3, 1.0}
 	testCube.Location = mgl.Vec3{-2.5, 1.0, 0.0}
-	testCube.Core.Shininess = 6.0
-	testCube.Core.Tex[0] = diffuseTex
-	testCube.Core.Tex[1] = normalsTex
-	testCube.Core.Shader = basicShader
+	testCube.Material = cubeMaterial
 
 	// enable shadow mapping in the renderer
 	renderer.SetupShadowMapRendering()
@@ -158,9 +164,12 @@ func main() {
 	light2.CreateShadowMap(shadowTexSize, 0.5, 50.0, mgl.Vec3{2.0, -3.0, -3.0})
 
 	// make a UI image to show the shadowmap texture, scaled down
+	shadowMapUIMat := fizzle.NewMaterial()
+	shadowMapUIMat.Shader = shadowmapTextureShader
+	shadowMapUIMat.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+
 	shadowMapUIQuad := fizzle.CreatePlaneXY(0, 0, 256, 256)
-	shadowMapUIQuad.Core.Shader = shadowmapTextureShader
-	shadowMapUIQuad.Core.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	shadowMapUIQuad.Material = shadowMapUIMat
 
 	// set some OpenGL flags
 	gfx.Enable(graphics.CULL_FACE)
@@ -234,7 +243,7 @@ func renderShadowMapUITex(r *fizzle.Renderable, shadow graphics.Texture) {
 	gfx.TexParameteri(graphics.TEXTURE_2D, graphics.TEXTURE_COMPARE_MODE, graphics.NONE)
 	gfx.BindTexture(graphics.TEXTURE_2D, 0)
 
-	r.Core.Tex[0] = shadow
+	r.Material.CustomTex[0] = shadow
 	width, height := renderer.GetResolution()
 	ortho := mgl.Ortho(0, float32(width), 0, float32(height), -10, 10)
 	view := mgl.Ident4()

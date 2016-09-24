@@ -3,7 +3,7 @@
 
 /*
 
-Renderer is a package that defines a common interface for the
+Package renderer is a package that defines a common interface for the
 deferred and forward renderers.
 
 Client applications will need to import a subpackage to create
@@ -14,18 +14,19 @@ package renderer
 
 import (
 	"fmt"
+
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 )
 
 var (
-	shaderTexUniformNames      [fizzle.MaxRenderableTextures]string
-	shaderTexValidUniformNames [fizzle.MaxRenderableTextures]string
+	shaderTexUniformNames      [fizzle.MaxCustomTextures]string
+	shaderTexValidUniformNames [fizzle.MaxCustomTextures]string
 )
 
 func init() {
-	for i := 0; i < fizzle.MaxRenderableTextures; i++ {
+	for i := 0; i < fizzle.MaxCustomTextures; i++ {
 		shaderTexUniformNames[i] = fmt.Sprintf("MATERIAL_TEX_%d", i)
 		shaderTexValidUniformNames[i] = fmt.Sprintf("MATERIAL_TEX_%d_VALID", i)
 	}
@@ -105,31 +106,82 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 	}
 
 	shaderDiffuse := shader.GetUniformLocation("MATERIAL_DIFFUSE")
-	if shaderDiffuse >= 0 {
-		gfx.Uniform4f(shaderDiffuse, r.Core.DiffuseColor[0], r.Core.DiffuseColor[1], r.Core.DiffuseColor[2], r.Core.DiffuseColor[3])
+	if shaderDiffuse >= 0 && r.Material != nil {
+		gfx.Uniform4f(shaderDiffuse, r.Material.DiffuseColor[0], r.Material.DiffuseColor[1], r.Material.DiffuseColor[2], r.Material.DiffuseColor[3])
 	}
 
 	shaderSpecular := shader.GetUniformLocation("MATERIAL_SPECULAR")
-	if shaderSpecular >= 0 {
-		gfx.Uniform4f(shaderSpecular, r.Core.SpecularColor[0], r.Core.SpecularColor[1], r.Core.SpecularColor[2], r.Core.SpecularColor[3])
+	if shaderSpecular >= 0 && r.Material != nil {
+		gfx.Uniform4f(shaderSpecular, r.Material.SpecularColor[0], r.Material.SpecularColor[1], r.Material.SpecularColor[2], r.Material.SpecularColor[3])
 	}
 
 	shaderShiny := shader.GetUniformLocation("MATERIAL_SHININESS")
-	if shaderShiny >= 0 {
-		gfx.Uniform1f(shaderShiny, r.Core.Shininess)
+	if shaderShiny >= 0 && r.Material != nil {
+		gfx.Uniform1f(shaderShiny, r.Material.Shininess)
 	}
 
-	for texI := 0; texI < fizzle.MaxRenderableTextures; texI++ {
+	shaderMatTexDiff := shader.GetUniformLocation("MATERIAL_TEX_DIFFUSE")
+	if shaderMatTexDiff >= 0 && r.Material != nil {
+		gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
+		gfx.BindTexture(graphics.TEXTURE_2D, r.Material.DiffuseTex)
+		gfx.Uniform1i(shaderMatTexDiff, texturesBound)
+		texturesBound++
+
+		shaderMatTexDiffValid := shader.GetUniformLocation("MATERIAL_TEX_DIFFUSE_VALID")
+		if shaderMatTexDiffValid >= 0 {
+			if r.Material.DiffuseTex > 0 {
+				gfx.Uniform1f(shaderMatTexDiffValid, 1.0)
+			} else {
+				gfx.Uniform1f(shaderMatTexDiffValid, 0.0)
+			}
+		}
+	}
+
+	shaderMatTexNorms := shader.GetUniformLocation("MATERIAL_TEX_NORMALS")
+	if shaderMatTexNorms >= 0 && r.Material != nil {
+		gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
+		gfx.BindTexture(graphics.TEXTURE_2D, r.Material.NormalsTex)
+		gfx.Uniform1i(shaderMatTexNorms, texturesBound)
+		texturesBound++
+
+		shaderMatTexNormsValid := shader.GetUniformLocation("MATERIAL_TEX_NORMALS_VALID")
+		if shaderMatTexNormsValid >= 0 {
+			if r.Material.NormalsTex > 0 {
+				gfx.Uniform1f(shaderMatTexNormsValid, 1.0)
+			} else {
+				gfx.Uniform1f(shaderMatTexNormsValid, 0.0)
+			}
+		}
+	}
+
+	shaderMatTexSpec := shader.GetUniformLocation("MATERIAL_TEX_SPECULAR")
+	if shaderMatTexSpec >= 0 && r.Material != nil {
+		gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
+		gfx.BindTexture(graphics.TEXTURE_2D, r.Material.SpecularTex)
+		gfx.Uniform1i(shaderMatTexSpec, texturesBound)
+		texturesBound++
+
+		shaderMatTexSpecValid := shader.GetUniformLocation("MATERIAL_TEX_SPECULAR_VALID")
+		if shaderMatTexSpecValid >= 0 {
+			if r.Material.SpecularTex > 0 {
+				gfx.Uniform1f(shaderMatTexSpecValid, 1.0)
+			} else {
+				gfx.Uniform1f(shaderMatTexSpecValid, 0.0)
+			}
+		}
+	}
+
+	for texI := 0; texI < fizzle.MaxCustomTextures; texI++ {
 		shaderTex := shader.GetUniformLocation(shaderTexUniformNames[texI])
 		if shaderTex >= 0 {
 			gfx.ActiveTexture(graphics.Texture(graphics.TEXTURE0 + uint32(texturesBound)))
-			gfx.BindTexture(graphics.TEXTURE_2D, r.Core.Tex[texI])
+			gfx.BindTexture(graphics.TEXTURE_2D, r.Material.CustomTex[texI])
 			gfx.Uniform1i(shaderTex, texturesBound)
 			texturesBound++
 
 			shaderTexValid := shader.GetUniformLocation(shaderTexValidUniformNames[texI])
 			if shaderTexValid >= 0 {
-				if r.Core.Tex[texI] > 0 {
+				if r.Material.CustomTex[texI] > 0 {
 					gfx.Uniform1f(shaderTexValid, 1.0)
 				} else {
 					gfx.Uniform1f(shaderTexValid, 0.0)

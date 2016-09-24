@@ -11,42 +11,11 @@ import (
 	"github.com/tbogdala/gombz"
 )
 
-const (
-	// MaxRenderableTextures is the maximum number of textures that can get assigned
-	// to a renderable.
-	MaxRenderableTextures = 8
-)
-
 // RenderableCore contains data that is needed to draw an object on the screen.
 // Further, data here can be shared between multiple Renderable instances.
 type RenderableCore struct {
-	// Shader is the program used to render this object; This can be overridden
-	// by using a DrawWithShader* function.
-	Shader *RenderShader
-
 	// Skeleton is the animatable skeleton object for the renderable.
 	Skeleton *Skeleton
-
-	// Tex is the array of textures for the renderable.
-	Tex [MaxRenderableTextures]graphics.Texture
-
-	// DiffuseColor is the material color for the renderable. This is
-	// displayed outright by the shader or often blended with the
-	// diffuse texture.
-	DiffuseColor mgl.Vec4
-
-	// SpecularColor is the material specular color for the renderable
-	// and is used to control the color of the specular highlight.
-	//
-	// It can be thought of the topcoat layer color to the DiffuseColor's
-	// base paint layer color.
-	SpecularColor mgl.Vec4
-
-	// Shininess is the specular coefficient used to control the tightness
-	// of the specular highlight. It represents the power the specular factor will
-	// be raised to -- therefore values between (0.0 - 1.0) will yield different
-	// results than values >= 1.0.
-	Shininess float32
 
 	// Vao is the OpenGL vertex array object for the renderable.
 	Vao uint32
@@ -191,6 +160,10 @@ type Renderable struct {
 	// be shadered between multiple Renderable objects if needed.
 	Core *RenderableCore
 
+	// Material is the material for the object that will controll visible properties
+	// used during rendering.
+	Material *Material
+
 	// Parent can be set to a Renderable that should be considered this Renderable's
 	// 'Parent' which will make some properties relative to this parent object (e.g.
 	// Location).
@@ -219,9 +192,6 @@ func NewRenderable() *Renderable {
 // NewRenderableCore creates a new RenderableCore object.
 func NewRenderableCore() *RenderableCore {
 	rc := new(RenderableCore)
-	rc.DiffuseColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	rc.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	rc.Shininess = 1.00
 	rc.Vao = gfx.GenVertexArray()
 	return rc
 }
@@ -260,8 +230,9 @@ func (r *Renderable) Clone() *Renderable {
 	clone.IsGroup = r.IsGroup
 	clone.BoundingRect = r.BoundingRect
 
-	// The render core is shared in the clone
+	// The render core and material are shared in the clone
 	clone.Core = r.Core
+	clone.Material = r.Material
 
 	// Deep clone the child renderables
 	for _, rc := range r.Children {

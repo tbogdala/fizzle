@@ -187,7 +187,8 @@ func makeRenderableForMesh(compMesh *component.Mesh) *fizzle.Renderable {
 
 	compRenderable := new(meshRenderable)
 	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
-	r.Core.Shader = shaders["BasicSkinned"]
+	r.Material = fizzle.NewMaterial()
+	r.Material.Shader = shaders["BasicSkinned"]
 	r.Location = compMesh.Offset
 	r.Scale = compMesh.Scale
 
@@ -271,17 +272,17 @@ func getComponentPrefix() string {
 // loadAllReferenceTextures loads any referenced textures in the Mesh's material.
 func loadAllReferenceTextures(compMesh *component.Mesh) {
 	for _, texFile := range compMesh.Material.Textures {
-		prefixDir := getComponentPrefix()
-
-		texFilepath := prefixDir + texFile
-		_, err := textureMan.LoadTexture(texFile, texFilepath)
-		if err != nil {
-			fmt.Printf("Failed to load texture %s: %v\n", texFilepath, err)
-		} else {
-			fmt.Printf("Loaded texture: %s\n", texFile)
-		}
+		doLoadTexture(texFile)
 	}
-
+	if len(compMesh.Material.DiffuseTexture) > 0 {
+		doLoadTexture(compMesh.Material.DiffuseTexture)
+	}
+	if len(compMesh.Material.NormalsTexture) > 0 {
+		doLoadTexture(compMesh.Material.NormalsTexture)
+	}
+	if len(compMesh.Material.SpecularTexture) > 0 {
+		doLoadTexture(compMesh.Material.SpecularTexture)
+	}
 }
 
 func doLoadComponentFile(componentFilepath string) {
@@ -582,6 +583,33 @@ func createMeshWindow(newCompMesh *component.Mesh, screenX, screenY float32) {
 		wnd.Text("Shininess")
 		wnd.DragSliderUFloat(fmt.Sprintf("MaterialShininess%d", wndCount), 0.1, &newCompMesh.Material.Shininess)
 
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("DiffuseTex")
+		loadDiffuseTexture, _ := wnd.Button(fmt.Sprintf("materialDiffuseTexLoad%d", wndCount), "L")
+		wnd.Editbox(fmt.Sprintf("materialDiffuseTexEditbox%d", wndCount), &newCompMesh.Material.DiffuseTexture)
+		if loadDiffuseTexture {
+			doLoadTexture(newCompMesh.Material.DiffuseTexture)
+		}
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("NormalsTex")
+		loadNormalsTexture, _ := wnd.Button(fmt.Sprintf("materialNormalsTexLoad%d", wndCount), "L")
+		wnd.Editbox(fmt.Sprintf("materialNormalsTexEditbox%d", wndCount), &newCompMesh.Material.NormalsTexture)
+		if loadNormalsTexture {
+			doLoadTexture(newCompMesh.Material.NormalsTexture)
+		}
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(textWidth)
+		wnd.Text("SpecularTex")
+		loadSpecularTexture, _ := wnd.Button(fmt.Sprintf("materialSpecularTexLoad%d", wndCount), "L")
+		wnd.Editbox(fmt.Sprintf("materialSpecularTexEditbox%d", wndCount), &newCompMesh.Material.SpecularTexture)
+		if loadSpecularTexture {
+			doLoadTexture(newCompMesh.Material.SpecularTexture)
+		}
+		// add in the custom textures
 		var textureToDelete = -1
 		for i := range newCompMesh.Material.Textures {
 			wnd.StartRow()
@@ -842,22 +870,40 @@ func updateVisibleMesh(compRenderable *meshRenderable) {
 	// push all settings from the component to the renderable
 	compRenderable.Renderable.Location = compRenderable.ComponentMesh.Offset
 	compRenderable.Renderable.Scale = compRenderable.ComponentMesh.Scale
-	compRenderable.Renderable.Core.DiffuseColor = compRenderable.ComponentMesh.Material.Diffuse
+	compRenderable.Renderable.Material.DiffuseColor = compRenderable.ComponentMesh.Material.Diffuse
 	if compRenderable.ComponentMesh.RotationDegrees != 0.0 {
 		compRenderable.Renderable.LocalRotation = mgl.QuatRotate(
 			mgl.DegToRad(compRenderable.ComponentMesh.RotationDegrees),
 			compRenderable.ComponentMesh.RotationAxis)
 	}
 
-	compRenderable.Renderable.Core.SpecularColor = compRenderable.ComponentMesh.Material.Specular
-	compRenderable.Renderable.Core.Shininess = compRenderable.ComponentMesh.Material.Shininess
+	compRenderable.Renderable.Material.SpecularColor = compRenderable.ComponentMesh.Material.Specular
+	compRenderable.Renderable.Material.Shininess = compRenderable.ComponentMesh.Material.Shininess
 
 	// assign textures
 	textures := compRenderable.ComponentMesh.Material.Textures
 	for i := 0; i < len(textures); i++ {
 		glTex, texFound := textureMan.GetTexture(textures[i])
+		if texFound && i < fizzle.MaxCustomTextures {
+			compRenderable.Renderable.Material.CustomTex[i] = glTex
+		}
+	}
+	if len(compRenderable.ComponentMesh.Material.DiffuseTexture) > 0 {
+		glTex, texFound := textureMan.GetTexture(compRenderable.ComponentMesh.Material.DiffuseTexture)
 		if texFound {
-			compRenderable.Renderable.Core.Tex[i] = glTex
+			compRenderable.Renderable.Material.DiffuseTex = glTex
+		}
+	}
+	if len(compRenderable.ComponentMesh.Material.NormalsTexture) > 0 {
+		glTex, texFound := textureMan.GetTexture(compRenderable.ComponentMesh.Material.NormalsTexture)
+		if texFound {
+			compRenderable.Renderable.Material.NormalsTex = glTex
+		}
+	}
+	if len(compRenderable.ComponentMesh.Material.SpecularTexture) > 0 {
+		glTex, texFound := textureMan.GetTexture(compRenderable.ComponentMesh.Material.SpecularTexture)
+		if texFound {
+			compRenderable.Renderable.Material.SpecularTex = glTex
 		}
 	}
 

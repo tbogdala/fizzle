@@ -96,19 +96,19 @@ func main() {
 	}
 	defer basicShader.Destroy()
 
+	// setup a shaderd material to use for the objects
+	redMaterial := fizzle.NewMaterial()
+	redMaterial.Shader = basicShader
+	redMaterial.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
+	redMaterial.Shininess = 4.8
+
 	// create a 2x2x2 cube to render
 	cube := fizzle.CreateCube(-1, -1, -1, 1, 1, 1)
-	cube.Core.Shader = basicShader
-	cube.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
-	cube.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	cube.Core.Shininess = 4.8
+	cube.Material = redMaterial
 
 	// create a sphere to render
 	sphere := fizzle.CreateSphere(1, 16, 16)
-	sphere.Core.Shader = basicShader
-	sphere.Core.DiffuseColor = mgl.Vec4{0.9, 0.05, 0.05, 1.0}
-	sphere.Core.SpecularColor = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	sphere.Core.Shininess = 4.8
+	sphere.Material = redMaterial
 
 	renderCube = true
 

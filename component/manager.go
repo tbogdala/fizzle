@@ -164,6 +164,30 @@ func (cm *Manager) LoadComponentFromBytes(jsonBytes []byte, storageName string, 
 				groggy.Logsf("DEBUG", "Mesh #%d loaded texture: %s", meshIndex, compMesh.Material.Textures[i])
 			}
 		}
+		if len(compMesh.Material.DiffuseTexture) > 0 {
+			_, err = cm.textureManager.LoadTexture(compMesh.Material.DiffuseTexture, compMesh.Parent.componentDirPath+compMesh.Material.DiffuseTexture)
+			if err != nil {
+				groggy.Logsf("ERROR", "Mesh #%d failed to load diffuse texture: %s", meshIndex, compMesh.Material.DiffuseTexture)
+			} else {
+				groggy.Logsf("DEBUG", "Mesh #%d loaded diffuse texture: %s", meshIndex, compMesh.Material.DiffuseTexture)
+			}
+		}
+		if len(compMesh.Material.NormalsTexture) > 0 {
+			_, err = cm.textureManager.LoadTexture(compMesh.Material.NormalsTexture, compMesh.Parent.componentDirPath+compMesh.Material.NormalsTexture)
+			if err != nil {
+				groggy.Logsf("ERROR", "Mesh #%d failed to load normal map texture: %s", meshIndex, compMesh.Material.NormalsTexture)
+			} else {
+				groggy.Logsf("DEBUG", "Mesh #%d loaded normal map texture: %s", meshIndex, compMesh.Material.NormalsTexture)
+			}
+		}
+		if len(compMesh.Material.SpecularTexture) > 0 {
+			_, err = cm.textureManager.LoadTexture(compMesh.Material.SpecularTexture, compMesh.Parent.componentDirPath+compMesh.Material.SpecularTexture)
+			if err != nil {
+				groggy.Logsf("ERROR", "Mesh #%d failed to load specular map texture: %s", meshIndex, compMesh.Material.SpecularTexture)
+			} else {
+				groggy.Logsf("DEBUG", "Mesh #%d loaded specular map texture: %s", meshIndex, compMesh.Material.SpecularTexture)
+			}
+		}
 	}
 
 	// place the new component into storage before parsing children
