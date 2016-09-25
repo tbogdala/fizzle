@@ -29,7 +29,6 @@ var (
 	uiman           *gui.Manager
 	renderer        *forward.ForwardRenderer
 	textureFilepath = "../../examples/assets/textures/explosion00.png"
-	colorShader     = "../../examples/assets/forwardshaders/color"
 )
 
 const (
@@ -170,7 +169,7 @@ func main() {
 	defer particleShader.Destroy()
 
 	// load the color shader
-	colorShader, err := fizzle.LoadShaderProgramFromFiles(colorShader, nil)
+	colorShader, err := forward.CreateColorShader()
 	if err != nil {
 		panic("Failed to compile and link the color shader program! " + err.Error())
 	}

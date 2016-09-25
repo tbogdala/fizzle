@@ -15,6 +15,10 @@ Changes since v0.2.0
 * NEW: 'HAS_BONES' uniform float in shaders now identifies whether or not
   a skeleton is present in the renderable.
 
+* NEW: Basic, BasicSkinned, Color and ColorText shaders are now built into the
+  `renderer/forward` package. Look for the create functions there. The shaders
+  have been removed from the `examples/assets/forwardshaders` directory.
+
 * BUG: Fixed skeletal animation in basicSkinned shader for bone id 0 not
   being transformed.
 

@@ -30,16 +30,13 @@ import (
 )
 
 var (
-	windowWidth                = 1280
-	windowHeight               = 720
-	mainWindow                 *glfw.Window
-	camera                     *fizzle.OrbitCamera
-	uiman                      *gui.Manager
-	renderer                   *forward.ForwardRenderer
-	textureMan                 *fizzle.TextureManager
-	colorShaderFilepath        = "../../examples/assets/forwardshaders/color"
-	basicShaderFilepath        = "../../examples/assets/forwardshaders/basic"
-	basicSkinnedShaderFilepath = "../../examples/assets/forwardshaders/basicSkinned"
+	windowWidth  = 1280
+	windowHeight = 720
+	mainWindow   *glfw.Window
+	camera       *fizzle.OrbitCamera
+	uiman        *gui.Manager
+	renderer     *forward.ForwardRenderer
+	textureMan   *fizzle.TextureManager
 
 	clearColor = gui.ColorIToV(32, 32, 32, 32)
 
@@ -956,19 +953,19 @@ func main() {
 	textureMan = fizzle.NewTextureManager()
 
 	// load the basic shader
-	basicShader, err := fizzle.LoadShaderProgramFromFiles(basicShaderFilepath, nil)
+	basicShader, err := forward.CreateBasicShader()
 	if err != nil {
 		panic("Failed to compile and link the basic shader program! " + err.Error())
 	}
 
 	// load the basic skinned shader
-	basicSkinnedShader, err := fizzle.LoadShaderProgramFromFiles(basicSkinnedShaderFilepath, nil)
+	basicSkinnedShader, err := forward.CreateBasicSkinnedShader()
 	if err != nil {
 		panic("Failed to compile and link the basic skinned shader program! " + err.Error())
 	}
 
 	// load the color shader
-	colorShader, err := fizzle.LoadShaderProgramFromFiles(colorShaderFilepath, nil)
+	colorShader, err := forward.CreateColorShader()
 	if err != nil {
 		panic("Failed to compile and link the color shader program! " + err.Error())
 	}

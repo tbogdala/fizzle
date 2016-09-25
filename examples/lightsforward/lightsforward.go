@@ -40,9 +40,7 @@ const (
 	shadowTexSize              = 2048
 	fov                        = 70.0
 	radsPerSec                 = math.Pi / 4.0
-	basicShaderPath            = "../assets/forwardshaders/basic"
 	shadowmapTextureShaderPath = "../assets/forwardshaders/shadowmap_texture"
-	shadowmapShaderPath        = "../assets/forwardshaders/shadowmap_generator"
 
 	testDiffusePath = "../assets/textures/TestCube_D.png"
 	testNormalsPath = "../assets/textures/TestCube_N.png"
@@ -78,7 +76,7 @@ func main() {
 	camera.SetYawAndPitch(0.0, mgl.DegToRad(60))
 
 	// load the basic shader
-	basicShader, err := fizzle.LoadShaderProgramFromFiles(basicShaderPath, nil)
+	basicShader, err := forward.CreateBasicShader()
 	if err != nil {
 		fmt.Printf("Failed to compile and link the basic shader program!\n%v", err)
 		os.Exit(1)
@@ -94,7 +92,7 @@ func main() {
 	defer shadowmapTextureShader.Destroy()
 
 	// loadup the shadowmap shader used to generate the shadows
-	shadowmapShader, err := fizzle.LoadShaderProgramFromFiles(shadowmapShaderPath, nil)
+	shadowmapShader, err := forward.CreateShadowmapGeneratorShader()
 	if err != nil {
 		fmt.Printf("Failed to compile and link the shadowmap generator shader program!\n%v", err)
 		os.Exit(1)

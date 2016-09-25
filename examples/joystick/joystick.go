@@ -34,9 +34,8 @@ func init() {
 }
 
 const (
-	width          = 1280
-	height         = 720
-	textShaderPath = "../assets/forwardshaders/colortext"
+	width  = 1280
+	height = 720
 
 	fontScale    = 14
 	fontGlyphs   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890. :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
@@ -73,7 +72,7 @@ func main() {
 	}
 
 	// load the text shader
-	textShader, err := fizzle.LoadShaderProgramFromFiles(textShaderPath, nil)
+	textShader, err := forward.CreateColorTextShader()
 	if err != nil {
 		fmt.Printf("Failed to compile and link the text shader program!\n%v", err)
 		os.Exit(1)

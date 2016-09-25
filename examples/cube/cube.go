@@ -49,10 +49,9 @@ func init() {
 }
 
 const (
-	windowWidth     = 800
-	windowHeight    = 600
-	radsPerSec      = math.Pi / 4.0
-	basicShaderPath = "../assets/forwardshaders/basic"
+	windowWidth  = 800
+	windowHeight = 600
+	radsPerSec   = math.Pi / 4.0
 )
 
 var (
@@ -89,7 +88,7 @@ func main() {
 	renderer.ActiveLights[0] = light
 
 	// load the basic shader
-	basicShader, err := fizzle.LoadShaderProgramFromFiles(basicShaderPath, nil)
+	basicShader, err := forward.CreateBasicShader()
 	if err != nil {
 		fmt.Printf("Failed to compile and link the basic shader program!\n%v", err)
 		os.Exit(1)

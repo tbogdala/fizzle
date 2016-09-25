@@ -3,7 +3,7 @@
 
 /*
 
-Forward is a package that defines an OpenGL forward renderer.
+Package forward is a package that defines an OpenGL forward renderer.
 
 At present both lights and shadows are present only in their basic form.
 
@@ -195,19 +195,6 @@ func (l *Light) UpdateShadowMapData() {
 // it draws the geometry it lights it at the same time and the output goes
 // to the output framebuffer, which is the only framebuffer.
 type ForwardRenderer struct {
-
-	// GeometryPassFn is the function called to render geometry to the
-	// framebuffers in the deferred renderer.
-	//GeometryPassFn DeferredGeometryPass
-
-	// BeforeDrawFn is the function called by the renderer before
-	// endtering the geometry draw function.
-	//BeforeDrawFn DeferredBeforeDraw
-
-	// AfterDrawFn is the function called by the renderer after
-	// endtering the geometry draw function.
-	//AfterDrawFn DeferredAfterDraw
-
 	// OnScreenSizeChanged is the function called by the renderer after
 	// a screen size change is detected.
 	OnScreenSizeChanged func(fr *ForwardRenderer, width int32, height int32)

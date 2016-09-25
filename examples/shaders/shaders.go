@@ -38,10 +38,9 @@ const (
 	fontFilepath = "../assets/Oswald-Heavy.ttf"
 	fontGlyphs   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890., :[]{}\\|<>;\"'~`?/-+_=()*&^%$#@!"
 
-	windowWidth     = 1280
-	windowHeight    = 720
-	radsPerSec      = math.Pi / 4.0
-	basicShaderPath = "../assets/forwardshaders/basic"
+	windowWidth  = 1280
+	windowHeight = 720
+	radsPerSec   = math.Pi / 4.0
 )
 
 const (
@@ -117,7 +116,7 @@ func main() {
 	defer renderer.Destroy()
 
 	// load the basic shader
-	basicShader, err = fizzle.LoadShaderProgramFromFiles(basicShaderPath, nil)
+	basicShader, err = forward.CreateBasicShader()
 	if err != nil {
 		fmt.Printf("Failed to compile and link the diffuse shader program!\n%v", err)
 		os.Exit(1)
