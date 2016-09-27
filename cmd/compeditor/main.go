@@ -78,6 +78,10 @@ var (
 	flagComponentFile string
 )
 
+var (
+	wireframeMaterial *fizzle.Material
+)
+
 // meshRenderable is used to tie together state for the component mesh,
 // the renderable for this component mesh and any other state information relating.
 type meshRenderable struct {
@@ -429,6 +433,7 @@ func doUpdateVisibleCollider(colliderRenderables []*colliderRenderable, collider
 				visCollider.Collider = *collider
 				visCollider.Renderable = fizzle.CreateWireframeCube(collider.Min[0], collider.Min[1], collider.Min[2],
 					collider.Max[0], collider.Max[1], collider.Max[2])
+				visCollider.Renderable.Material = wireframeMaterial
 			}
 		case component.ColliderTypeSphere:
 			if !visCollider.Collider.Offset.ApproxEqual(collider.Offset) ||
@@ -437,10 +442,16 @@ func doUpdateVisibleCollider(colliderRenderables []*colliderRenderable, collider
 				visCollider.Collider = *collider
 				visCollider.Renderable = fizzle.CreateWireframeCircle(
 					collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Y)
-				visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
-					collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.Y|fizzle.Z))
-				visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
-					collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Z))
+				visCollider.Renderable.Material = wireframeMaterial
+
+				circle2 := fizzle.CreateWireframeCircle(
+					collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.Y|fizzle.Z)
+				circle2.Material = wireframeMaterial
+				visCollider.Renderable.AddChild(circle2)
+				circle3 := fizzle.CreateWireframeCircle(
+					collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Z)
+				circle3.Material = wireframeMaterial
+				visCollider.Renderable.AddChild(circle3)
 			}
 		}
 	} else {
@@ -452,13 +463,18 @@ func doUpdateVisibleCollider(colliderRenderables []*colliderRenderable, collider
 		case component.ColliderTypeAABB:
 			visCollider.Renderable = fizzle.CreateWireframeCube(collider.Min[0], collider.Min[1], collider.Min[2],
 				collider.Max[0], collider.Max[1], collider.Max[2])
+			visCollider.Renderable.Material = wireframeMaterial
 		case component.ColliderTypeSphere:
 			visCollider.Renderable = fizzle.CreateWireframeCircle(
 				collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Y)
-			visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
-				collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.Y|fizzle.Z))
-			visCollider.Renderable.AddChild(fizzle.CreateWireframeCircle(
-				collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Z))
+			circle2 := fizzle.CreateWireframeCircle(
+				collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.Y|fizzle.Z)
+			circle2.Material = wireframeMaterial
+			visCollider.Renderable.AddChild(circle2)
+			circle3 := fizzle.CreateWireframeCircle(
+				collider.Offset[0], collider.Offset[1], collider.Offset[2], collider.Radius, segsInSphereWire, fizzle.X|fizzle.Z)
+			circle3.Material = wireframeMaterial
+			visCollider.Renderable.AddChild(circle3)
 		}
 
 		colliderRenderables = append(colliderRenderables, visCollider)
@@ -980,6 +996,10 @@ func main() {
 	shaders["Basic"] = basicShader
 	shaders["BasicSkinned"] = basicSkinnedShader
 	shaders["Color"] = colorShader
+
+	// setup a material for the wireframes
+	wireframeMaterial = fizzle.NewMaterial()
+	wireframeMaterial.Shader = colorShader
 
 	// setup the component manager
 	componentMan = component.NewManager(textureMan, shaders)
