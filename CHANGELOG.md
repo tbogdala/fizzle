@@ -19,6 +19,12 @@ Changes since v0.2.0
   `renderer/forward` package. Look for the create functions there. The shaders
   have been removed from the `examples/assets/forwardshaders` directory.
 
+* NEW: A `scene` package that contains bare-bone implementations of an entity
+  system and provides common interfaces to use.
+
+* NEW: A new example called `testscene` which shows off the new `scene` package
+  and displays a scene the client can move around.
+
 * BUG: Fixed skeletal animation in basicSkinned shader for bone id 0 not
   being transformed.
 
