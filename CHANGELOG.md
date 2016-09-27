@@ -25,6 +25,9 @@ Changes since v0.2.0
 * BUG: Many fixes to `cmd/compeditor` and broader support for features
   found in `fizzle/component`.
 
+* BUG: Improved the specular component for the basic and basicSkinned shaders.
+
+
 Changes since v0.1.0
 ====================
 

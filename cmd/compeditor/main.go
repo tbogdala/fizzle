@@ -877,6 +877,12 @@ func updateVisibleMesh(compRenderable *meshRenderable) {
 	compRenderable.Renderable.Material.SpecularColor = compRenderable.ComponentMesh.Material.Specular
 	compRenderable.Renderable.Material.Shininess = compRenderable.ComponentMesh.Material.Shininess
 
+	// try to find a shader
+	shader, shaderFound := shaders[compRenderable.ComponentMesh.Material.ShaderName]
+	if shaderFound {
+		compRenderable.Renderable.Material.Shader = shader
+	}
+
 	// assign textures
 	textures := compRenderable.ComponentMesh.Material.Textures
 	for i := 0; i < len(textures); i++ {

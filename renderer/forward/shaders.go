@@ -80,7 +80,7 @@ const (
 
     			light_direction = light_direction / distance;
     			incidence = light_direction;
-    	        } else {
+    	  } else {
     			// directional light
     			light_direction = normalize(light_direction);
     			incidence = -light_direction;
@@ -89,8 +89,8 @@ const (
     		float specularF = 0.0;
     		float diffuseF = max(0.0, dot(n_model, incidence));
     		if (MATERIAL_SHININESS != 0.0 && diffuseF != 0.0) {
-    			vec3 reflection = reflect(incidence, n_model);
-    			vec3 s_to_camera = normalize(vs_camera_eye - v_model);
+    			vec3 reflection = reflect(-incidence, n_model);
+    			vec3 s_to_camera = normalize(vs_camera_world - v_model);
     			specularF = pow(max(0.0, dot(s_to_camera, reflection)), MATERIAL_SHININESS);
     		}
 
@@ -138,7 +138,7 @@ const (
     out vec3 vs_position_view;
     out vec3 vs_tangent;
     out vec2 vs_tex0_uv;
-    out vec3 vs_camera_eye;
+    out vec3 vs_camera_world;
     out vec4 vs_shadow_coord[4];
 
     void main()
@@ -147,9 +147,9 @@ const (
     	mat3 vs_normal_mat = transpose(inverse(mat3(M_MATRIX)));
 
     	vs_normal_model = vs_normal_mat * VERTEX_NORMAL;
-    	vs_position_model = vec3(M_MATRIX * vertex4);
+			vs_position_model = vec3(M_MATRIX * vertex4);
     	vs_position_view = vec3(MV_MATRIX * vertex4);
-    	vs_camera_eye = vec3(V_MATRIX * vec4(CAMERA_WORLD_POSITION,1.0));
+    	vs_camera_world = CAMERA_WORLD_POSITION;
     	vs_tangent = mat3(M_MATRIX) * VERTEX_TANGENT;
     	vs_tex0_uv = VERTEX_UV_0;
 
@@ -194,9 +194,9 @@ const (
     in vec3 vs_normal_model;
     in vec3 vs_position_model;
     in vec3 vs_position_view;
-    in vec3 vs_tangent;
+		in vec3 vs_tangent;
     in vec2 vs_tex0_uv;
-    in vec3 vs_camera_eye;
+    in vec3 vs_camera_world;
     in vec4 vs_shadow_coord[4];
 
     out vec4 frag_color;
@@ -212,7 +212,7 @@ const (
     		color *= texture(MATERIAL_TEX_DIFFUSE, vs_tex0_uv);
     	}
 
-      	vec4 shadowFactor = CalcShadowFactor();
+    	vec4 shadowFactor = CalcShadowFactor();
 
     	vec3 normal = vs_normal_model;
     	if (MATERIAL_TEX_NORMALS_VALID > 0.0) {
@@ -224,7 +224,7 @@ const (
     		normal = TBN * bump_normal;
     	}
 
-    	frag_color = vec4(shadowFactor.rgb * CalcADSLights(vs_position_model, normalize(normal), color.rgb), 1.0);
+			frag_color = vec4(shadowFactor.rgb * CalcADSLights(vs_position_model, normalize(normal), color.rgb), 1.0);
     }
     `
 
@@ -266,7 +266,7 @@ const (
     out vec3 vs_position_view;
     out vec3 vs_tangent;
     out vec2 vs_tex0_uv;
-    out vec3 vs_camera_eye;
+    out vec3 vs_camera_world;
     out vec4 vs_shadow_coord[4];
 
     ` + calcSkinnedData + `
@@ -287,7 +287,7 @@ const (
     	vs_normal_model = vs_normal_mat * skinned.normal;
     	vs_position_model = vec3(M_MATRIX * skinned.position);
     	vs_position_view = vec3(MV_MATRIX * skinned.position);
-    	vs_camera_eye = vec3(V_MATRIX * vec4(CAMERA_WORLD_POSITION,1.0));
+    	vs_camera_world = CAMERA_WORLD_POSITION;
     	vs_tangent = mat3(M_MATRIX) * skinned.tangent;
     	vs_tex0_uv = VERTEX_UV_0;
 
@@ -334,7 +334,7 @@ const (
     in vec3 vs_position_view;
     in vec3 vs_tangent;
     in vec2 vs_tex0_uv;
-    in vec3 vs_camera_eye;
+    in vec3 vs_camera_world;
     in vec4 vs_shadow_coord[4];
 
     out vec4 frag_color;

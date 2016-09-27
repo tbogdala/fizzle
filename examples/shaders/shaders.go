@@ -231,6 +231,16 @@ func main() {
 	lightWindow := uiman.NewWindow("Light", 0.7, 0.85, 0.2, 0.5, func(wnd *gui.Window) {
 		const colWidth = 0.33
 		wnd.RequestItemWidthMin(colWidth)
+		wnd.Text("Location")
+		wnd.RequestItemWidthMax(0.22)
+		wnd.DragSliderFloat("PosX", 0.1, &light.Position[0])
+		wnd.RequestItemWidthMax(0.22)
+		wnd.DragSliderFloat("PosY", 0.1, &light.Position[1])
+		wnd.RequestItemWidthMax(0.22)
+		wnd.DragSliderFloat("PoxZ", 0.1, &light.Position[2])
+
+		wnd.StartRow()
+		wnd.RequestItemWidthMin(colWidth)
 		wnd.Text("Diffuse")
 		wnd.RequestItemWidthMax(0.165)
 		wnd.SliderFloat("LDiffR", &light.DiffuseColor[0], 0, 1)
