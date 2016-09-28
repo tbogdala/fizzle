@@ -9,8 +9,6 @@ import (
 	"runtime"
 	"time"
 
-	glfw "github.com/go-gl/glfw/v3.1/glfw"
-
 	input "github.com/tbogdala/fizzle/input/glfwinput"
 )
 
@@ -40,9 +38,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// setup the input system
+	inputSystem := NewInputSystem()
+	inputSystem.Initialize(renderSystem.MainWindow)
+
 	// create a scene manager
 	sceneMan = NewTestScene()
 	sceneMan.AddSystem(renderSystem)
+	sceneMan.AddSystem(inputSystem)
 
 	// setup the components of the scene
 	err = sceneMan.SetupScene()
@@ -51,11 +54,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// set the callback functions for key input
-	kbModel = input.NewKeyboardModel(renderSystem.MainWindow)
-	kbModel.BindTrigger(glfw.KeyEscape, setShouldClose)
-	kbModel.SetupCallbacks()
-
 	// loop until something told the mainWindow that it should close
 	lastFrame := time.Now()
 	for !renderSystem.MainWindow.ShouldClose() {
@@ -63,23 +61,10 @@ func main() {
 		thisFrame := time.Now()
 		frameDelta := float32(thisFrame.Sub(lastFrame).Seconds())
 
-		// handle any keyboard input
-		kbModel.CheckKeyPresses()
-
 		// update the scene
 		sceneMan.Update(frameDelta)
-
-		// advise GLFW to poll for input. without this the window appears to hang.
-		glfw.PollEvents()
 
 		// update our last frame time
 		lastFrame = thisFrame
 	}
-}
-
-// setShouldClose should be called to close the window and kill the app.
-func setShouldClose() {
-	renderer := sceneMan.GetSystemByName(renderSystemName)
-	rs := renderer.(*RenderSystem)
-	rs.MainWindow.SetShouldClose(true)
 }

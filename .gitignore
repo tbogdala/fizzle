@@ -2,6 +2,7 @@ examples/cube/cube
 examples/joystick/joystick
 examples/lightsforward/lightsforward
 examples/shaders/shaders
+examples/testscene/testscene
 examples/*.exe
 examples/*.dll
 
