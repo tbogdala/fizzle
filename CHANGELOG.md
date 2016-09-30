@@ -19,6 +19,8 @@ Changes since v0.2.0
   `renderer/forward` package. Look for the create functions there. The shaders
   have been removed from the `examples/assets/forwardshaders` directory.
 
+* NEW: DiffuseUnlit shader was added to the built in list of shaders.
+
 * NEW: A `scene` package that contains bare-bone implementations of an entity
   system and provides common interfaces to use.
 

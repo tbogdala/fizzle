@@ -449,6 +449,46 @@ const (
     `
 
 	/*
+		     ______  _   __   __                     _   _         _  _  _
+				|  _  \(_) / _| / _|                   | | | |       | |(_)| |
+				| | | | _ | |_ | |_  _   _  ___   ___  | | | | _ __  | | _ | |_
+				| | | || ||  _||  _|| | | |/ __| / _ \ | | | || '_ \ | || || __|
+				| |/ / | || |  | |  | |_| |\__ \|  __/ | |_| || | | || || || |_
+				|___/  |_||_|  |_|   \__,_||___/ \___|  \___/ |_| |_||_||_| \__|
+	*/
+
+	diffuseUnlitShaderV = `#version 330
+			precision highp float;
+
+			uniform mat4 MVP_MATRIX;
+
+			in vec3 VERTEX_POSITION;
+			in vec2 VERTEX_UV_0;
+
+			out vec2 vs_tex0_uv;
+
+			void main(void) {
+				gl_Position = MVP_MATRIX * vec4(VERTEX_POSITION, 1.0);
+				vs_tex0_uv = VERTEX_UV_0;
+			}
+			`
+
+	diffuseUnlitShaderF = `#version 330
+			precision highp float;
+
+			uniform sampler2D MATERIAL_TEX_DIFFUSE;
+			uniform vec4 MATERIAL_DIFFUSE;
+
+			in vec2 vs_tex0_uv;
+			out vec4 frag_color;
+
+			void main (void) {
+				vec4 texColor = texture(MATERIAL_TEX_DIFFUSE, vs_tex0_uv);
+				frag_color = texColor * MATERIAL_DIFFUSE;
+			}
+			`
+
+	/*
 	   _____   _                   _                                                     _____
 	   / ____| | |                 | |                                                   / ____|
 	   | (___   | |__     __ _    __| |   ___   __      __  _ __ ___     __ _   _ __     | |  __    ___   _ __
@@ -513,4 +553,10 @@ func CreateColorTextShader() (*fizzle.RenderShader, error) {
 // shadow map texture to do dynamic shadows in a scene.
 func CreateShadowmapGeneratorShader() (*fizzle.RenderShader, error) {
 	return fizzle.LoadShaderProgram(shadowmapGeneratorV, shadowmapGeneratorF, nil)
+}
+
+// CreateDiffuseUnlitShader creates a new shader object using the built
+// in diffuse texture shader that is unlit (no lighting calculated).
+func CreateDiffuseUnlitShader() (*fizzle.RenderShader, error) {
+	return fizzle.LoadShaderProgram(diffuseUnlitShaderV, diffuseUnlitShaderF, nil)
 }

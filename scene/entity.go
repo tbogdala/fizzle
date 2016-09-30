@@ -14,41 +14,68 @@ type Entity interface {
 	// GetID should return an identifier that no other Entity has.
 	GetID() uint64
 
+	// GetName should return a user readable name for the Entity, which does
+	// not have to be unique.
+	GetName() string
+
 	// GetLocation returns the location of the entity in world space.
 	GetLocation() mgl.Vec3
 
 	// SetLocation sets the world space location of the entity.
 	SetLocation(mgl.Vec3)
+
+	// GetOrientation gets the local rotation of the entity as a quaternion.
+	GetOrientation() mgl.Quat
+
+	// SetOrientation sets the local rotation of the entity from a quaternion.
+	SetOrientation(mgl.Quat)
 }
 
 // BasicEntity represents any type of object in a scene from a moving character
 // to a stationary crate.
 type BasicEntity struct {
 	ID              uint64
-	Location        mgl.Vec3
-	Orientation     mgl.Quat
+	Name            string
+	location        mgl.Vec3
+	orientation     mgl.Quat // local rotation of th entity
 	CoarseColliders []glider.Collider
 }
 
 // NewBasicEntity creates a new BasicEntity object with sane defaults and empty slices.
 func NewBasicEntity() *BasicEntity {
 	e := new(BasicEntity)
-	e.Orientation = mgl.QuatIdent()
+	e.orientation = mgl.QuatIdent()
 	e.CoarseColliders = []glider.Collider{}
 	return e
 }
 
 // GetLocation returns the location of the entity in world space.
 func (e *BasicEntity) GetLocation() mgl.Vec3 {
-	return e.Location
+	return e.location
 }
 
 // SetLocation sets the world space location of the entity.
 func (e *BasicEntity) SetLocation(p mgl.Vec3) {
-	e.Location = p
+	e.location = p
+}
+
+// GetOrientation gets the local rotation of the entity as a quaternion.
+func (e *BasicEntity) GetOrientation() mgl.Quat {
+	return e.orientation
+}
+
+// SetOrientation sets the local rotation of the entity from a quaternion.
+func (e *BasicEntity) SetOrientation(q mgl.Quat) {
+	e.orientation = q
 }
 
 // GetID should return an identifier that no other Entity has.
 func (e *BasicEntity) GetID() uint64 {
 	return e.ID
+}
+
+// GetName should return a user readable name for the Entity, which does
+// not have to be unique.
+func (e *BasicEntity) GetName() string {
+	return e.Name
 }

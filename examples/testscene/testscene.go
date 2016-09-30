@@ -61,6 +61,7 @@ func (s *TestScene) SetupScene() error {
 
 	// create the test cube
 	cubeEntity := NewVisibleEntity()
+	cubeEntity.ID = s.GetNextID()
 	cubeEntity.Renderable = fizzle.CreateCube(-1, -1, -1, 1, 1, 1)
 	cubeEntity.Renderable.Material = redMaterial
 	s.AddEntity(cubeEntity)
