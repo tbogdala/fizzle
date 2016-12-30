@@ -113,13 +113,13 @@ type PreLinkBinder func(p graphics.Program)
 func LoadShaderProgramFromFiles(baseFilename string, prelink PreLinkBinder) (*RenderShader, error) {
 	vsBytes, err := ioutil.ReadFile(baseFilename + ".vs")
 	if err != nil {
-		fmt.Errorf("Failed to read the vertex shader \"%s.vs\".\n%v", baseFilename, err)
+		return nil, fmt.Errorf("Failed to read the vertex shader \"%s.vs\".\n%v", baseFilename, err)
 	}
 	vsBuffer := bytes.NewBuffer(vsBytes)
 
 	fsBytes, err := ioutil.ReadFile(baseFilename + ".fs")
 	if err != nil {
-		fmt.Errorf("Failed to read the fragment shader \"%s.fs\".\n%v", baseFilename, err)
+		return nil, fmt.Errorf("Failed to read the fragment shader \"%s.fs\".\n%v", baseFilename, err)
 	}
 	fsBuffer := bytes.NewBuffer(fsBytes)
 
