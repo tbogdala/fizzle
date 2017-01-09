@@ -1,9 +1,8 @@
-FIZZLE v0.2.0
+FIZZLE v0.3.0
 =============
 
 Fizzle is an OpenGL rendering engine written in the [Go][golang] programming language
-that currently has a forward rendering pipeline and a prototype deferred renderer
-as well.
+that currently has a forward rendering pipeline with basic animation and shader support.
 
 In some regards, it is the spiritual successor to my first 3d engine, [PortableGLUE][pg].
 
@@ -46,6 +45,7 @@ go get github.com/go-gl/mathgl/mgl32
 go get github.com/golang/freetype
 go get github.com/tbogdala/groggy
 go get github.com/tbogdala/gombz
+go get github.com/tbogdala/eweygewey
 ```
 
 An OpenGL library will also be required for desktop applications; install
@@ -70,11 +70,12 @@ Current Features
 
 * forward rendering engine with limited dynamic lighting
 * limited dynamic shadow support
-* able to define components using JSON files
+* components system using JSON files
 * skeletal animations
 * basic camera support
 * basic particle editor (cmd/particles)
 * basic shader explorer (examples/shaders)
+* basic entity system (examples/testscene)
 
 
 TODO

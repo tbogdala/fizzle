@@ -1,5 +1,5 @@
-Changes since v0.2.0
-====================
+Version v0.3.0
+==============
 
 * APIBREAK: Many `fizzle/component` changes, including API breaks.
 
@@ -36,8 +36,8 @@ Changes since v0.2.0
 * BUG: Improved the specular component for the basic and basicSkinned shaders.
 
 
-Changes since v0.1.0
-====================
+Version v0.2.0
+==============
 
 * APIBREAK: Many `fizzle/component` changes, including API breaks.
 * APIBREAK: Renderable.Core.Tex0 and Tex1 have been replaced with
