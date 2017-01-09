@@ -29,7 +29,7 @@ Additionally, a backend graphics provider needs to be used. At present, fizzle
 supports the following:
 
 * [Go GL][go-gl] - pre-generated OpenGL bindings using their glow project
-* [opengles2][go-gles] - Go bindings to the OpenGL ES 2.0 library
+* [Opengles2][opengles2] - Go bindings to the OpenGL ES 2.0 library
 
 These are included when the `graphicsprovider` subpackage is used and direct
 importing is not required.
