@@ -131,7 +131,7 @@ func (rs *RenderSystem) OnAddEntity(newEntity scene.Entity) {
 // OnRemoveEntity should get called by the scene Manager each time an entity
 // has been removed from the scene.
 func (rs *RenderSystem) OnRemoveEntity(oldEntity scene.Entity) {
-	surviving := rs.visibleEntities[:]
+	surviving := rs.visibleEntities[:0]
 	for _, e := range rs.visibleEntities {
 		if e.GetID() != oldEntity.GetID() {
 			surviving = append(surviving, e)

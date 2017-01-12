@@ -227,6 +227,9 @@ func (c *Component) SetRenderable(newRenderable *fizzle.Renderable) {
 // or create one if it hasn't been made yet. The TextureManager is needed
 // to resolve texture references and the shaders collection is needed to
 // set a RenderShader identified by the name defined in Component.
+//
+// NOTE: This is not an instance of the renderable, but the main renderable
+// object for the component.
 func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader) *fizzle.Renderable {
 	// see if we have a cached renderable already created
 	if c.cachedRenderable != nil {

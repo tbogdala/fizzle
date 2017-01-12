@@ -144,3 +144,12 @@ func (sm *BasicSceneManager) Update(frameDelta float32) {
 		s.Update(frameDelta)
 	})
 }
+
+// MapEntities takes a function that accepts a uint64 ID value and
+// an Entity interface and will get called for each entity in the
+// scene in an undefined order.
+func (sm *BasicSceneManager) MapEntities(fn func(uint64, Entity)) {
+	for idValue, entity := range sm.entities {
+		fn(idValue, entity)
+	}
+}

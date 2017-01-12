@@ -1,3 +1,11 @@
+Version v0.4.0
+==============
+
+* BUG: Fixed RenderSystem.OnRemoveEntity() so that it correctly creates a new
+  slice for surviving entities that is empty.
+
+* MISC: scene/BasicSceneManager got a new function: MapEntities()
+
 Version v0.3.0
 ==============
 
