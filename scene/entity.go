@@ -6,6 +6,7 @@ package scene
 import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 
+	component "github.com/tbogdala/fizzle/component"
 	glider "github.com/tbogdala/glider"
 )
 
@@ -78,4 +79,28 @@ func (e *BasicEntity) GetID() uint64 {
 // not have to be unique.
 func (e *BasicEntity) GetName() string {
 	return e.Name
+}
+
+// CreateCollidersFromComponent will create the coarse collision objects
+// for the basic entity based on the component definition.
+func (e *BasicEntity) CreateCollidersFromComponent(c *component.Component) {
+	// sanity check to see if we have collisions to create
+	if c == nil || c.Collisions == nil || len(c.Collisions) <= 0 {
+		return
+	}
+
+	for _, ref := range c.Collisions {
+		switch ref.Type {
+		case component.ColliderTypeAABB:
+			aabb := glider.NewAABBox()
+			aabb.Min = ref.Min
+			aabb.Max = ref.Max
+			e.CoarseColliders = append(e.CoarseColliders, aabb)
+		case component.ColliderTypeSphere:
+			sphere := glider.NewSphere()
+			sphere.Center = ref.Offset
+			sphere.Radius = ref.Radius
+			e.CoarseColliders = append(e.CoarseColliders, sphere)
+		}
+	}
 }
