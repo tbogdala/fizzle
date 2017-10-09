@@ -1,3 +1,10 @@
+Since Version v0.4.0
+====================
+
+* NEW: cmd/compeditor now embeds the Oswald-Heavy font so that the executable
+  can be installed with `go install` and then run without having to locate
+  the font file. This was generate with `go-bindata`.
+
 Version v0.4.0
 ==============
 

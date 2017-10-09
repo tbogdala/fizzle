@@ -27,6 +27,8 @@ import (
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	opengl "github.com/tbogdala/fizzle/graphicsprovider/opengl"
 	forward "github.com/tbogdala/fizzle/renderer/forward"
+
+	embedded "github.com/tbogdala/fizzle/cmd/compeditor/embedded"
 )
 
 var (
@@ -962,7 +964,12 @@ func main() {
 	guiinput.SetInputHandlers(uiman, mainWindow)
 
 	// load a font
-	_, err = uiman.NewFont("Default", fontFilepath, fontScale, fontGlyphs)
+	fontBytes, err := embedded.Asset(fontFilepath)
+	if err != nil {
+		fmt.Printf("Failed to load the embedded font: %v", err)
+		return
+	}
+	_, err = uiman.NewFontBytes("Default", fontBytes, fontScale, fontGlyphs)
 	if err != nil {
 		panic("Failed to load the font file! " + err.Error())
 	}
