@@ -18,6 +18,7 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 	assimp "github.com/tbogdala/assimp-go"
 	gui "github.com/tbogdala/eweygewey"
+	embeddedfonts "github.com/tbogdala/eweygewey/embeddedfonts"
 	guiinput "github.com/tbogdala/eweygewey/glfwinput"
 	gombz "github.com/tbogdala/gombz"
 	groggy "github.com/tbogdala/groggy"
@@ -27,13 +28,13 @@ import (
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	opengl "github.com/tbogdala/fizzle/graphicsprovider/opengl"
 	forward "github.com/tbogdala/fizzle/renderer/forward"
-
-	embedded "github.com/tbogdala/fizzle/cmd/compeditor/embedded"
 )
 
 var (
 	windowWidth  = 1280
 	windowHeight = 720
+	perspNear    = float32(0.1)
+	perspFar     = float32(100.0)
 	mainWindow   *glfw.Window
 	camera       *fizzle.OrbitCamera
 	uiman        *gui.Manager
@@ -964,7 +965,7 @@ func main() {
 	guiinput.SetInputHandlers(uiman, mainWindow)
 
 	// load a font
-	fontBytes, err := embedded.Asset(fontFilepath)
+	fontBytes, err := embeddedfonts.OswaldHeavyTtfBytes()+
 	if err != nil {
 		fmt.Printf("Failed to load the embedded font: %v", err)
 		return
@@ -1065,7 +1066,7 @@ func main() {
 		gfx.ClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3])
 		gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT)
 
-		perspective := mgl.Perspective(mgl.DegToRad(60.0), float32(width)/float32(height), 1.0, 100.0)
+		perspective := mgl.Perspective(mgl.DegToRad(60.0), float32(width)/float32(height), perspNear, perspFar)
 		view := camera.GetViewMatrix()
 
 		// draw the meshes that are visible
@@ -1174,7 +1175,7 @@ func initGraphics(title string, w int, h int) (*glfw.Window, graphics.GraphicsPr
 
 // handleInput checks for keys and does some updates.
 func handleInput(w *glfw.Window, delta float32) {
-	const minDistance float32 = 3.0
+	const minDistance float32 = 0.0
 	const zoomSpeed float32 = 3.0
 	const rotSpeed = math.Pi
 
