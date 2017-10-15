@@ -965,7 +965,7 @@ func main() {
 	guiinput.SetInputHandlers(uiman, mainWindow)
 
 	// load a font
-	fontBytes, err := embeddedfonts.OswaldHeavyTtfBytes()+
+	fontBytes, err := embeddedfonts.OswaldHeavyTtfBytes()
 	if err != nil {
 		fmt.Printf("Failed to load the embedded font: %v", err)
 		return
