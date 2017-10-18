@@ -1,10 +1,19 @@
-Version v0.4.0
+Version v0.3.1
 ==============
 
 * BUG: Fixed RenderSystem.OnRemoveEntity() so that it correctly creates a new
   slice for surviving entities that is empty.
 
-* MISC: scene/BasicSceneManager got a new function: MapEntities()
+* MISC: scene/BasicSceneManager got a new function: MapEntities() to iterate
+  over Entity objects in the scene.
+
+* MISC: scene/BasicEntity got a new function: CreateCollidersFromComponent()
+  to create collision objects.
+
+* BUG: `cmd/compeditor` now embeds the Oswald-Heavy font from eweygewey so that
+  it doesn't have to locate it at runtime and is now more pleasant to use
+  with `go install`.
+
 
 Version v0.3.0
 ==============
