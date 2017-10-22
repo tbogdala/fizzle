@@ -16,5 +16,8 @@ cmd/particles/particles.exe
 cmd/compeditor/compeditor
 cmd/compeditor/compeditor.exe
 
+cmd/gameeditor/gameeditor
+cmd/gameeditor/gameeditor.exe
+
 .floo
 .flooignore
