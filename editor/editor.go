@@ -4,14 +4,21 @@
 package editor
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"runtime"
+
+	"github.com/tbogdala/fizzle/renderer"
 
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/golang-ui/nuklear/nk"
+	"github.com/tbogdala/fizzle"
+	"github.com/tbogdala/fizzle/component"
 	"github.com/tbogdala/fizzle/editor/embedded"
+	"github.com/tbogdala/fizzle/renderer/forward"
 )
 
 // used by nuklear for rendering
@@ -34,6 +41,11 @@ const (
 	ModeComponent = 2
 )
 
+// ComponentState contains all of the state specific for a component
+type ComponentState struct {
+	Selected int32
+}
+
 // ComponentsState contains all state information relevant to the loaded components
 type ComponentsState struct {
 	// byte buffer for the edit string for searching components
@@ -41,14 +53,30 @@ type ComponentsState struct {
 
 	// the current length of the string placed in nameSearchBuffer
 	nameSearchLen int32
+
+	// the component manager for all of the components
+	manager *component.Manager
+
+	// component selection map of component.Name -> int
+	componentStates map[string]*ComponentState
 }
 
 // State contains all state information relevant to the level.
 type State struct {
+	// keeps track of all of the loaded components
 	components *ComponentsState
 
+	// the texture manager in the editor
+	texMan *fizzle.TextureManager
+
+	// the loaded shaders in the editor
+	shaders map[string]*fizzle.RenderShader
+
 	// the main window for the editor
-	win *glfw.Window
+	window *glfw.Window
+
+	// the graphics renderer for use by the editor
+	render renderer.Renderer
 
 	// the nuklear context for rendering ui controls
 	ctx *nk.Context
@@ -58,7 +86,7 @@ type State struct {
 }
 
 // NewState creates a new editor state object to track related content for the level.
-func NewState(win *glfw.Window) (*State, error) {
+func NewState(win *glfw.Window, rend renderer.Renderer) (*State, error) {
 	// setup Nuklear and put a default font in
 	ctx := nk.NkPlatformInit(win, nk.PlatformInstallCallbacks)
 
@@ -74,15 +102,39 @@ func NewState(win *glfw.Window) (*State, error) {
 		nk.NkStyleSetFont(ctx, sansFont.Handle())
 	}
 
-	return NewStateWithContext(win, ctx)
+	return NewStateWithContext(win, rend, ctx)
 }
 
 // NewStateWithContext creates a new editor state with a given nuklear ui context.
-func NewStateWithContext(win *glfw.Window, ctx *nk.Context) (*State, error) {
+func NewStateWithContext(win *glfw.Window, rend renderer.Renderer, ctx *nk.Context) (*State, error) {
 	s := new(State)
+	s.render = rend
+	s.texMan = fizzle.NewTextureManager()
+	s.shaders = make(map[string]*fizzle.RenderShader)
+
+	// load some basic shaders
+	basicShader, err := forward.CreateBasicShader()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to compile and link the basic shader program! " + err.Error())
+	}
+	basicSkinnedShader, err := forward.CreateBasicSkinnedShader()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to compile and link the basic skinned shader program! " + err.Error())
+	}
+	colorShader, err := forward.CreateColorShader()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to compile and link the color shader program! " + err.Error())
+	}
+	s.shaders["Basic"] = basicShader
+	s.shaders["BasicSkinned"] = basicSkinnedShader
+	s.shaders["Color"] = colorShader
+
 	s.components = new(ComponentsState)
 	s.components.nameSearchBuffer = make([]byte, 0, 64)
-	s.win = win
+	s.components.componentStates = make(map[string]*ComponentState)
+	s.components.manager = component.NewManager(s.texMan, s.shaders)
+
+	s.window = win
 	s.ctx = ctx
 	return s, nil
 }
@@ -106,9 +158,28 @@ func (s *State) Render() {
 	}
 
 	// render out the nuklear ui
-	width, height := s.win.GetSize()
+	width, height := s.window.GetSize()
 	gl.Viewport(0, 0, int32(width), int32(height))
 	nk.NkPlatformRender(nk.AntiAliasingOn, maxVertexBuffer, maxElementBuffer)
+}
+
+// LoadComponentFile attempts to load the component JSON file into the editor.
+func (s *State) LoadComponentFile(filepath string) error {
+	var theComponent component.Component
+	existingCompJSON, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s as a component JSON file", filepath)
+	}
+
+	err = json.Unmarshal(existingCompJSON, &theComponent)
+	if err != nil {
+		return fmt.Errorf("failed to load component %s: %v", filepath, err)
+	}
+
+	s.components.manager.AddComponent(theComponent.Name, &theComponent)
+	s.components.componentStates[theComponent.Name] = new(ComponentState)
+
+	return nil
 }
 
 // renderModeToolbar draws the mode toolbar on the screen
@@ -135,7 +206,7 @@ func (s *State) renderComponentBrowser() {
 	bounds := nk.NkRect(10, 75, 300, 600)
 	update := nk.NkBegin(s.ctx, "Components", bounds, nk.WindowBorder|nk.WindowMovable|nk.WindowMinimizable)
 	if update > 0 {
-		nk.NkLayoutRow(s.ctx, nk.Dynamic, 35, 2, []float32{0.8, 0.2})
+		nk.NkLayoutRow(s.ctx, nk.Dynamic, 35, 3, []float32{0.7, 0.15, 0.15})
 		{
 			// component search edit box
 			nk.NkEditString(s.ctx, nk.EditField, s.components.nameSearchBuffer,
@@ -143,6 +214,10 @@ func (s *State) renderComponentBrowser() {
 
 			if nk.NkButtonLabel(s.ctx, "F") > 0 {
 				log.Println("[DEBUG] comp:find pressed!")
+			}
+
+			if nk.NkButtonLabel(s.ctx, "L") > 0 {
+				log.Println("[DEBUG] comp:load pressed!")
 			}
 		}
 
@@ -155,10 +230,12 @@ func (s *State) renderComponentBrowser() {
 				hashStr := fmt.Sprintf("%s:%d", fileName, fileLine)
 				if nk.NkTreePushHashed(s.ctx, nk.TreeNode, "Component Lists", nk.Maximized, hashStr, int32(len(hashStr)), int32(fileLine)) != 0 {
 					// add in labels for all components known to the level
-					nk.NkLayoutRowDynamic(s.ctx, 30, 1)
-					var selected int32
-					nk.NkSelectableLabel(s.ctx, "Test Component", nk.TextLeft, &selected)
-					nk.NkTreePop(s.ctx)
+					s.components.manager.MapComponents(func(c *component.Component) {
+						state := s.components.componentStates[c.Name]
+						nk.NkLayoutRowDynamic(s.ctx, 30, 1)
+						nk.NkSelectableLabel(s.ctx, c.Name, nk.TextLeft, &state.Selected)
+						nk.NkTreePop(s.ctx)
+					})
 				}
 			}
 		}

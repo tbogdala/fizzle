@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"time"
 
@@ -12,7 +13,13 @@ import (
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/golang-ui/nuklear/nk"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/tbogdala/fizzle"
 	"github.com/tbogdala/fizzle/editor"
+	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
+	"github.com/tbogdala/fizzle/renderer"
+	"github.com/tbogdala/fizzle/renderer/forward"
 )
 
 var (
@@ -21,6 +28,14 @@ var (
 	windowHeight = 720
 	exitChan     chan bool
 	bgColor      [4]float32
+	render       renderer.Renderer
+)
+
+// command line flags
+var (
+	versionString = "v0.1.0 DEVELOPMENT"
+	appFlags      = kingpin.New("gameeditor", "game editor for the Fizzle graphics library.")
+	flagComponent = appFlags.Flag("component", "edit the component JSON file specified").Default("").String()
 )
 
 // lock our main goroutine down for gl/glfw
@@ -29,6 +44,9 @@ func init() {
 }
 
 func main() {
+	appFlags.Version(versionString)
+	appFlags.Parse(os.Args[1:])
+
 	// create the main window
 	win, err := initGlfw()
 	if err != nil {
@@ -36,13 +54,30 @@ func main() {
 		return
 	}
 
+	// create a renderer
+	gfx := fizzle.GetGraphics()
+	windowWidth, windowHeight := win.GetSize()
+	render = forward.NewForwardRenderer(gfx)
+	render.ChangeResolution(int32(windowWidth), int32(windowHeight))
+	defer render.Destroy()
+
 	// construct a new editor state
-	levelEd, err := editor.NewState(win)
+	levelEd, err := editor.NewState(win, render)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	levelEd.SetMode(editor.ModeComponent)
+
+	// if a component file was specified, switch editing modes
+	// and load up the component
+	if *flagComponent != "" {
+		levelEd.SetMode(editor.ModeComponent)
+		err = levelEd.LoadComponentFile(*flagComponent)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+	}
 
 	// render loop time
 	exitChan := make(chan bool, 1)
@@ -94,9 +129,12 @@ func initGlfw() (*glfw.Window, error) {
 	win.MakeContextCurrent()
 	glfw.SwapInterval(1)
 
-	if err := gl.Init(); err != nil {
-		return nil, fmt.Errorf("Failed to initialize OpenGL 3.3: %v", err)
+	// initialize OpenGL
+	gfx, err := opengl.InitOpenGL()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize OpenGL 3.3: %v", err)
 	}
+	fizzle.SetGraphics(gfx)
 
 	// make sure we initialize 3.2 for nuklear
 	if err := gl32.Init(); err != nil {
@@ -107,5 +145,5 @@ func initGlfw() (*glfw.Window, error) {
 }
 
 func onWindowResize(w *glfw.Window, width int, height int) {
-	//	renderer.ChangeResolution(int32(width), int32(height))
+	render.ChangeResolution(int32(width), int32(height))
 }

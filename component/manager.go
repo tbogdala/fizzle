@@ -71,6 +71,13 @@ func (cm *Manager) AddComponent(name string, component *Component) {
 	cm.storage[name] = component
 }
 
+// MapComponents will call the supplied function for each component in the map.
+func (cm *Manager) MapComponents(foo func(component *Component)) {
+	for _, c := range cm.storage {
+		foo(c)
+	}
+}
+
 // GetComponent returns a component from storage that matches the name specified.
 // A bool is returned as the second value to indicate whether or not the component
 // was found in storage.
