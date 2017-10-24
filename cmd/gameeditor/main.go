@@ -10,15 +10,14 @@ import (
 	"time"
 
 	gl32 "github.com/go-gl/gl/v3.2-core/gl"
-	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/golang-ui/nuklear/nk"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/tbogdala/fizzle"
 	"github.com/tbogdala/fizzle/editor"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	"github.com/tbogdala/fizzle/graphicsprovider/opengl"
-	"github.com/tbogdala/fizzle/renderer"
 	"github.com/tbogdala/fizzle/renderer/forward"
 )
 
@@ -28,7 +27,7 @@ var (
 	windowHeight = 720
 	exitChan     chan bool
 	bgColor      [4]float32
-	render       renderer.Renderer
+	render       *forward.ForwardRenderer
 )
 
 // command line flags
@@ -72,11 +71,12 @@ func main() {
 	// and load up the component
 	if *flagComponent != "" {
 		levelEd.SetMode(editor.ModeComponent)
-		err = levelEd.LoadComponentFile(*flagComponent)
+		activeComp, err := levelEd.LoadComponentFile(*flagComponent)
 		if err != nil {
 			fmt.Println(err.Error())
 			return
 		}
+		levelEd.SetActiveComponent(activeComp)
 	}
 
 	// render loop time
@@ -98,9 +98,17 @@ func main() {
 
 			// clear the screen
 			width, height := win.GetSize()
-			gl.Viewport(0, 0, int32(width), int32(height))
-			gl.Clear(gl.COLOR_BUFFER_BIT)
-			gl.ClearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3])
+			gfx.Viewport(0, 0, int32(width), int32(height))
+			gfx.ClearColor(0.15, 0.15, 0.18, 1.0) // nice background color, but not black
+			gfx.Clear(graphics.COLOR_BUFFER_BIT | graphics.DEPTH_BUFFER_BIT)
+
+			// set some OpenGL flags
+			gfx.Enable(graphics.CULL_FACE)
+			gfx.Enable(graphics.DEPTH_TEST)
+			gfx.Enable(graphics.MIPMAP)
+			gfx.Enable(graphics.BLEND)
+			gfx.BlendFunc(graphics.SRC_ALPHA, graphics.ONE_MINUS_SRC_ALPHA)
+			gfx.Disable(graphics.SCISSOR_TEST)
 
 			// draw the editor interface
 			levelEd.Render()

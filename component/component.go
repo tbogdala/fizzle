@@ -9,7 +9,6 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/fizzle"
 	"github.com/tbogdala/gombz"
-	"github.com/tbogdala/groggy"
 )
 
 // Mesh defines a mesh reference for a component and everything
@@ -176,13 +175,34 @@ type Component struct {
 	// Properties is a map for client code's custom properties for the component.
 	Properties map[string]string
 
-	// componentDirPath is the directory path for the component file if it was loaded
+	// dirPath is the directory path for the component file if it was loaded
 	// from JSON.
-	componentDirPath string
+	dirPath string
+
+	// filename is the filename without the directory path for the component file.
+	filename string
+
+	// filePath is the full filepath used to load the component file.
+	filePath string
 
 	// cachedRenderable is the cached renerable object for the component that can
 	// be used as a prototype.
 	cachedRenderable *fizzle.Renderable
+}
+
+// GetDirPath returns the directory path for the component if it was loaded by filepath.
+func (c *Component) GetDirPath() string {
+	return c.dirPath
+}
+
+// GetFilename returns the filename only part path for the component if it was loaded by filepath.
+func (c *Component) GetFilename() string {
+	return c.filename
+}
+
+// GetFilepath returns the full filepath the component was loaded from.
+func (c *Component) GetFilepath() string {
+	return c.filePath
 }
 
 // Destroy will destroy the cached Renderable object if it exists.
@@ -205,7 +225,9 @@ func (c *Component) Clone() *Component {
 	clone.ChildReferences = c.ChildReferences
 	clone.Collisions = c.Collisions
 	clone.Properties = c.Properties
-	clone.componentDirPath = c.componentDirPath
+	clone.dirPath = c.dirPath
+	clone.filename = c.filename
+	clone.filePath = c.filePath
 	clone.cachedRenderable = c.cachedRenderable
 
 	return clone
@@ -230,10 +252,10 @@ func (c *Component) SetRenderable(newRenderable *fizzle.Renderable) {
 //
 // NOTE: This is not an instance of the renderable, but the main renderable
 // object for the component.
-func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader) *fizzle.Renderable {
+func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader) (*fizzle.Renderable, error) {
 	// see if we have a cached renderable already created
 	if c.cachedRenderable != nil {
-		return c.cachedRenderable
+		return c.cachedRenderable, nil
 	}
 
 	// start by creating a renderable to hold all of the meshes
@@ -245,32 +267,35 @@ func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]
 	// comnponents only create new render nodes for the meshs defined and
 	// not for referenced components
 	for _, compMesh := range c.Meshes {
-		cmRenderable := CreateRenderableForMesh(tm, shaders, compMesh)
+		cmRenderable, err := CreateRenderableForMesh(tm, shaders, compMesh)
+		if err != nil {
+			return nil, err
+		}
 		group.AddChild(cmRenderable)
 	}
 
 	// cache it for later
 	c.cachedRenderable = group
 
-	return group
+	return group, nil
 }
 
 // GetFullBinFilePath returns the full file path for the mesh binary file (gombz format).
 func (cm *Mesh) GetFullBinFilePath() string {
-	return cm.Parent.componentDirPath + cm.BinFile
+	return cm.Parent.dirPath + cm.BinFile
 }
 
 // GetFullTexturePath returns the full file path for the mesh texture. The textureIndex
 // is an index into Mesh.Textures to pull the texture name to build the path for.
 func (cm *Mesh) GetFullTexturePath(textureIndex int) string {
-	return cm.Parent.componentDirPath + cm.Material.Textures[textureIndex]
+	return cm.Parent.dirPath + cm.Material.Textures[textureIndex]
 }
 
 // GetVertices returns the vector slice containing the vertices for the mesh from
 // the cached source gombz structure.
 func (cm *Mesh) GetVertices() ([]mgl.Vec3, error) {
 	if cm.SrcMesh == nil {
-		return nil, fmt.Errorf("No internal data present for component mesh to get vertices from.")
+		return nil, fmt.Errorf("no internal data present for component mesh to get vertices from")
 	}
 	return cm.SrcMesh.Vertices, nil
 }
@@ -278,7 +303,7 @@ func (cm *Mesh) GetVertices() ([]mgl.Vec3, error) {
 // CreateRenderableForMesh does the work of creating the Renderable and putting all of
 // the mesh data into VBOs. This also creates a new material for the renderable
 // and assigns the textures accordingly.
-func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader, compMesh *Mesh) *fizzle.Renderable {
+func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizzle.RenderShader, compMesh *Mesh) (*fizzle.Renderable, error) {
 	// create the new renderable
 	r := fizzle.CreateFromGombz(compMesh.SrcMesh)
 	r.Material = fizzle.NewMaterial()
@@ -300,17 +325,16 @@ func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizz
 	for i := 0; i < textureCount; i++ {
 		r.Material.CustomTex[i], okay = tm.GetTexture(compMesh.Material.Textures[i])
 		if !okay {
-			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.Textures[i])
+			return nil, fmt.Errorf("createRenderableForMesh failed to assign a texture gl id for %s", compMesh.Material.Textures[i])
 		}
 		if compMesh.Material.GenerateMipmaps {
 			fizzle.GenerateMipmaps(r.Material.CustomTex[i])
 		}
 	}
 	if len(compMesh.Material.DiffuseTexture) > 0 {
-		groggy.Logsf("DEBUG", "createRenderableForMesh DiffuseTexturer loading: %s.", compMesh.Material.DiffuseTexture)
 		r.Material.DiffuseTex, okay = tm.GetTexture(compMesh.Material.DiffuseTexture)
 		if !okay {
-			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.DiffuseTexture)
+			return nil, fmt.Errorf("createRenderableForMesh failed to assign a texture gl id for %s", compMesh.Material.DiffuseTexture)
 		}
 		if compMesh.Material.GenerateMipmaps {
 			fizzle.GenerateMipmaps(r.Material.DiffuseTex)
@@ -319,7 +343,7 @@ func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizz
 	if len(compMesh.Material.NormalsTexture) > 0 {
 		r.Material.NormalsTex, okay = tm.GetTexture(compMesh.Material.NormalsTexture)
 		if !okay {
-			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.NormalsTexture)
+			return nil, fmt.Errorf("createRenderableForMesh failed to assign a texture gl id for %s", compMesh.Material.NormalsTexture)
 		}
 		if compMesh.Material.GenerateMipmaps {
 			fizzle.GenerateMipmaps(r.Material.NormalsTex)
@@ -328,7 +352,7 @@ func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizz
 	if len(compMesh.Material.SpecularTexture) > 0 {
 		r.Material.SpecularTex, okay = tm.GetTexture(compMesh.Material.SpecularTexture)
 		if !okay {
-			groggy.Logsf("ERROR", "createRenderableForMesh failed to assign a texture gl id for %s.", compMesh.Material.SpecularTexture)
+			return nil, fmt.Errorf("createRenderableForMesh failed to assign a texture gl id for %s", compMesh.Material.SpecularTexture)
 		}
 		if compMesh.Material.GenerateMipmaps {
 			fizzle.GenerateMipmaps(r.Material.SpecularTex)
@@ -344,5 +368,5 @@ func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizz
 		r.Material.Shader = loadedShader
 	}
 
-	return r
+	return r, nil
 }

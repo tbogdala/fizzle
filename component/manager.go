@@ -22,7 +22,6 @@ import (
 
 	"github.com/tbogdala/fizzle"
 	"github.com/tbogdala/gombz"
-	"github.com/tbogdala/groggy"
 )
 
 // Manager loads and manages access to Component objects.
@@ -78,6 +77,11 @@ func (cm *Manager) MapComponents(foo func(component *Component)) {
 	}
 }
 
+// GetComponentCount returns the number of components stored by the manager.
+func (cm *Manager) GetComponentCount() int {
+	return len(cm.storage)
+}
+
 // GetComponent returns a component from storage that matches the name specified.
 // A bool is returned as the second value to indicate whether or not the component
 // was found in storage.
@@ -86,11 +90,26 @@ func (cm *Manager) GetComponent(name string) (*Component, bool) {
 	return crComponent, okay
 }
 
+// GetComponentByFilepath returns a component from storage that matches the full
+// filepath specified. A non-nil value is returned if a component was found.
+func (cm *Manager) GetComponentByFilepath(filepath string) *Component {
+	for _, comp := range cm.storage {
+		if comp.filePath == filepath {
+			return comp
+		}
+	}
+
+	return nil
+}
+
 // GetRenderableInstance gets the renderable from the component and clones it to
 // a new instance. It then loops over all child references and calls GetRenderableInstance
 // for all of them, creating new clones for each, recursively.
-func (cm *Manager) GetRenderableInstance(component *Component) *fizzle.Renderable {
-	compRenderable := component.GetRenderable(cm.textureManager, cm.loadedShaders)
+func (cm *Manager) GetRenderableInstance(component *Component) (*fizzle.Renderable, error) {
+	compRenderable, err := component.GetRenderable(cm.textureManager, cm.loadedShaders)
+	if err != nil {
+		return nil, err
+	}
 	r := compRenderable.Clone()
 
 	// clone a renderable for each of the child references
@@ -98,12 +117,13 @@ func (cm *Manager) GetRenderableInstance(component *Component) *fizzle.Renderabl
 		_, childFileName := filepath.Split(cref.File)
 		crComponent, okay := cm.GetComponent(childFileName)
 		if !okay {
-			groggy.Logsf("ERROR", "GetRenderableInstance: Component %s has a ChildInstance (%s) that wasn't loaded.\n",
-				component.Name, cref.File)
-			continue
+			return nil, fmt.Errorf("in GetRenderableInstance(), component %s has a ChildInstance (%s) that wasn't loaded", component.Name, cref.File)
 		}
 
-		rc := cm.GetRenderableInstance(crComponent)
+		rc, err := cm.GetRenderableInstance(crComponent)
+		if err != nil {
+			return nil, err
+		}
 
 		// override the location for the renderable if location was specified in
 		// the child reference
@@ -114,44 +134,47 @@ func (cm *Manager) GetRenderableInstance(component *Component) *fizzle.Renderabl
 		r.AddChild(rc)
 	}
 
-	return r
+	return r, nil
 }
 
 // LoadComponentFromFile loads a component from a JSON file and stores it under
-// the name speicified. This function returns the new component and a possible
-// error value.
-func (cm *Manager) LoadComponentFromFile(filename string, storageName string) (*Component, error) {
-	// split the directory path to the component file
-	componentDirPath, _ := filepath.Split(filename)
-
-	// check to see if it exists in storage already
-	if loadedComp, okay := cm.storage[storageName]; okay {
-		return loadedComp, nil
-	}
-
+// the name speicified in the component file. This function returns the new component
+// and a non-nil error on failure.
+func (cm *Manager) LoadComponentFromFile(filename string) (*Component, error) {
 	// make sure the component file exists
 	jsonBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read the component file specified.\n%s\n", err)
+		return nil, fmt.Errorf("failed to read the component file specified: %v", err)
 	}
 
-	return cm.LoadComponentFromBytes(jsonBytes, storageName, componentDirPath)
+	return cm.LoadComponentFromBytes(jsonBytes, filename)
 }
 
 // LoadComponentFromBytes loads the component from a JSON byte slice and stores it
-// under the name specified. componentDirPath can be set to aid the finding of
-// parts of the component to load. This function returns the new component and
-// a possible error value.
-func (cm *Manager) LoadComponentFromBytes(jsonBytes []byte, storageName string, componentDirPath string) (*Component, error) {
+// under the component name. If the component has already been loaded, then it will
+// return the previously existing component. This function returns the new component and
+// a non-nil error value on failure.
+func (cm *Manager) LoadComponentFromBytes(jsonBytes []byte, filename string) (*Component, error) {
 	// attempt to decode the json
 	component := new(Component)
 	err := json.Unmarshal(jsonBytes, component)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to decode the JSON in the component file specified.\n%s\n", err)
+		return nil, fmt.Errorf("failed to decode the JSON in the component file specified: %v", err)
 	}
 
-	// store the directory path to the component file
-	component.componentDirPath = componentDirPath
+	// now that we have it decoded, make sure that it doesn't already exist
+	// in the collection of loaded components; if it does, just return the
+	// already created Component.
+	foundChild, found := cm.storage[component.Name]
+	if found {
+		return foundChild, nil
+	}
+
+	// split the directory path to the component file
+	componentDirPath, componentFilename := filepath.Split(filename)
+	component.dirPath = componentDirPath
+	component.filename = componentFilename
+	component.filePath = filename
 
 	// load all of the meshes in the component
 	for _, compMesh := range component.Meshes {
@@ -166,56 +189,47 @@ func (cm *Manager) LoadComponentFromBytes(jsonBytes []byte, storageName string, 
 		for i := range compMesh.Material.Textures {
 			_, err = cm.textureManager.LoadTexture(compMesh.Material.Textures[i], compMesh.GetFullTexturePath(i))
 			if err != nil {
-				groggy.Logsf("ERROR", "Mesh #%d failed to load texture: %s", meshIndex, compMesh.Material.Textures[i])
-			} else {
-				groggy.Logsf("DEBUG", "Mesh #%d loaded texture: %s", meshIndex, compMesh.Material.Textures[i])
+				return nil, fmt.Errorf("mesh #%d failed to load texture: %s", meshIndex, compMesh.Material.Textures[i])
 			}
 		}
 		if len(compMesh.Material.DiffuseTexture) > 0 {
-			_, err = cm.textureManager.LoadTexture(compMesh.Material.DiffuseTexture, compMesh.Parent.componentDirPath+compMesh.Material.DiffuseTexture)
+			_, err = cm.textureManager.LoadTexture(compMesh.Material.DiffuseTexture, compMesh.Parent.dirPath+compMesh.Material.DiffuseTexture)
 			if err != nil {
-				groggy.Logsf("ERROR", "Mesh #%d failed to load diffuse texture: %s", meshIndex, compMesh.Material.DiffuseTexture)
-			} else {
-				groggy.Logsf("DEBUG", "Mesh #%d loaded diffuse texture: %s", meshIndex, compMesh.Material.DiffuseTexture)
+				return nil, fmt.Errorf("mesh #%d failed to load diffuse texture: %s", meshIndex, compMesh.Material.DiffuseTexture)
 			}
 		}
 		if len(compMesh.Material.NormalsTexture) > 0 {
-			_, err = cm.textureManager.LoadTexture(compMesh.Material.NormalsTexture, compMesh.Parent.componentDirPath+compMesh.Material.NormalsTexture)
+			_, err = cm.textureManager.LoadTexture(compMesh.Material.NormalsTexture, compMesh.Parent.dirPath+compMesh.Material.NormalsTexture)
 			if err != nil {
-				groggy.Logsf("ERROR", "Mesh #%d failed to load normal map texture: %s", meshIndex, compMesh.Material.NormalsTexture)
-			} else {
-				groggy.Logsf("DEBUG", "Mesh #%d loaded normal map texture: %s", meshIndex, compMesh.Material.NormalsTexture)
+				return nil, fmt.Errorf("mesh #%d failed to load normal map texture: %s", meshIndex, compMesh.Material.NormalsTexture)
 			}
 		}
 		if len(compMesh.Material.SpecularTexture) > 0 {
-			_, err = cm.textureManager.LoadTexture(compMesh.Material.SpecularTexture, compMesh.Parent.componentDirPath+compMesh.Material.SpecularTexture)
+			_, err = cm.textureManager.LoadTexture(compMesh.Material.SpecularTexture, compMesh.Parent.dirPath+compMesh.Material.SpecularTexture)
 			if err != nil {
-				groggy.Logsf("ERROR", "Mesh #%d failed to load specular map texture: %s", meshIndex, compMesh.Material.SpecularTexture)
-			} else {
-				groggy.Logsf("DEBUG", "Mesh #%d loaded specular map texture: %s", meshIndex, compMesh.Material.SpecularTexture)
+				return nil, fmt.Errorf("mesh #%d failed to load specular map texture: %s", meshIndex, compMesh.Material.SpecularTexture)
 			}
 		}
 	}
 
 	// place the new component into storage before parsing children
 	// to avoid a possible infinite loop
-	cm.storage[storageName] = component
+	cm.storage[component.Name] = component
 
 	// For all of the child references, see if we have a component loaded
 	// for it already. If not, then load those components too.
 	for _, childRef := range component.ChildReferences {
-		_, childFileName := filepath.Split(childRef.File)
-		if _, okay := cm.storage[childFileName]; okay {
+		foundChild := cm.GetComponentByFilepath(childRef.File)
+		if foundChild != nil {
 			continue
 		}
 
-		_, err := cm.LoadComponentFromFile(componentDirPath+childRef.File, storageName)
+		_, err := cm.LoadComponentFromFile(componentDirPath + childRef.File)
 		if err != nil {
-			groggy.Logsf("ERROR", "Component %s has a ChildInstance (%s) could not be loaded.\n%v", component.Name, childRef.File, err)
+			return nil, fmt.Errorf("component %s has a ChildInstance (%s) could not be loaded: %v", component.Name, childRef.File, err)
 		}
 	}
 
-	groggy.Logsf("DEBUG", "Component \"%s\" has been loaded", component.Name)
 	return component, nil
 }
 
@@ -226,13 +240,13 @@ func loadMeshForComponent(component *Component, compMesh *Mesh) error {
 	if len(compMesh.BinFile) > 0 {
 		binBytes, err := ioutil.ReadFile(compMesh.GetFullBinFilePath())
 		if err != nil {
-			return fmt.Errorf("Failed to load the binary file (%s) for the ComponentMesh.\n%v\n", compMesh.BinFile, err)
+			return fmt.Errorf("failed to load the binary file (%s) for the ComponentMesh: %v", compMesh.BinFile, err)
 		}
 
 		// load the mesh from the binary file
 		compMesh.SrcMesh, err = gombz.DecodeMesh(binBytes)
 		if err != nil {
-			return fmt.Errorf("Failed to deocde the binary file (%s) for the ComponentMesh.\n%v\n", compMesh.BinFile, err)
+			return fmt.Errorf("failed to deocde the binary file (%s) for the ComponentMesh: %v", compMesh.BinFile, err)
 		}
 	}
 

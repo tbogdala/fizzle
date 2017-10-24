@@ -21,3 +21,4 @@ cmd/gameeditor/gameeditor.exe
 
 .floo
 .flooignore
+.vscode

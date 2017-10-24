@@ -350,7 +350,6 @@ func CreateFromGombz(srcMesh *gombz.Mesh) *Renderable {
 
 	// create the new renderable
 	r := NewRenderable()
-	r.Core = NewRenderableCore()
 
 	// setup a skeleton if the mesh has bones associated with it
 	if srcMesh.BoneCount > 0 {
