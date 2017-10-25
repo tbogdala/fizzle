@@ -94,6 +94,12 @@ type State struct {
 
 	// the list of objects that can be rendered for the given editor view
 	visibleObjects []*meshRenderable
+
+	// the last X mouse position tracked
+	lastMouseX float32
+
+	// the last Y mouse position tracked
+	lastMouseY float32
 }
 
 // NewState creates a new editor state object to track related content for the level.
@@ -157,6 +163,7 @@ func NewStateWithContext(win *glfw.Window, rend *forward.ForwardRenderer, ctx *n
 
 	// setup some event handlers
 	win.SetScrollCallback(makeMouseScrollCallback(s))
+	win.SetCursorPosCallback(makeMousePosCallback(s))
 
 	return s, nil
 }
@@ -419,11 +426,4 @@ func (s *State) renderComponentBrowser() {
 		nk.NkGroupEnd(s.ctx)
 	}
 	nk.NkEnd(s.ctx)
-}
-
-func makeMouseScrollCallback(s *State) glfw.ScrollCallback {
-	return func(w *glfw.Window, xoff float64, yoff float64) {
-		s.orbitDist += float32(yoff)
-		s.camera.SetDistance(s.orbitDist)
-	}
 }

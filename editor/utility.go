@@ -5,7 +5,9 @@ package editor
 
 import (
 	"fmt"
+	"math"
 
+	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/tbogdala/fizzle/component"
 )
 
@@ -31,4 +33,38 @@ func (s *State) doLoadTexture(texFile string) error {
 	}
 
 	return nil
+}
+
+func makeMouseScrollCallback(s *State) glfw.ScrollCallback {
+	return func(w *glfw.Window, xoff float64, yoff float64) {
+		var scale float32 = 1.0
+
+		if w.GetKey(glfw.KeyLeftShift) == glfw.Press {
+			scale = 0.1
+		}
+
+		s.orbitDist += float32(yoff) * scale
+		s.camera.SetDistance(s.orbitDist)
+	}
+}
+
+func makeMousePosCallback(s *State) glfw.CursorPosCallback {
+	// relative to upper left corner of screen
+	return func(w *glfw.Window, x float64, y float64) {
+		width, height := s.window.GetSize()
+		radsPerX := 2.0 * float32(math.Pi) / float32(width)
+		radsPerY := 2.0 * float32(math.Pi) / float32(height)
+		diffX := float32(x) - s.lastMouseX
+		diffY := float32(y) - s.lastMouseY
+
+		// if we have the RMB down we orbit the cam
+		rmbStatus := w.GetMouseButton(glfw.MouseButton2)
+		if rmbStatus == glfw.Press {
+			s.camera.Rotate(diffX * radsPerX)
+			s.camera.RotateVertical(-diffY * radsPerY)
+		}
+
+		s.lastMouseX = float32(x)
+		s.lastMouseY = float32(y)
+	}
 }
