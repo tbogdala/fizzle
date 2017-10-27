@@ -95,6 +95,7 @@ func main() {
 				continue
 			}
 			glfw.PollEvents()
+			levelEd.Update()
 
 			// clear the screen
 			width, height := win.GetSize()

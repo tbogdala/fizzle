@@ -167,9 +167,7 @@ type Component struct {
 	// to be contained in this component.
 	ChildReferences []*ChildRef
 
-	// Collision objects for the component; currently the fizzle library doesn't
-	// do anything specific with this and choice of collision library is left to
-	// the user.
+	// Collision objects for the component.
 	Collisions []*CollisionRef
 
 	// Properties is a map for client code's custom properties for the component.

@@ -7,12 +7,14 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/fizzle"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
+	"github.com/tbogdala/fizzle/scene"
+	"github.com/tbogdala/glider"
 )
 
 // Gizmo is the transform gizmo that can be drawn in the editor.
 type Gizmo struct {
-	// Renderable is the drawable gizmo object for the current operation.
-	Renderable *fizzle.Renderable
+	// Gizmo is the drawable gizmo object for the current operation.
+	Gizmo *scene.VisibleEntity
 
 	translate *fizzle.Renderable
 	scale     *fizzle.Renderable
@@ -23,7 +25,28 @@ type Gizmo struct {
 // (Shader should support Vert & VertColor)
 func CreateGizmo(shader *fizzle.RenderShader) *Gizmo {
 	g := new(Gizmo)
+
+	// build the transform renderables
 	g.buildRenderables(shader)
+
+	// build the entity to render
+	g.Gizmo = scene.NewVisibleEntity()
+	g.Gizmo.Renderable = g.translate
+
+	// setup the colliders for the gizmo entity
+	sphere := glider.NewSphere()
+	sphere.Radius = 0.05
+	sphere.Center = mgl.Vec3{0.0, 0.9, 0.0}
+	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
+	sphere = glider.NewSphere()
+	sphere.Radius = 0.05
+	sphere.Center = mgl.Vec3{0.9, 0.0, 0.0}
+	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
+	sphere = glider.NewSphere()
+	sphere.Radius = 0.05
+	sphere.Center = mgl.Vec3{0.0, 0.0, 0.9}
+	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
+
 	return g
 }
 
@@ -81,6 +104,7 @@ func assembleIntoRenderable(verts []float32, indexes []uint32, facecount uint32)
 	const uintSize = 4
 
 	robj := fizzle.NewRenderable()
+	robj.Material = fizzle.NewMaterial()
 	robj.FaceCount = facecount
 	robj.BoundingRect.Bottom = mgl.Vec3{-1, -1, -1}
 	robj.BoundingRect.Top = mgl.Vec3{1, 1, 1}
@@ -99,8 +123,6 @@ func assembleIntoRenderable(verts []float32, indexes []uint32, facecount uint32)
 	robj.Core.ElementsVBO = gfx.GenBuffer()
 	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, robj.Core.ElementsVBO)
 	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
-
-	robj.Material = fizzle.NewMaterial()
 
 	return robj
 }
@@ -381,7 +403,4 @@ func (g *Gizmo) buildRenderables(shader *fizzle.RenderShader) {
 	verts, indexes, idxOffset, faceTotal = addToruses(verts, indexes, idxOffset, faceTotal, alpha)
 	g.rotate = assembleIntoRenderable(verts, indexes, faceTotal)
 	g.rotate.Material.Shader = shader
-
-	// set the current gizmo to translate
-	g.Renderable = g.translate
 }

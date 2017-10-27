@@ -9,6 +9,8 @@ import (
 	"math"
 	"runtime"
 
+	"github.com/tbogdala/glider"
+
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
@@ -195,6 +197,63 @@ func (s *State) SetMode(mode int) {
 	}
 }
 
+func unprojectMouse(x, y, z float32, w, h float32, projection mgl.Mat4, view mgl.Mat4) mgl.Vec3 {
+	// Note: thanks be to http://antongerdelan.net/opengl/raycasting.html
+
+	// update y to move 0,0 from top left to bottom left
+	//y = h - y
+
+	// normalized device coordinates
+	dcX := float32((2.0*x)/w - 1.0)
+	dcY := float32(1.0 - (2.0*y)/h)
+	dcZ := float32(1.0)
+	rayNds := mgl.Vec3{dcX, dcY, dcZ}
+
+	// 4d homogeneous clip coordinates
+	rayClip := mgl.Vec4{rayNds[0], rayNds[1], -1.0, 1.0}
+
+	// 4d camera coordinates
+	rayEye := projection.Inv().Mul4x1(rayClip)
+	rayEye[2] = -1.0
+	rayEye[3] = 0.0
+
+	// 4d world coordinates
+	rayWorld4 := view.Inv().Mul4x1(rayEye)
+	rayWorld := mgl.Vec3{rayWorld4[0], rayWorld4[1], rayWorld4[2]}
+	rayWorld = rayWorld.Normalize()
+
+	return rayWorld
+}
+
+// Update should be called to do interface checks that do not come through via callbacks.
+func (s *State) Update() {
+	w, h := s.window.GetSize()
+
+	// do LMB press queries
+	lmbStatus := s.window.GetMouseButton(glfw.MouseButton1)
+	if lmbStatus == glfw.Press {
+		// FIXME: store the last projection/view used instead of recalculating it here
+		perspective := mgl.Perspective(mgl.DegToRad(s.vfov), float32(w)/float32(h), s.nearDist, s.farDist)
+		view := s.camera.GetViewMatrix()
+
+		x, y := s.window.GetCursorPos()
+		z := s.camera.GetPosition()[2]
+		clickLoc := unprojectMouse(float32(x), float32(y), z, float32(w), float32(h), perspective, view)
+
+		var ray glider.CollisionRay
+		ray.Origin = s.camera.GetPosition()
+		ray.SetDirection(clickLoc)
+
+		// HACK: quick hack to check all of the colliders
+		for _, collider := range s.gizmo.Gizmo.CoarseColliders {
+			status, _ := collider.CollideVsRay(&ray)
+			if status != glider.NoIntersect {
+				fmt.Printf("DEBUG: Gizmo hit!\n")
+			}
+		}
+	}
+}
+
 // Render draws the editor interface.
 func (s *State) Render() {
 	width, height := s.window.GetSize()
@@ -237,7 +296,10 @@ func (s *State) Render() {
 			}
 
 			// FIXME: DEBUG for now always draw the gizmo
-			s.render.DrawRenderable(s.gizmo.Renderable, nil, perspective, view, s.camera)
+			gizRenderable := s.gizmo.Gizmo.GetRenderable()
+			if gizRenderable != nil {
+				s.render.DrawRenderable(gizRenderable, nil, perspective, view, s.camera)
+			}
 		}
 	}
 
