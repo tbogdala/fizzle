@@ -403,6 +403,43 @@ const (
 
 	/*
 
+		____   ____             __    _________        .__
+		\   \ /   /____________/  |_  \_   ___ \  ____ |  |   ___________
+		 \   Y   // __ \_  __ \   __\ /    \  \/ /  _ \|  |  /  _ \_  __ \
+		  \     /\  ___/|  | \/|  |   \     \___(  <_> )  |_(  <_> )  | \/
+		   \___/  \___  >__|   |__|    \______  /\____/|____/\____/|__|
+		              \/                      \/
+
+	*/
+
+	vertColorShaderV = `#version 330
+    precision highp float;
+
+    uniform mat4 MVP_MATRIX;
+
+    in vec3 VERTEX_POSITION;
+	in vec4 VERTEX_COLOR;
+	out vec4 vs_color;
+
+    void main(void) {
+        vs_color = VERTEX_COLOR;
+    	gl_Position = MVP_MATRIX * vec4(VERTEX_POSITION, 1.0);
+    }
+    `
+
+	vertColorShaderF = `#version 330
+    precision highp float;
+
+	in  vec4 vs_color;
+    out vec4 frag_color;
+
+    void main (void) {
+    	frag_color = vs_color;
+    }
+    `
+
+	/*
+
 	    _____           _                    _______                 _
 	   / ____|         | |                  |__   __|               | |
 	  | |        ___   | |   ___    _ __       | |      ___  __  __ | |_
@@ -533,6 +570,12 @@ func CreateBasicShader() (*fizzle.RenderShader, error) {
 // in basic shader code with GPU skinning for bones.
 func CreateBasicSkinnedShader() (*fizzle.RenderShader, error) {
 	return fizzle.LoadShaderProgram(basicSkinnedShaderV, basicSkinnedShaderF, nil)
+}
+
+// CreateVertexColorShader creates a new shader object using the built
+// in flat color shader code that uses vertex color data.
+func CreateVertexColorShader() (*fizzle.RenderShader, error) {
+	return fizzle.LoadShaderProgram(vertColorShaderV, vertColorShaderF, nil)
 }
 
 // CreateColorShader creates a new shader object using the built

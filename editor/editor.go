@@ -74,6 +74,9 @@ type State struct {
 	// the camera used to render objects
 	camera *fizzle.OrbitCamera
 
+	// the transform gizmo to render in the editor
+	gizmo *Gizmo
+
 	// the nuklear context for rendering ui controls
 	ctx *nk.Context
 
@@ -142,14 +145,20 @@ func NewStateWithContext(win *glfw.Window, rend *forward.ForwardRenderer, ctx *n
 	if err != nil {
 		return nil, fmt.Errorf("Failed to compile and link the color shader program! " + err.Error())
 	}
+	vertexColorShader, err := forward.CreateVertexColorShader()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to compile and link the vertex color shader program! " + err.Error())
+	}
 	s.shaders["Basic"] = basicShader
 	s.shaders["BasicSkinned"] = basicSkinnedShader
 	s.shaders["Color"] = colorShader
+	s.shaders["VertexColor"] = vertexColorShader
 
 	s.components = new(ComponentsState)
 	s.components.nameSearchBuffer = make([]byte, 0, 64)
 	s.components.manager = component.NewManager(s.texMan, s.shaders)
 	s.visibleObjects = make([]*meshRenderable, 0, 16)
+	s.gizmo = CreateGizmo(vertexColorShader)
 
 	s.window = win
 	s.ctx = ctx
@@ -226,6 +235,9 @@ func (s *State) Render() {
 					}
 				}
 			}
+
+			// FIXME: DEBUG for now always draw the gizmo
+			s.render.DrawRenderable(s.gizmo.Renderable, nil, perspective, view, s.camera)
 		}
 	}
 

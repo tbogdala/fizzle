@@ -219,6 +219,13 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 		gfx.VertexAttribPointer(uint32(shaderPosition), 3, graphics.FLOAT, false, r.Core.VBOStride, gfx.PtrOffset(r.Core.VertVBOOffset))
 	}
 
+	shaderVertColor := shader.GetAttribLocation("VERTEX_COLOR")
+	if shaderVertColor >= 0 {
+		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertColorVBO)
+		gfx.EnableVertexAttribArray(uint32(shaderVertColor))
+		gfx.VertexAttribPointer(uint32(shaderVertColor), 4, graphics.FLOAT, false, r.Core.VBOStride, gfx.PtrOffset(r.Core.VertColorVBOOffset))
+	}
+
 	shaderVertUv := shader.GetAttribLocation("VERTEX_UV_0")
 	if shaderVertUv >= 0 {
 		gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.UvVBO)

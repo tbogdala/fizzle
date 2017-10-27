@@ -222,7 +222,6 @@ func CreateCube(xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
 	tangents := createTangents(verts[:], indexes[:], uvs[:])
 
 	r := NewRenderable()
-	r.Core = NewRenderableCore()
 
 	r.FaceCount = 12
 	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
@@ -286,7 +285,6 @@ func CreateWireframeCube(xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable
 	const facesPerCollision = 16
 
 	r := NewRenderable()
-	r.Core = NewRenderableCore()
 	r.FaceCount = facesPerCollision
 
 	/* Cube vertices are layed out like this:
@@ -341,7 +339,6 @@ func CreateLine(x0, y0, z0, x1, y1, z1 float32) *Renderable {
 	const uintSize = 4
 
 	r := NewRenderable()
-	r.Core = NewRenderableCore()
 	r.FaceCount = 1 //one line one face
 
 	verts := [...]float32{
@@ -438,7 +435,6 @@ func CreateWireframeCircle(xmin, ymin, zmin, radius float32, segments int, axis 
 	verts, indexes := genCircleSegData(xmin, ymin, zmin, radius, segments, axis)
 
 	r := NewRenderable()
-	r.Core = NewRenderableCore()
 	r.FaceCount = uint32(segments)
 	r.BoundingRect.Bottom = mgl.Vec3{xmin - radius, ymin, zmin - radius}
 	r.BoundingRect.Top = mgl.Vec3{xmin + radius, ymin, zmin + radius}
@@ -498,8 +494,6 @@ func CreateWireframeConeSegmentXZ(xmin, ymin, zmin, bottomRadius, topRadius, len
 	maxRadius := float32(math.Max(float64(bottomRadius), float64(topRadius)))
 
 	r := NewRenderable()
-	r.Core = NewRenderableCore()
-
 	r.FaceCount = uint32(circleSegments)*2 + uint32(sideSegments)
 	r.BoundingRect.Bottom = mgl.Vec3{xmin - maxRadius, ymin, zmin - maxRadius}
 	r.BoundingRect.Top = mgl.Vec3{xmin + maxRadius, ymin + length, zmin + maxRadius}
@@ -821,8 +815,6 @@ func CreateCubeMappedSphere(gridSize int, radius float32, cubemapUvs bool) *Rend
 
 	// =======================================================================
 	r := NewRenderable()
-	r.Core = NewRenderableCore()
-
 	r.BoundingRect.Bottom = mgl.Vec3{xmin, ymin, zmin}
 	r.BoundingRect.Top = mgl.Vec3{xmax, ymax, zmax}
 	r.FaceCount = uint32(len(indexes) / 3)

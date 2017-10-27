@@ -46,6 +46,10 @@ go get github.com/golang/freetype
 go get github.com/tbogdala/groggy
 go get github.com/tbogdala/gombz
 go get github.com/tbogdala/eweygewey
+go get github.com/tbogdala/assimp-go
+go get github.com/golang-ui/nuklear
+go get gopkg.in/alecthomas/kingpin.v2
+go get 
 ```
 
 An OpenGL library will also be required for desktop applications; install

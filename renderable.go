@@ -26,6 +26,9 @@ type RenderableCore struct {
 	// VertVBO indicates the VBO that contains the vertex data.
 	VertVBO graphics.Buffer
 
+	// VertColorVBO indicates the VBO that contains the vertex color data.
+	VertColorVBO graphics.Buffer
+
 	// UvVBO indicates the VBO that contains the UV data.
 	UvVBO graphics.Buffer
 
@@ -63,6 +66,10 @@ type RenderableCore struct {
 	// VertVBOOffset is the offset in bytes from the start of a vertex definition needed
 	// to read the vertex information.
 	VertVBOOffset int
+
+	// VertColorVBOOffset is the offset in bytes from the start of a vertex definition
+	// needed to read the vertex color information.
+	VertColorVBOOffset int
 
 	// UvVBOOffset is the offset in bytes from the start of a vertex definition needed
 	// to read the UV information.
