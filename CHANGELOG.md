@@ -1,3 +1,16 @@
+Version v0.4.0
+==============
+
+* NEW: `editor` package which can be run with `cmd/gameeditor` or embedded
+  in a client project.
+
+* NEW: Shader variable for `VERTEX_COLOR` in the binder.
+
+* NEW: VertexColorShader used for drawing renderables with just vertex and
+  vertex color information.
+
+* NEW: scene.VisibleEntity for a basic entity extended to have a renderable.
+
 Version v0.3.1
 ==============
 

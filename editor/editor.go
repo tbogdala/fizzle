@@ -18,6 +18,7 @@ import (
 	"github.com/tbogdala/fizzle"
 	"github.com/tbogdala/fizzle/component"
 	"github.com/tbogdala/fizzle/editor/embedded"
+	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	"github.com/tbogdala/fizzle/renderer/forward"
 )
 
@@ -179,6 +180,22 @@ func NewStateWithContext(win *glfw.Window, rend *forward.ForwardRenderer, ctx *n
 	return s, nil
 }
 
+// SetActiveComponent will set the component currently being edited.
+func (s *State) SetActiveComponent(c *component.Component) error {
+	s.components.activeComponent = c
+
+	// generate the renderables for all of the component meshes
+	s.visibleObjects = s.visibleObjects[:0]
+	for _, compMesh := range s.components.activeComponent.Meshes {
+		compMesh, err := s.makeRenderableForMesh(compMesh)
+		if err != nil {
+			return fmt.Errorf("Unable to render the component's meshs: %v", err)
+		}
+		s.visibleObjects = append(s.visibleObjects, compMesh)
+	}
+	return nil
+}
+
 // SetMode sets the current editing 'mode' for the editor  (e.g. ModeLevel or ModeComponent)
 func (s *State) SetMode(mode int) {
 	s.currentMode = mode
@@ -199,9 +216,6 @@ func (s *State) SetMode(mode int) {
 
 func unprojectMouse(x, y, z float32, w, h float32, projection mgl.Mat4, view mgl.Mat4) mgl.Vec3 {
 	// Note: thanks be to http://antongerdelan.net/opengl/raycasting.html
-
-	// update y to move 0,0 from top left to bottom left
-	//y = h - y
 
 	// normalized device coordinates
 	dcX := float32((2.0*x)/w - 1.0)
@@ -228,29 +242,36 @@ func unprojectMouse(x, y, z float32, w, h float32, projection mgl.Mat4, view mgl
 // Update should be called to do interface checks that do not come through via callbacks.
 func (s *State) Update() {
 	w, h := s.window.GetSize()
+	mx, my := s.window.GetCursorPos()
 
-	// do LMB press queries
-	lmbStatus := s.window.GetMouseButton(glfw.MouseButton1)
-	if lmbStatus == glfw.Press {
-		// FIXME: store the last projection/view used instead of recalculating it here
-		perspective := mgl.Perspective(mgl.DegToRad(s.vfov), float32(w)/float32(h), s.nearDist, s.farDist)
-		view := s.camera.GetViewMatrix()
+	// resize the gizmo if necessary
+	camScale := s.camera.GetDistance() * 0.20 // a little arbitrary, but seems to work well
+	s.gizmo.UpdateScale(camScale)
 
-		x, y := s.window.GetCursorPos()
-		z := s.camera.GetPosition()[2]
-		clickLoc := unprojectMouse(float32(x), float32(y), z, float32(w), float32(h), perspective, view)
+	// if we have an active component, do some extra input checks
+	active := s.components.activeComponent
+	if active != nil {
+		// do LMB press queries and update the gizmo accordingly
+		lmbStatus := s.window.GetMouseButton(glfw.MouseButton1)
+		if lmbStatus == glfw.Press {
+			perspective := mgl.Perspective(mgl.DegToRad(s.vfov), float32(w)/float32(h), s.nearDist, s.farDist)
+			view := s.camera.GetViewMatrix()
 
-		var ray glider.CollisionRay
-		ray.Origin = s.camera.GetPosition()
-		ray.SetDirection(clickLoc)
+			x, y := s.window.GetCursorPos()
+			z := s.camera.GetPosition()[2]
+			clickLoc := unprojectMouse(float32(x), float32(y), z, float32(w), float32(h), perspective, view)
 
-		// HACK: quick hack to check all of the colliders
-		for _, collider := range s.gizmo.Gizmo.CoarseColliders {
-			status, _ := collider.CollideVsRay(&ray)
-			if status != glider.NoIntersect {
-				fmt.Printf("DEBUG: Gizmo hit!\n")
-			}
+			var ray glider.CollisionRay
+			ray.Origin = s.camera.GetPosition()
+			ray.SetDirection(clickLoc)
+
+			s.gizmo.OnLMBDown(float32(mx/float64(w)), float32(my/float64(h)), &ray, s.components.activeComponent)
+		} else {
+			s.gizmo.OnLMBUp()
 		}
+
+		// set the camera to lock onto the selected component if there is one
+		s.camera.SetTarget(active.Location)
 	}
 }
 
@@ -298,7 +319,10 @@ func (s *State) Render() {
 			// FIXME: DEBUG for now always draw the gizmo
 			gizRenderable := s.gizmo.Gizmo.GetRenderable()
 			if gizRenderable != nil {
+				gfx := fizzle.GetGraphics()
+				gfx.Disable(graphics.DEPTH_TEST)
 				s.render.DrawRenderable(gizRenderable, nil, perspective, view, s.camera)
+				gfx.Enable(graphics.DEPTH_TEST)
 			}
 		}
 	}
@@ -317,22 +341,6 @@ func (s *State) Render() {
 
 	// render out the nuklear ui
 	nk.NkPlatformRender(nk.AntiAliasingOn, maxVertexBuffer, maxElementBuffer)
-}
-
-// SetActiveComponent will set the component currently being edited.
-func (s *State) SetActiveComponent(c *component.Component) error {
-	s.components.activeComponent = c
-
-	// generate the renderables for all of the component meshes
-	s.visibleObjects = s.visibleObjects[:0]
-	for _, compMesh := range s.components.activeComponent.Meshes {
-		compMesh, err := s.makeRenderableForMesh(compMesh)
-		if err != nil {
-			return fmt.Errorf("Unable to render the component's meshs: %v", err)
-		}
-		s.visibleObjects = append(s.visibleObjects, compMesh)
-	}
-	return nil
 }
 
 // renderModeToolbar draws the mode toolbar on the screen

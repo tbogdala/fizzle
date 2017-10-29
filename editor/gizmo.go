@@ -4,11 +4,20 @@
 package editor
 
 import (
+	"fmt"
+
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/fizzle"
+	"github.com/tbogdala/fizzle/component"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
 	"github.com/tbogdala/fizzle/scene"
 	"github.com/tbogdala/glider"
+)
+
+const (
+	axisDirX = 0
+	axisDirY = 1
+	axisDirZ = 2
 )
 
 // Gizmo is the transform gizmo that can be drawn in the editor.
@@ -19,6 +28,15 @@ type Gizmo struct {
 	translate *fizzle.Renderable
 	scale     *fizzle.Renderable
 	rotate    *fizzle.Renderable
+
+	// the last scale used while generating the gizmo
+	lastScale float32
+
+	mouseDown     bool // is the mouse considered to be down for event handling
+	lastMouseX    float32
+	lastMouseY    float32
+	axisDir       int // the direction to apply the transform; use axisDirX || axisDirY || axisDirZ
+	transformFunc func()
 }
 
 // CreateGizmo allocates a new gizmo and builds the renderable with the shader specified.
@@ -32,22 +50,107 @@ func CreateGizmo(shader *fizzle.RenderShader) *Gizmo {
 	// build the entity to render
 	g.Gizmo = scene.NewVisibleEntity()
 	g.Gizmo.Renderable = g.translate
-
-	// setup the colliders for the gizmo entity
-	sphere := glider.NewSphere()
-	sphere.Radius = 0.05
-	sphere.Center = mgl.Vec3{0.0, 0.9, 0.0}
-	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
-	sphere = glider.NewSphere()
-	sphere.Radius = 0.05
-	sphere.Center = mgl.Vec3{0.9, 0.0, 0.0}
-	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
-	sphere = glider.NewSphere()
-	sphere.Radius = 0.05
-	sphere.Center = mgl.Vec3{0.0, 0.0, 0.9}
-	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
+	g.UpdateScale(1.0)
 
 	return g
+}
+
+// generateColliders creates the colliders at the correct scaled location
+// for the gizmo.
+func (g *Gizmo) generateColliders(scale float32) {
+	g.Gizmo.CoarseColliders = make([]glider.Collider, 0, 3)
+
+	sphere := glider.NewSphere()
+	sphere.Radius = 0.05 * scale
+	sphere.Center = mgl.Vec3{0.9 * scale, 0.0, 0.0}
+	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
+
+	sphere = glider.NewSphere()
+	sphere.Radius = 0.05 * scale
+	sphere.Center = mgl.Vec3{0.0, 0.9 * scale, 0.0}
+	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
+
+	sphere = glider.NewSphere()
+	sphere.Radius = 0.05 * scale
+	sphere.Center = mgl.Vec3{0.0, 0.0, 0.9 * scale}
+	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
+
+	for _, c := range g.Gizmo.CoarseColliders {
+		sphere := c.(*glider.Sphere)
+		fmt.Printf("Collider center: %v\n", sphere.Center)
+	}
+
+}
+
+// UpdateScale modifies the the gizmo renderable for the current frame.
+func (g *Gizmo) UpdateScale(scale float32) {
+	// only update the gizmo scale if there's a significant change
+	diff := g.lastScale - scale
+	if diff < 0.0 {
+		diff *= -1.0
+	}
+	if diff < 0.0001 {
+		return
+	}
+
+	g.Gizmo.Renderable.Scale = mgl.Vec3{scale, scale, scale}
+	g.generateColliders(scale)
+	g.lastScale = scale
+}
+
+// OnLMBDown should be called by the owning component when the left mouse
+// button is detected to be down. The Gizmo type will then take care of
+// tracking state for the mouse positions. The coordinate [mx, my] should
+// be normalized for screen size (divided by width and height).
+func (g *Gizmo) OnLMBDown(mx, my float32, ray *glider.CollisionRay, active *component.Component) {
+	if g.mouseDown == false {
+		// if this is our first mouse down, reset the mouse position
+		// tracking and test against axis handles
+		g.mouseDown = true
+		g.lastMouseX = -1.0
+		g.lastMouseY = -1.0
+
+		for axisNum, collider := range g.Gizmo.CoarseColliders {
+			status, _ := collider.CollideVsRay(ray)
+			if status != glider.NoIntersect {
+				g.lastMouseX = mx
+				g.lastMouseY = my
+				g.axisDir = axisNum
+				break
+			}
+		}
+
+		// now that we initialized mouse position tracking and set the
+		// transform direction, we can return from the handler and let
+		// subsequent calls to this function deal with running
+		// the transform function.
+		return
+	}
+
+	// if mouse is down but the lastMouse positions are less than 0,
+	// that means the mouse didn't hit an axis handle when it was first tracked,
+	// so just don't do anything
+	if g.lastMouseX < 0.0 || g.lastMouseY < 0.0 {
+		return
+	}
+
+	// FIXME: for now, just use diffX to run the transform
+	// FIXME: do more than translate
+	diffX := g.lastScale * 10.0 * (g.lastMouseX - mx)
+	var axisDir mgl.Vec3
+	axisDir[g.axisDir] = 1.0
+	diffDir := axisDir.Mul(diffX)
+	active.Location = active.Location.Add(diffDir)
+
+	// update the trackers before returning
+	g.lastMouseX = mx
+	g.lastMouseY = my
+}
+
+// OnLMBUp should be called by the owning component with the left mouse
+// button is detected to be up.
+func (g *Gizmo) OnLMBUp() {
+	g.mouseDown = false
 }
 
 func addAxisToVBO(xmin, xmax, ymin, ymax, zmin, zmax, r, g, b, a float32, verts []float32, indexes []uint32, idxOffset uint32) ([]float32, []uint32, uint32) {
