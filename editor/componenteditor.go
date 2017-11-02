@@ -79,11 +79,11 @@ func (s *State) updateVisibleMesh(compRenderable *meshRenderable) {
 	compRenderable.Renderable.Location = compRenderable.ComponentMesh.Offset
 	compRenderable.Renderable.Scale = compRenderable.ComponentMesh.Scale
 	compRenderable.Renderable.Material.DiffuseColor = compRenderable.ComponentMesh.Material.Diffuse
-	if compRenderable.ComponentMesh.RotationDegrees != 0.0 {
-		compRenderable.Renderable.LocalRotation = mgl.QuatRotate(
-			mgl.DegToRad(compRenderable.ComponentMesh.RotationDegrees),
-			compRenderable.ComponentMesh.RotationAxis)
-	}
+	compRenderable.Renderable.LocalRotation = mgl.AnglesToQuat(
+		mgl.DegToRad(compRenderable.ComponentMesh.RotationAxis[0]),
+		mgl.DegToRad(compRenderable.ComponentMesh.RotationAxis[1]),
+		mgl.DegToRad(compRenderable.ComponentMesh.RotationAxis[2]),
+		compRenderable.ComponentMesh.RotationOrder)
 
 	compRenderable.Renderable.Material.SpecularColor = compRenderable.ComponentMesh.Material.Specular
 	compRenderable.Renderable.Material.Shininess = compRenderable.ComponentMesh.Material.Shininess

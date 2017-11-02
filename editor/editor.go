@@ -3,11 +3,17 @@
 
 package editor
 
+/*
+	#include  <string.h>
+*/
+import "C"
 import (
 	"fmt"
 	"log"
 	"math"
+	"reflect"
 	"runtime"
+	"unsafe"
 
 	"github.com/tbogdala/glider"
 
@@ -42,6 +48,14 @@ const (
 	ModeComponent = 2
 )
 
+// an enumeration to identify the transform mode for the gizmo
+const (
+	TransformNone   = 0
+	TransformMove   = 1
+	TransformRotate = 2
+	TransformScale  = 3
+)
+
 // ComponentsState contains all state information relevant to the loaded components
 type ComponentsState struct {
 	// byte buffer for the edit string for searching components
@@ -55,6 +69,9 @@ type ComponentsState struct {
 
 	// should be set to the component being edited
 	activeComponent *component.Component
+
+	// should be set to the component mesh being edited
+	activeMesh *component.Mesh
 }
 
 // State contains all state information relevant to the level.
@@ -239,14 +256,19 @@ func unprojectMouse(x, y, z float32, w, h float32, projection mgl.Mat4, view mgl
 	return rayWorld
 }
 
+// updateGizmoScale resizes the gizmo if necessary
+func (s *State) updateGizmoScale() {
+	camScale := s.camera.GetDistance() * 0.20 // a little arbitrary, but seems to work well
+	s.gizmo.UpdateScale(camScale)
+}
+
 // Update should be called to do interface checks that do not come through via callbacks.
 func (s *State) Update() {
 	w, h := s.window.GetSize()
 	mx, my := s.window.GetCursorPos()
 
 	// resize the gizmo if necessary
-	camScale := s.camera.GetDistance() * 0.20 // a little arbitrary, but seems to work well
-	s.gizmo.UpdateScale(camScale)
+	s.updateGizmoScale()
 
 	// if we have an active component, do some extra input checks
 	active := s.components.activeComponent
@@ -271,7 +293,7 @@ func (s *State) Update() {
 		}
 
 		// set the camera to lock onto the selected component if there is one
-		s.camera.SetTarget(active.Location)
+		s.camera.SetTarget(active.Offset)
 	}
 }
 
@@ -316,13 +338,14 @@ func (s *State) Render() {
 				}
 			}
 
-			// FIXME: DEBUG for now always draw the gizmo
-			gizRenderable := s.gizmo.Gizmo.GetRenderable()
-			if gizRenderable != nil {
-				gfx := fizzle.GetGraphics()
-				gfx.Disable(graphics.DEPTH_TEST)
-				s.render.DrawRenderable(gizRenderable, nil, perspective, view, s.camera)
-				gfx.Enable(graphics.DEPTH_TEST)
+			if s.gizmo.GetTransformMode() != TransformNone {
+				gizRenderable := s.gizmo.Gizmo.GetRenderable()
+				if gizRenderable != nil {
+					gfx := fizzle.GetGraphics()
+					gfx.Disable(graphics.DEPTH_TEST)
+					s.render.DrawRenderable(gizRenderable, nil, perspective, view, s.camera)
+					gfx.Enable(graphics.DEPTH_TEST)
+				}
 			}
 		}
 	}
@@ -333,9 +356,13 @@ func (s *State) Render() {
 	switch s.currentMode {
 	case ModeComponent:
 		if s.components.activeComponent != nil {
-			s.renderComponentEditor()
+			s.renderComponentProperties()
 		} else {
 			s.renderComponentBrowser()
+		}
+
+		if s.components.activeMesh != nil {
+			s.renderMeshProperties()
 		}
 	}
 
@@ -345,10 +372,17 @@ func (s *State) Render() {
 
 // renderModeToolbar draws the mode toolbar on the screen
 func (s *State) renderModeToolbar() {
-	bounds := nk.NkRect(10, 10, 200, 40)
-	update := nk.NkBegin(s.ctx, "ModeBar", bounds, nk.WindowNoScrollbar)
+	bounds := nk.NkRect(10, 10, 500, 40)
+	update := nk.NkBegin(s.ctx, "ModeBar", bounds, nk.WindowNoScrollbar|nk.WindowDynamic)
 	if update > 0 {
-		nk.NkLayoutRowDynamic(s.ctx, 30, 2)
+		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
+		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
+		nk.NkLayoutRowTemplatePushStatic(s.ctx, 70)
+		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
+		nk.NkLayoutRowTemplatePushStatic(s.ctx, 60)
+		nk.NkLayoutRowTemplatePushStatic(s.ctx, 50)
+		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
+		nk.NkLayoutRowTemplateEnd(s.ctx)
 		{
 			if nk.NkButtonLabel(s.ctx, "level") > 0 {
 				log.Println("[DEBUG] mode:level pressed!")
@@ -358,18 +392,91 @@ func (s *State) renderModeToolbar() {
 				log.Println("[DEBUG] mode:component pressed!")
 				s.SetMode(ModeComponent)
 			}
+			if nk.NkButtonLabel(s.ctx, "Move") > 0 {
+				log.Println("[DEBUG] gizmo:Move pressed!")
+				m := s.gizmo.GetTransformMode()
+				if m == TransformMove {
+					s.gizmo.SetTransformMode(TransformNone)
+				} else {
+					s.gizmo.SetTransformMode(TransformMove)
+				}
+				s.updateGizmoScale()
+			}
+			if nk.NkButtonLabel(s.ctx, "Rotate") > 0 {
+				log.Println("[DEBUG] gizmo:Rotate pressed!")
+				m := s.gizmo.GetTransformMode()
+				if m == TransformRotate {
+					s.gizmo.SetTransformMode(TransformNone)
+				} else {
+					s.gizmo.SetTransformMode(TransformRotate)
+				}
+				s.updateGizmoScale()
+			}
+			if nk.NkButtonLabel(s.ctx, "Scale") > 0 {
+				log.Println("[DEBUG] gizmo:Scale pressed!")
+				m := s.gizmo.GetTransformMode()
+				if m == TransformScale {
+					s.gizmo.SetTransformMode(TransformNone)
+				} else {
+					s.gizmo.SetTransformMode(TransformScale)
+				}
+				s.updateGizmoScale()
+			}
+
+			if s.components.activeMesh != nil {
+				nk.NkLabel(s.ctx, fmt.Sprintf("Selected: %s", s.components.activeMesh.Name), nk.TextLeft)
+			} else {
+				nk.NkLabel(s.ctx, "No selection", nk.TextLeft)
+			}
+
 		}
 	}
 	nk.NkEnd(s.ctx)
 }
 
-// renderComponentEditor draws the window showing properties
-// of the active component.
-func (s *State) renderComponentEditor() {
-	bounds := nk.NkRect(10, 75, 300, 600)
-	update := nk.NkBegin(s.ctx, fmt.Sprintf("Component: %s", s.components.activeComponent.Name), bounds,
+// editString wraps NkEditString since it doesn't force the new length of the slice,
+// so Go doesn't know it changed.
+// To get around this we pull the raw data and put it into a new String.
+func editString(ctx *nk.Context, flags nk.Flags, bufferStr string, filter nk.PluginFilter) (string, nk.Flags) {
+	const extraBuffer = 64
+	len := int32(len(bufferStr))
+	max := len + extraBuffer
+	haxBuffer := make([]byte, 0, max)
+	haxBuffer = append(haxBuffer, bufferStr...)
+
+	retflags := nk.NkEditStringZeroTerminated(ctx, flags, haxBuffer, max, filter)
+	rawData := (*C.char)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&haxBuffer)).Data))
+	return C.GoString(rawData), retflags
+}
+
+// renderComponentProperties draws the window showing properties of the active component.
+func (s *State) renderComponentProperties() {
+	bounds := nk.NkRect(10, 75, 200, 600)
+	update := nk.NkBegin(s.ctx, "Component Properties", bounds,
 		nk.WindowBorder|nk.WindowMovable|nk.WindowMinimizable|nk.WindowScalable)
 	if update > 0 {
+		active := s.components.activeComponent
+		// put in the component name
+		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
+		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
+		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
+		nk.NkLayoutRowTemplateEnd(s.ctx)
+		{
+			nk.NkLabel(s.ctx, "Name:", nk.TextLeft)
+			newString, _ := editString(s.ctx, nk.EditField, active.Name, nk.NkFilterDefault)
+			active.Name = newString
+		}
+
+		// put in the component offset
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkLabel(s.ctx, "Offset:", nk.TextLeft)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#x:", -100000.0, &active.Offset[0], 100000.0, 0.01, 0.1)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#y:", -100000.0, &active.Offset[1], 100000.0, 0.01, 0.1)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#z:", -100000.0, &active.Offset[2], 100000.0, 0.01, 0.1)
+
 		// put in the collapsable mesh list
 		_, fileName, fileLine, _ := runtime.Caller(0)
 		hashStr := fmt.Sprintf("%s:%d", fileName, fileLine)
@@ -379,16 +486,17 @@ func (s *State) renderComponentEditor() {
 				nk.NkGroupBegin(s.ctx, "Mesh List", nk.WindowBorder)
 				{
 					// put a label in for each mesh the component has
-					if len(s.components.activeComponent.Meshes) > 0 {
-						for _, compMesh := range s.components.activeComponent.Meshes {
+					if len(active.Meshes) > 0 {
+						for _, compMesh := range active.Meshes {
 							nk.NkLayoutRowTemplateBegin(s.ctx, 30)
 							nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
 							nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
 							nk.NkLayoutRowTemplateEnd(s.ctx)
 
 							nk.NkLabel(s.ctx, compMesh.Name, nk.TextLeft)
-							if nk.NkButtonLabel(s.ctx, "E") > 0 {
+							if nk.NkButtonLabel(s.ctx, "Edit") > 0 {
 								log.Println("[DEBUG] comp:mesh:edit pressed!")
+								s.components.activeMesh = compMesh
 							}
 						}
 					}
@@ -407,8 +515,8 @@ func (s *State) renderComponentEditor() {
 				nk.NkGroupBegin(s.ctx, "Collider List", nk.WindowBorder)
 				{
 					// put a label in for each collider the component has
-					if len(s.components.activeComponent.Collisions) > 0 {
-						for i := range s.components.activeComponent.Collisions {
+					if len(active.Collisions) > 0 {
+						for i := range active.Collisions {
 							nk.NkLayoutRowTemplateBegin(s.ctx, 30)
 							nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
 							nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
@@ -435,8 +543,8 @@ func (s *State) renderComponentEditor() {
 				nk.NkGroupBegin(s.ctx, "Child Components List", nk.WindowBorder)
 				{
 					// put a label in for each child component the component has
-					if len(s.components.activeComponent.ChildReferences) > 0 {
-						for _, childRef := range s.components.activeComponent.ChildReferences {
+					if len(active.ChildReferences) > 0 {
+						for _, childRef := range active.ChildReferences {
 							nk.NkLayoutRowTemplateBegin(s.ctx, 30)
 							nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
 							nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
@@ -455,6 +563,61 @@ func (s *State) renderComponentEditor() {
 		}
 
 		// properties
+	}
+	nk.NkEnd(s.ctx)
+}
+
+// renderMeshProperties draws the window listing the properties
+// for the selected component.
+func (s *State) renderMeshProperties() {
+	winWidth, _ := s.window.GetSize()
+	bounds := nk.NkRect(float32(winWidth)-210.0, 75, 200.0, 600)
+	update := nk.NkBegin(s.ctx, "Mesh Properties", bounds,
+		nk.WindowBorder|nk.WindowMovable|nk.WindowMinimizable|nk.WindowScalable)
+	if update > 0 {
+		active := s.components.activeMesh
+
+		// put in the mesh name
+		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
+		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
+		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
+		nk.NkLayoutRowTemplateEnd(s.ctx)
+		{
+			nk.NkLabel(s.ctx, "Name:", nk.TextLeft)
+			newString, _ := editString(s.ctx, nk.EditField, active.Name, nk.NkFilterDefault)
+			active.Name = newString
+		}
+
+		// put in the mesh offset
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkLabel(s.ctx, "Offset:", nk.TextLeft)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#x:", -100000.0, &active.Offset[0], 100000.0, 0.01, 0.1)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#y:", -100000.0, &active.Offset[1], 100000.0, 0.01, 0.1)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#z:", -100000.0, &active.Offset[2], 100000.0, 0.01, 0.1)
+
+		// put in the mesh rotation
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkLabel(s.ctx, "Rotation:", nk.TextLeft)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#x:", -100000.0, &active.RotationAxis[0], 100000.0, 0.01, 0.1)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#y:", -100000.0, &active.RotationAxis[1], 100000.0, 0.01, 0.1)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#z:", -100000.0, &active.RotationAxis[2], 100000.0, 0.01, 0.1)
+
+		// put in the mesh scale
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkLabel(s.ctx, "Scale:", nk.TextLeft)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#x:", -100000.0, &active.Scale[0], 100000.0, 0.01, 0.1)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#y:", -100000.0, &active.Scale[1], 100000.0, 0.01, 0.1)
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		nk.NkPropertyFloat(s.ctx, "#z:", -100000.0, &active.Scale[2], 100000.0, 0.01, 0.1)
+
 	}
 	nk.NkEnd(s.ctx)
 }

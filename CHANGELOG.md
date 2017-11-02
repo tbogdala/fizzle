@@ -11,6 +11,8 @@ Version v0.4.0
 
 * NEW: scene.VisibleEntity for a basic entity extended to have a renderable.
 
+* APIBREAK: numerous breaks to the component package to support the new `gameeditor`.
+
 Version v0.3.1
 ==============
 

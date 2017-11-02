@@ -35,13 +35,14 @@ type Mesh struct {
 	// Scale is the scaling vector for the mesh in the component.
 	Scale mgl.Vec3
 
-	// RotationAxis is the axis by which to rotate the mesh around; this
-	// is only valid if RotationDegrees is non-zero.
+	// RotationAxis specifies the amount of degrees to rotate along
+	// an axis -- the order of which is determined in RotationOrder.
 	RotationAxis mgl.Vec3
 
-	// RotationDegrees is the amount of rotation to apply to this mesh along
-	// the axis specified by RotationAxis.
-	RotationDegrees float32
+	// RotationOrder determines the order in which to apply the rotations
+	// from RotationAxis.
+	// See: mgl32.AnglesToQuat() for the valid values (e.g. mgl32.XYZ)
+	RotationOrder mgl.RotationOrder
 
 	// Parent is the owning Component object, if any.
 	Parent *Component `json:"-"`
@@ -156,9 +157,11 @@ type Component struct {
 	// Name is the name of the component.
 	Name string
 
-	// Location is the location of the component in world-space coordinates.
-	// This can be viewed as a kind-of default value.
-	Location mgl.Vec3
+	// Offset is the location of the component within the context of the
+	// parent. If the Component has no parent, this can be the offset in the
+	// world. If the Component does have a parent Component, then this is the
+	// offset distance fromt he parent location.
+	Offset mgl.Vec3
 
 	// Meshes is a slice of the meshes that are parts of this component.
 	Meshes []*Mesh
@@ -218,7 +221,7 @@ func (c *Component) Clone() *Component {
 
 	// copy over all of the fields
 	clone.Name = c.Name
-	clone.Location = c.Location
+	clone.Offset = c.Offset
 	clone.Meshes = c.Meshes
 	clone.ChildReferences = c.ChildReferences
 	clone.Collisions = c.Collisions
@@ -259,7 +262,7 @@ func (c *Component) GetRenderable(tm *fizzle.TextureManager, shaders map[string]
 	// start by creating a renderable to hold all of the meshes
 	group := fizzle.NewRenderable()
 	group.IsGroup = true
-	group.Location = c.Location
+	group.Location = c.Offset
 
 	// now create renderables for all of the meshes.
 	// comnponents only create new render nodes for the meshs defined and
@@ -312,10 +315,12 @@ func CreateRenderableForMesh(tm *fizzle.TextureManager, shaders map[string]*fizz
 		r.Scale = compMesh.Scale
 	}
 
-	// Create a quaternion if rotation parameters are set
-	if compMesh.RotationDegrees != 0.0 {
-		r.LocalRotation = mgl.QuatRotate(mgl.DegToRad(compMesh.RotationDegrees), compMesh.RotationAxis)
-	}
+	// Create a quaternion for the local rotation
+	r.LocalRotation = mgl.AnglesToQuat(
+		mgl.DegToRad(compMesh.RotationAxis[0]),
+		mgl.DegToRad(compMesh.RotationAxis[1]),
+		mgl.DegToRad(compMesh.RotationAxis[2]),
+		compMesh.RotationOrder)
 
 	// assign the textures
 	var okay bool

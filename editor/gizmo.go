@@ -4,8 +4,6 @@
 package editor
 
 import (
-	"fmt"
-
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/fizzle"
 	"github.com/tbogdala/fizzle/component"
@@ -28,6 +26,9 @@ type Gizmo struct {
 	translate *fizzle.Renderable
 	scale     *fizzle.Renderable
 	rotate    *fizzle.Renderable
+
+	// the current mode of the gizmo (TransformMove || TransformScale || TransformRotate)
+	currentMode int
 
 	// the last scale used while generating the gizmo
 	lastScale float32
@@ -55,6 +56,25 @@ func CreateGizmo(shader *fizzle.RenderShader) *Gizmo {
 	return g
 }
 
+// SetTransformMode sets the operating mode for the gizmo.
+func (g *Gizmo) SetTransformMode(mode int) {
+	switch mode {
+	case TransformMove:
+		g.Gizmo.Renderable = g.translate
+	case TransformRotate:
+		g.Gizmo.Renderable = g.rotate
+	case TransformScale:
+		g.Gizmo.Renderable = g.scale
+	}
+
+	g.currentMode = mode
+}
+
+// GetTransformMode returns the operating mode for the gizmo.
+func (g *Gizmo) GetTransformMode() int {
+	return g.currentMode
+}
+
 // generateColliders creates the colliders at the correct scaled location
 // for the gizmo.
 func (g *Gizmo) generateColliders(scale float32) {
@@ -74,25 +94,10 @@ func (g *Gizmo) generateColliders(scale float32) {
 	sphere.Radius = 0.05 * scale
 	sphere.Center = mgl.Vec3{0.0, 0.0, 0.9 * scale}
 	g.Gizmo.CoarseColliders = append(g.Gizmo.CoarseColliders, sphere)
-
-	for _, c := range g.Gizmo.CoarseColliders {
-		sphere := c.(*glider.Sphere)
-		fmt.Printf("Collider center: %v\n", sphere.Center)
-	}
-
 }
 
 // UpdateScale modifies the the gizmo renderable for the current frame.
 func (g *Gizmo) UpdateScale(scale float32) {
-	// only update the gizmo scale if there's a significant change
-	diff := g.lastScale - scale
-	if diff < 0.0 {
-		diff *= -1.0
-	}
-	if diff < 0.0001 {
-		return
-	}
-
 	g.Gizmo.Renderable.Scale = mgl.Vec3{scale, scale, scale}
 	g.generateColliders(scale)
 	g.lastScale = scale
@@ -137,10 +142,13 @@ func (g *Gizmo) OnLMBDown(mx, my float32, ray *glider.CollisionRay, active *comp
 	// FIXME: for now, just use diffX to run the transform
 	// FIXME: do more than translate
 	diffX := g.lastScale * 10.0 * (g.lastMouseX - mx)
-	var axisDir mgl.Vec3
-	axisDir[g.axisDir] = 1.0
-	diffDir := axisDir.Mul(diffX)
-	active.Location = active.Location.Add(diffDir)
+	switch g.currentMode {
+	case TransformMove:
+		var axisDir mgl.Vec3
+		axisDir[g.axisDir] = 1.0
+		diffDir := axisDir.Mul(diffX)
+		active.Offset = active.Offset.Add(diffDir)
+	}
 
 	// update the trackers before returning
 	g.lastMouseX = mx
