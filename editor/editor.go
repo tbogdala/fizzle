@@ -74,10 +74,17 @@ type ComponentsState struct {
 	activeMesh *component.Mesh
 }
 
+// DisplayConfiguration holds details of display options for the editor.
+type DisplayConfiguration struct {
+	ShowGridFloor int32
+}
+
 // State contains all state information relevant to the level.
 type State struct {
 	// keeps track of all of the loaded components
 	components *ComponentsState
+
+	displayCfg *DisplayConfiguration
 
 	// the texture manager in the editor
 	texMan *fizzle.TextureManager
@@ -174,6 +181,7 @@ func NewStateWithContext(win *glfw.Window, rend *forward.ForwardRenderer, ctx *n
 	s.shaders["Color"] = colorShader
 	s.shaders["VertexColor"] = vertexColorShader
 
+	s.displayCfg = new(DisplayConfiguration)
 	s.components = new(ComponentsState)
 	s.components.nameSearchBuffer = make([]byte, 0, 64)
 	s.components.manager = component.NewManager(s.texMan, s.shaders)
@@ -372,64 +380,84 @@ func (s *State) Render() {
 
 // renderModeToolbar draws the mode toolbar on the screen
 func (s *State) renderModeToolbar() {
-	bounds := nk.NkRect(10, 10, 500, 40)
-	update := nk.NkBegin(s.ctx, "ModeBar", bounds, nk.WindowNoScrollbar|nk.WindowDynamic)
+	width, _ := s.window.GetSize()
+	bounds := nk.NkRect(0, 0, float32(width), 35)
+	update := nk.NkBegin(s.ctx, "ModeBar", bounds, nk.WindowNoScrollbar)
 	if update > 0 {
-		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
-		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
-		nk.NkLayoutRowTemplatePushStatic(s.ctx, 70)
-		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
-		nk.NkLayoutRowTemplatePushStatic(s.ctx, 60)
-		nk.NkLayoutRowTemplatePushStatic(s.ctx, 50)
-		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
-		nk.NkLayoutRowTemplateEnd(s.ctx)
-		{
-			if nk.NkButtonLabel(s.ctx, "level") > 0 {
-				log.Println("[DEBUG] mode:level pressed!")
+		// draw a menu
+		nk.NkMenubarBegin(s.ctx)
+		nk.NkLayoutRowBegin(s.ctx, nk.Static, 25, 8)
+		nk.NkLayoutRowPush(s.ctx, 55)
+		var menuSize nk.Vec2
+		menuSize.SetX(120)
+		menuSize.SetY(200)
+		if nk.NkMenuBeginLabel(s.ctx, "Project", nk.TextLeft, menuSize) > 0 {
+			nk.NkLayoutRowDynamic(s.ctx, 25, 1)
+			if nk.NkMenuItemLabel(s.ctx, "Level Editor", nk.TextLeft) > 0 {
+				fmt.Println("DEBUG Project:Level Editor pressed")
 				s.SetMode(ModeLevel)
 			}
-			if nk.NkButtonLabel(s.ctx, "component") > 0 {
-				log.Println("[DEBUG] mode:component pressed!")
+			nk.NkLayoutRowDynamic(s.ctx, 25, 1)
+			if nk.NkMenuItemLabel(s.ctx, "Component Editor", nk.TextLeft) > 0 {
+				fmt.Println("DEBUG Project:Component Editor pressed")
 				s.SetMode(ModeComponent)
 			}
-			if nk.NkButtonLabel(s.ctx, "Move") > 0 {
-				log.Println("[DEBUG] gizmo:Move pressed!")
-				m := s.gizmo.GetTransformMode()
-				if m == TransformMove {
-					s.gizmo.SetTransformMode(TransformNone)
-				} else {
-					s.gizmo.SetTransformMode(TransformMove)
-				}
-				s.updateGizmoScale()
-			}
-			if nk.NkButtonLabel(s.ctx, "Rotate") > 0 {
-				log.Println("[DEBUG] gizmo:Rotate pressed!")
-				m := s.gizmo.GetTransformMode()
-				if m == TransformRotate {
-					s.gizmo.SetTransformMode(TransformNone)
-				} else {
-					s.gizmo.SetTransformMode(TransformRotate)
-				}
-				s.updateGizmoScale()
-			}
-			if nk.NkButtonLabel(s.ctx, "Scale") > 0 {
-				log.Println("[DEBUG] gizmo:Scale pressed!")
-				m := s.gizmo.GetTransformMode()
-				if m == TransformScale {
-					s.gizmo.SetTransformMode(TransformNone)
-				} else {
-					s.gizmo.SetTransformMode(TransformScale)
-				}
-				s.updateGizmoScale()
-			}
-
-			if s.components.activeMesh != nil {
-				nk.NkLabel(s.ctx, fmt.Sprintf("Selected: %s", s.components.activeMesh.Name), nk.TextLeft)
-			} else {
-				nk.NkLabel(s.ctx, "No selection", nk.TextLeft)
-			}
-
+			nk.NkMenuEnd(s.ctx)
 		}
+		if nk.NkMenuBeginLabel(s.ctx, "Display", nk.TextLeft, menuSize) > 0 {
+			nk.NkLayoutRowDynamic(s.ctx, 25, 1)
+			nk.NkCheckboxLabel(s.ctx, "Grid Floor", &s.displayCfg.ShowGridFloor)
+			nk.NkMenuEnd(s.ctx)
+		}
+		nk.NkLayoutRowPush(s.ctx, 20)
+		nk.NkLabel(s.ctx, "|", nk.TextCentered)
+
+		nk.NkLayoutRowPush(s.ctx, 60)
+		if nk.NkButtonLabel(s.ctx, "Move") > 0 {
+			log.Println("[DEBUG] gizmo:Move pressed!")
+			m := s.gizmo.GetTransformMode()
+			if m == TransformMove {
+				s.gizmo.SetTransformMode(TransformNone)
+			} else {
+				s.gizmo.SetTransformMode(TransformMove)
+			}
+			s.updateGizmoScale()
+		}
+		nk.NkLayoutRowPush(s.ctx, 60)
+		if nk.NkButtonLabel(s.ctx, "Rotate") > 0 {
+			log.Println("[DEBUG] gizmo:Rotate pressed!")
+			m := s.gizmo.GetTransformMode()
+			if m == TransformRotate {
+				s.gizmo.SetTransformMode(TransformNone)
+			} else {
+				s.gizmo.SetTransformMode(TransformRotate)
+			}
+			s.updateGizmoScale()
+		}
+		nk.NkLayoutRowPush(s.ctx, 60)
+		if nk.NkButtonLabel(s.ctx, "Scale") > 0 {
+			log.Println("[DEBUG] gizmo:Scale pressed!")
+			m := s.gizmo.GetTransformMode()
+			if m == TransformScale {
+				s.gizmo.SetTransformMode(TransformNone)
+			} else {
+				s.gizmo.SetTransformMode(TransformScale)
+			}
+			s.updateGizmoScale()
+		}
+
+		nk.NkLayoutRowPush(s.ctx, 20)
+		nk.NkLabel(s.ctx, "|", nk.TextCentered)
+
+		nk.NkLayoutRowPush(s.ctx, 120)
+		if s.components.activeMesh != nil {
+			nk.NkLabel(s.ctx, fmt.Sprintf("Selected: %s", s.components.activeMesh.Name), nk.TextLeft)
+		} else {
+			nk.NkLabel(s.ctx, "No selection", nk.TextLeft)
+		}
+
+		nk.NkMenubarEnd(s.ctx)
+
 	}
 	nk.NkEnd(s.ctx)
 }
