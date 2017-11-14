@@ -5,6 +5,7 @@ package editor
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math"
 
 	"github.com/go-gl/glfw/v3.2/glfw"
@@ -37,9 +38,12 @@ func (s *State) doLoadTexture(texFile string) error {
 
 func makeMouseScrollCallback(s *State) glfw.ScrollCallback {
 	return func(w *glfw.Window, xoff float64, yoff float64) {
+		const slowThreshold = 2.0
 		var scale float32 = 1.0
 
 		if w.GetKey(glfw.KeyLeftShift) == glfw.Press {
+			scale = 0.1
+		} else if s.orbitDist <= slowThreshold {
 			scale = 0.1
 		}
 
@@ -67,4 +71,48 @@ func makeMousePosCallback(s *State) glfw.CursorPosCallback {
 		s.lastMouseX = float32(x)
 		s.lastMouseY = float32(y)
 	}
+}
+
+func saveComponentMesh(compMesh *component.Mesh) (destFilepath string, err error) {
+	gombzBytes, err := compMesh.SrcMesh.Encode()
+	if err != nil {
+		return "", fmt.Errorf("error while serializing Gombz mesh: %v", err)
+	}
+
+	prefixDir := compMesh.Parent.GetDirPath()
+	gombzFilepath := prefixDir + compMesh.BinFile
+	err = ioutil.WriteFile(gombzFilepath, gombzBytes, 0744)
+	if err != nil {
+		return "", fmt.Errorf("error while writing Gombz file: %v", err)
+	}
+
+	return gombzFilepath, nil
+}
+
+func (s *State) reloadSourceComponentMesh(compMesh *component.Mesh) error {
+	// find the index in the visible list for this component mesh
+	index := -1
+	for i, m := range s.components.activeComponent.Meshes {
+		if m == compMesh {
+			index = i
+			break
+		}
+	}
+
+	// by clearing the srcmesh reference, the makeRenderableForMesh function
+	// will process the source file.
+	compMesh.SrcMesh = nil
+	r, err := s.makeRenderableForMesh(compMesh)
+	if err != nil {
+		return err
+	}
+
+	// if we found a matching mesh, replace the renderable at that index, otherwise just append
+	if index != -1 {
+		s.components.visibleMeshes[index] = r
+	} else {
+		s.components.visibleMeshes = append(s.components.visibleMeshes, r)
+	}
+
+	return nil
 }

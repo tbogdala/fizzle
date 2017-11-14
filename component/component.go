@@ -54,6 +54,7 @@ type Mesh struct {
 // NewMesh creates a new Mesh object with sane defaults.
 func NewMesh() *Mesh {
 	cm := new(Mesh)
+	cm.RotationOrder = mgl.XYZ
 	cm.Scale = mgl.Vec3{1, 1, 1}
 	cm.Material.Diffuse = mgl.Vec4{1, 1, 1, 1}
 	cm.Material.Specular = mgl.Vec4{1, 1, 1, 1}

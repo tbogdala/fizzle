@@ -48,6 +48,11 @@ const (
 	ModeComponent = 2
 )
 
+// define readable strings for the mgl.RotationOrder typoe
+var (
+	rotationOrderStrings = []string{"XYX", "XYZ", "XZX", "XZY", "YXY", "YXZ", "YZY", "YZX", "ZYZ", "ZYX", "ZXZ", "ZXY"}
+)
+
 // an enumeration to identify the transform mode for the gizmo
 const (
 	TransformNone   = 0
@@ -72,6 +77,9 @@ type ComponentsState struct {
 
 	// should be set to the component mesh being edited
 	activeMesh *component.Mesh
+
+	// the list of meshes that can be rendered for the given editor view
+	visibleMeshes []*meshRenderable
 }
 
 // DisplayConfiguration holds details of display options for the editor.
@@ -121,9 +129,6 @@ type State struct {
 
 	// the current orbit distance for the camera
 	orbitDist float32
-
-	// the list of objects that can be rendered for the given editor view
-	visibleObjects []*meshRenderable
 
 	// the last X mouse position tracked
 	lastMouseX float32
@@ -185,7 +190,7 @@ func NewStateWithContext(win *glfw.Window, rend *forward.ForwardRenderer, ctx *n
 	s.components = new(ComponentsState)
 	s.components.nameSearchBuffer = make([]byte, 0, 64)
 	s.components.manager = component.NewManager(s.texMan, s.shaders)
-	s.visibleObjects = make([]*meshRenderable, 0, 16)
+	s.components.visibleMeshes = make([]*meshRenderable, 0, 16)
 	s.gizmo = CreateGizmo(vertexColorShader)
 
 	s.window = win
@@ -210,13 +215,13 @@ func (s *State) SetActiveComponent(c *component.Component) error {
 	s.components.activeComponent = c
 
 	// generate the renderables for all of the component meshes
-	s.visibleObjects = s.visibleObjects[:0]
+	s.components.visibleMeshes = s.components.visibleMeshes[:0]
 	for _, compMesh := range s.components.activeComponent.Meshes {
 		compMesh, err := s.makeRenderableForMesh(compMesh)
 		if err != nil {
 			return fmt.Errorf("Unable to render the component's meshs: %v", err)
 		}
-		s.visibleObjects = append(s.visibleObjects, compMesh)
+		s.components.visibleMeshes = append(s.components.visibleMeshes, compMesh)
 	}
 	return nil
 }
@@ -322,12 +327,12 @@ func (s *State) Render() {
 			view := s.camera.GetViewMatrix()
 
 			// draw the meshes that are visible
-			for _, visObj := range s.visibleObjects {
+			for _, visMesh := range s.components.visibleMeshes {
 				// push all settings from the component to the renderable
-				s.updateVisibleMesh(visObj)
+				s.updateVisibleMesh(visMesh)
 
 				// draw the thing
-				s.render.DrawRenderable(visObj.Renderable, nil, perspective, view, s.camera)
+				s.render.DrawRenderable(visMesh.Renderable, nil, perspective, view, s.camera)
 			}
 
 			// draw the child components
@@ -378,19 +383,23 @@ func (s *State) Render() {
 	nk.NkPlatformRender(nk.AntiAliasingOn, maxVertexBuffer, maxElementBuffer)
 }
 
+var (
+	// used to track drawing a popup message box for information in the menu bar
+	toolbarMsgPopupAlive = false
+	toolbarMsgPopupMsg   = ""
+)
+
 // renderModeToolbar draws the mode toolbar on the screen
 func (s *State) renderModeToolbar() {
-	width, _ := s.window.GetSize()
+	width, height := s.window.GetSize()
 	bounds := nk.NkRect(0, 0, float32(width), 35)
 	update := nk.NkBegin(s.ctx, "ModeBar", bounds, nk.WindowNoScrollbar)
 	if update > 0 {
 		// draw a menu
 		nk.NkMenubarBegin(s.ctx)
-		nk.NkLayoutRowBegin(s.ctx, nk.Static, 25, 8)
+		nk.NkLayoutRowBegin(s.ctx, nk.Static, 25, 9)
 		nk.NkLayoutRowPush(s.ctx, 55)
-		var menuSize nk.Vec2
-		menuSize.SetX(120)
-		menuSize.SetY(200)
+		menuSize := nk.NkVec2(200, 200)
 		if nk.NkMenuBeginLabel(s.ctx, "Project", nk.TextLeft, menuSize) > 0 {
 			nk.NkLayoutRowDynamic(s.ctx, 25, 1)
 			if nk.NkMenuItemLabel(s.ctx, "Level Editor", nk.TextLeft) > 0 {
@@ -404,11 +413,45 @@ func (s *State) renderModeToolbar() {
 			}
 			nk.NkMenuEnd(s.ctx)
 		}
+		nk.NkLayoutRowPush(s.ctx, 55)
 		if nk.NkMenuBeginLabel(s.ctx, "Display", nk.TextLeft, menuSize) > 0 {
 			nk.NkLayoutRowDynamic(s.ctx, 25, 1)
 			nk.NkCheckboxLabel(s.ctx, "Grid Floor", &s.displayCfg.ShowGridFloor)
 			nk.NkMenuEnd(s.ctx)
 		}
+
+		// context dependant menues
+		if s.currentMode == ModeComponent {
+			nk.NkLayoutRowPush(s.ctx, 75)
+			if nk.NkMenuBeginLabel(s.ctx, "Component", nk.TextLeft, nk.NkVec2(250, 200)) > 0 {
+				// do we have a selected mesh?
+				if s.components.activeMesh != nil {
+					nk.NkLayoutRowDynamic(s.ctx, 25, 1)
+					if nk.NkMenuItemLabel(s.ctx, "Reload source mesh", nk.TextLeft) > 0 {
+						err := s.reloadSourceComponentMesh(s.components.activeMesh)
+						if err != nil {
+							toolbarMsgPopupMsg = err.Error()
+							toolbarMsgPopupAlive = true
+						}
+					}
+
+					nk.NkLayoutRowDynamic(s.ctx, 25, 1)
+					if nk.NkMenuItemLabel(s.ctx, "Compile selected mesh", nk.TextLeft) > 0 {
+						destFile, err := saveComponentMesh(s.components.activeMesh)
+						if err != nil {
+							toolbarMsgPopupMsg = fmt.Sprintf("Error: %v", err)
+						} else {
+							toolbarMsgPopupMsg = fmt.Sprintf("File saved to: %s", destFile)
+						}
+						toolbarMsgPopupAlive = true
+					}
+				}
+				nk.NkMenuEnd(s.ctx)
+			}
+		}
+
+		// widgets ...
+
 		nk.NkLayoutRowPush(s.ctx, 20)
 		nk.NkLabel(s.ctx, "|", nk.TextCentered)
 
@@ -458,6 +501,31 @@ func (s *State) renderModeToolbar() {
 
 		nk.NkMenubarEnd(s.ctx)
 
+		// show any messages that occurred from operations triggered by the menu
+		if toolbarMsgPopupAlive {
+			// we're missing the font.width() function call to do a legit calculation of this,
+			// so we're going to fudge the numbers.
+			textWidth := float32(fontPtSize) * float32(len(toolbarMsgPopupMsg)) * 0.6
+
+			msgBoxW := float32(textWidth)
+			msgBoxH := float32(90)
+			msgBoxX := (float32(width) - msgBoxW) / 2.0
+			msgBoxY := float32(height)/2.0 - msgBoxH
+			msgBoxRect := nk.NkRect(msgBoxX, msgBoxY, msgBoxW, msgBoxH)
+			if nk.NkPopupBegin(s.ctx, nk.PopupStatic, "Save Component Mesh", 0, msgBoxRect) > 0 {
+				nk.NkLayoutRowDynamic(s.ctx, 25, 1)
+				nk.NkLabel(s.ctx, toolbarMsgPopupMsg, nk.TextAlignLeft)
+
+				nk.NkLayoutRowDynamic(s.ctx, 25, 1)
+				if nk.NkButtonLabel(s.ctx, "Close") > 0 {
+					toolbarMsgPopupAlive = false
+					nk.NkPopupClose(s.ctx)
+				}
+				nk.NkPopupEnd(s.ctx)
+			} else {
+				toolbarMsgPopupAlive = false
+			}
+		}
 	}
 	nk.NkEnd(s.ctx)
 }
@@ -599,7 +667,7 @@ func (s *State) renderComponentProperties() {
 // for the selected component.
 func (s *State) renderMeshProperties() {
 	winWidth, _ := s.window.GetSize()
-	bounds := nk.NkRect(float32(winWidth)-210.0, 75, 200.0, 600)
+	bounds := nk.NkRect(float32(winWidth)-310.0, 75, 300.0, 600)
 	update := nk.NkBegin(s.ctx, "Mesh Properties", bounds,
 		nk.WindowBorder|nk.WindowMovable|nk.WindowMinimizable|nk.WindowScalable)
 	if update > 0 {
@@ -614,6 +682,28 @@ func (s *State) renderMeshProperties() {
 			nk.NkLabel(s.ctx, "Name:", nk.TextLeft)
 			newString, _ := editString(s.ctx, nk.EditField, active.Name, nk.NkFilterDefault)
 			active.Name = newString
+		}
+
+		// put in the mesh source file
+		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
+		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
+		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
+		nk.NkLayoutRowTemplateEnd(s.ctx)
+		{
+			nk.NkLabel(s.ctx, "Source:", nk.TextLeft)
+			newString, _ := editString(s.ctx, nk.EditField, active.SrcFile, nk.NkFilterDefault)
+			active.SrcFile = newString
+		}
+
+		// put in the mesh binary file
+		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
+		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
+		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
+		nk.NkLayoutRowTemplateEnd(s.ctx)
+		{
+			nk.NkLabel(s.ctx, "Binary:", nk.TextLeft)
+			newString, _ := editString(s.ctx, nk.EditField, active.BinFile, nk.NkFilterDefault)
+			active.BinFile = newString
 		}
 
 		// put in the mesh offset
@@ -635,6 +725,11 @@ func (s *State) renderMeshProperties() {
 		nk.NkPropertyFloat(s.ctx, "#y:", -100000.0, &active.RotationAxis[1], 100000.0, 0.01, 0.1)
 		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
 		nk.NkPropertyFloat(s.ctx, "#z:", -100000.0, &active.RotationAxis[2], 100000.0, 0.01, 0.1)
+
+		// put in the mesh rotation order
+		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
+		sel := nk.NkPropertyi(s.ctx, "Order: "+rotationOrderStrings[active.RotationOrder], 0, int32(active.RotationOrder), 11, 1, 1)
+		active.RotationOrder = mgl.RotationOrder(sel)
 
 		// put in the mesh scale
 		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
