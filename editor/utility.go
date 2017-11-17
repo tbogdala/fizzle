@@ -4,12 +4,19 @@
 package editor
 
 import (
+	"C"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math"
 
 	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/golang-ui/nuklear/nk"
 	"github.com/tbogdala/fizzle/component"
+)
+import (
+	"reflect"
+	"unsafe"
 )
 
 // LoadComponentFile attempts to load the component JSON file into the editor
@@ -21,6 +28,21 @@ func (s *State) LoadComponentFile(filepath string) (*component.Component, error)
 	}
 
 	return theComponent, nil
+}
+
+// SaveComponentFile saves the component to a file.
+func (s *State) SaveComponentFile(comp *component.Component, filepath string) error {
+	compJSON, jsonErr := json.MarshalIndent(comp, "", "    ")
+	if jsonErr == nil {
+		fileErr := ioutil.WriteFile(filepath, compJSON, 0744)
+		if fileErr != nil {
+			return fmt.Errorf("failed to write component: %v", fileErr)
+		}
+	} else {
+		return fmt.Errorf("failed to serialize component to JSON: %v", jsonErr)
+	}
+
+	return nil
 }
 
 // doLoadTexture loads a relative filepath texture into the
@@ -115,4 +137,19 @@ func (s *State) reloadSourceComponentMesh(compMesh *component.Mesh) error {
 	}
 
 	return nil
+}
+
+// editString wraps NkEditString since it doesn't force the new length of the slice,
+// so Go doesn't know it changed.
+// To get around this we pull the raw data and put it into a new String.
+func editString(ctx *nk.Context, flags nk.Flags, bufferStr string, filter nk.PluginFilter) (string, nk.Flags) {
+	const extraBuffer = 64
+	len := int32(len(bufferStr))
+	max := len + extraBuffer
+	haxBuffer := make([]byte, 0, max)
+	haxBuffer = append(haxBuffer, bufferStr...)
+
+	retflags := nk.NkEditStringZeroTerminated(ctx, flags, haxBuffer, max, filter)
+	rawData := (*C.char)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&haxBuffer)).Data))
+	return C.GoString(rawData), retflags
 }

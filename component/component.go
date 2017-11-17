@@ -17,7 +17,7 @@ type Mesh struct {
 	// Name is the user identifier for the mesh in the component.
 	Name string
 
-	// The material describes visual attirbutes of the component.
+	// The material describes visual attributes of the component.
 	Material Material
 
 	// SrcFile is a filepath, relative to the component file,

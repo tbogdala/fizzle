@@ -11,9 +11,8 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"reflect"
+	"os"
 	"runtime"
-	"unsafe"
 
 	"github.com/tbogdala/glider"
 
@@ -80,6 +79,9 @@ type ComponentsState struct {
 
 	// the list of meshes that can be rendered for the given editor view
 	visibleMeshes []*meshRenderable
+
+	// the component property editor window
+	compPropsWindow *ComponentPropsWindow
 }
 
 // DisplayConfiguration holds details of display options for the editor.
@@ -223,6 +225,10 @@ func (s *State) SetActiveComponent(c *component.Component) error {
 		}
 		s.components.visibleMeshes = append(s.components.visibleMeshes, compMesh)
 	}
+
+	bounds := nk.NkRect(10, 75, 200, 600)
+	s.components.compPropsWindow = NewComponentPropsWindow(fmt.Sprintf("%s Properties", c.Name), c, &bounds)
+
 	return nil
 }
 
@@ -369,13 +375,11 @@ func (s *State) Render() {
 	switch s.currentMode {
 	case ModeComponent:
 		if s.components.activeComponent != nil {
-			s.renderComponentProperties()
+			if s.components.compPropsWindow != nil {
+				s.components.compPropsWindow.Render(s.ctx, s.window)
+			}
 		} else {
 			s.renderComponentBrowser()
-		}
-
-		if s.components.activeMesh != nil {
-			s.renderMeshProperties()
 		}
 	}
 
@@ -387,6 +391,9 @@ var (
 	// used to track drawing a popup message box for information in the menu bar
 	toolbarMsgPopupAlive = false
 	toolbarMsgPopupMsg   = ""
+
+	// used to track drawing a file save-as box
+	saveAsPopup *FileDialog
 )
 
 // renderModeToolbar draws the mode toolbar on the screen
@@ -420,10 +427,38 @@ func (s *State) renderModeToolbar() {
 			nk.NkMenuEnd(s.ctx)
 		}
 
-		// context dependant menues
+		// context dependant menus
 		if s.currentMode == ModeComponent {
 			nk.NkLayoutRowPush(s.ctx, 75)
 			if nk.NkMenuBeginLabel(s.ctx, "Component", nk.TextLeft, nk.NkVec2(250, 200)) > 0 {
+				if s.components.activeComponent != nil {
+					nk.NkLayoutRowDynamic(s.ctx, 25, 1)
+					if nk.NkMenuItemLabel(s.ctx, "Save component file", nk.TextLeft) > 0 {
+						destFile := s.components.activeComponent.GetFilepath()
+						err := s.SaveComponentFile(s.components.activeComponent, destFile)
+						if err != nil {
+							toolbarMsgPopupMsg = fmt.Sprintf("Error: %v", err)
+						} else {
+							toolbarMsgPopupMsg = fmt.Sprintf("File saved to: %s", destFile)
+						}
+						toolbarMsgPopupAlive = true
+					}
+
+					nk.NkLayoutRowDynamic(s.ctx, 25, 1)
+					if nk.NkMenuItemLabel(s.ctx, "Save component file as ...", nk.TextLeft) > 0 {
+						dir := s.components.activeComponent.GetDirPath()
+						filename := s.components.activeComponent.GetFilename()
+						bounds := nk.NkRect(float32(width)/2.0-200.0, float32(height)/2.0-225.0, 400, 450)
+						saveAsPopup = NewFileDialog("Save component file as ...", dir, filename, &bounds)
+						err := saveAsPopup.UpdateFileList()
+						if err != nil {
+							saveAsPopup = nil
+							toolbarMsgPopupAlive = true
+							toolbarMsgPopupMsg = fmt.Sprintf("Error: %v", err)
+						}
+					}
+				}
+
 				// do we have a selected mesh?
 				if s.components.activeMesh != nil {
 					nk.NkLayoutRowDynamic(s.ctx, 25, 1)
@@ -528,221 +563,25 @@ func (s *State) renderModeToolbar() {
 		}
 	}
 	nk.NkEnd(s.ctx)
-}
 
-// editString wraps NkEditString since it doesn't force the new length of the slice,
-// so Go doesn't know it changed.
-// To get around this we pull the raw data and put it into a new String.
-func editString(ctx *nk.Context, flags nk.Flags, bufferStr string, filter nk.PluginFilter) (string, nk.Flags) {
-	const extraBuffer = 64
-	len := int32(len(bufferStr))
-	max := len + extraBuffer
-	haxBuffer := make([]byte, 0, max)
-	haxBuffer = append(haxBuffer, bufferStr...)
-
-	retflags := nk.NkEditStringZeroTerminated(ctx, flags, haxBuffer, max, filter)
-	rawData := (*C.char)(unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&haxBuffer)).Data))
-	return C.GoString(rawData), retflags
-}
-
-// renderComponentProperties draws the window showing properties of the active component.
-func (s *State) renderComponentProperties() {
-	bounds := nk.NkRect(10, 75, 200, 600)
-	update := nk.NkBegin(s.ctx, "Component Properties", bounds,
-		nk.WindowBorder|nk.WindowMovable|nk.WindowMinimizable|nk.WindowScalable)
-	if update > 0 {
-		active := s.components.activeComponent
-		// put in the component name
-		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
-		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
-		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
-		nk.NkLayoutRowTemplateEnd(s.ctx)
-		{
-			nk.NkLabel(s.ctx, "Name:", nk.TextLeft)
-			newString, _ := editString(s.ctx, nk.EditField, active.Name, nk.NkFilterDefault)
-			active.Name = newString
-		}
-
-		// put in the component offset
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkLabel(s.ctx, "Offset:", nk.TextLeft)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#x:", -100000.0, &active.Offset[0], 100000.0, 0.01, 0.1)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#y:", -100000.0, &active.Offset[1], 100000.0, 0.01, 0.1)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#z:", -100000.0, &active.Offset[2], 100000.0, 0.01, 0.1)
-
-		// put in the collapsable mesh list
-		_, fileName, fileLine, _ := runtime.Caller(0)
-		hashStr := fmt.Sprintf("%s:%d", fileName, fileLine)
-		if nk.NkTreePushHashed(s.ctx, nk.TreeTab, "Meshes", nk.Minimized, hashStr, int32(len(hashStr)), int32(fileLine)) != 0 {
-			nk.NkLayoutRowDynamic(s.ctx, 120, 1)
-			{
-				nk.NkGroupBegin(s.ctx, "Mesh List", nk.WindowBorder)
-				{
-					// put a label in for each mesh the component has
-					if len(active.Meshes) > 0 {
-						for _, compMesh := range active.Meshes {
-							nk.NkLayoutRowTemplateBegin(s.ctx, 30)
-							nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
-							nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
-							nk.NkLayoutRowTemplateEnd(s.ctx)
-
-							nk.NkLabel(s.ctx, compMesh.Name, nk.TextLeft)
-							if nk.NkButtonLabel(s.ctx, "Edit") > 0 {
-								log.Println("[DEBUG] comp:mesh:edit pressed!")
-								s.components.activeMesh = compMesh
-							}
-						}
-					}
+	// if the save-as dialog is active, render that
+	if saveAsPopup != nil {
+		buttonPress := saveAsPopup.Render(s.ctx)
+		if buttonPress != FileDialogNoPress {
+			if buttonPress == FileDialogOkay {
+				destFile := fmt.Sprintf("%s%c%s", saveAsPopup.Directory, os.PathSeparator, saveAsPopup.Filename)
+				err := s.SaveComponentFile(s.components.activeComponent, destFile)
+				if err != nil {
+					toolbarMsgPopupMsg = fmt.Sprintf("Error: %v", err)
+				} else {
+					toolbarMsgPopupMsg = fmt.Sprintf("File saved to: %s", destFile)
 				}
+				toolbarMsgPopupAlive = true
 			}
-			nk.NkGroupEnd(s.ctx)
-			nk.NkTreePop(s.ctx)
+			saveAsPopup = nil
 		}
-
-		// put in the collapsable collisions list
-		_, fileName, fileLine, _ = runtime.Caller(0)
-		hashStr = fmt.Sprintf("%s:%d", fileName, fileLine)
-		if nk.NkTreePushHashed(s.ctx, nk.TreeTab, "Colliders", nk.Minimized, hashStr, int32(len(hashStr)), int32(fileLine)) != 0 {
-			nk.NkLayoutRowDynamic(s.ctx, 120, 1)
-			{
-				nk.NkGroupBegin(s.ctx, "Collider List", nk.WindowBorder)
-				{
-					// put a label in for each collider the component has
-					if len(active.Collisions) > 0 {
-						for i := range active.Collisions {
-							nk.NkLayoutRowTemplateBegin(s.ctx, 30)
-							nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
-							nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
-							nk.NkLayoutRowTemplateEnd(s.ctx)
-
-							nk.NkLabel(s.ctx, fmt.Sprintf("Collider %d", i), nk.TextLeft)
-							if nk.NkButtonLabel(s.ctx, "E") > 0 {
-								log.Println("[DEBUG] comp:collider:edit pressed!")
-							}
-						}
-					}
-				}
-			}
-			nk.NkGroupEnd(s.ctx)
-			nk.NkTreePop(s.ctx)
-		}
-
-		// put in the collapsable child component reference list
-		_, fileName, fileLine, _ = runtime.Caller(0)
-		hashStr = fmt.Sprintf("%s:%d", fileName, fileLine)
-		if nk.NkTreePushHashed(s.ctx, nk.TreeTab, "Child Components", nk.Minimized, hashStr, int32(len(hashStr)), int32(fileLine)) != 0 {
-			nk.NkLayoutRowDynamic(s.ctx, 120, 1)
-			{
-				nk.NkGroupBegin(s.ctx, "Child Components List", nk.WindowBorder)
-				{
-					// put a label in for each child component the component has
-					if len(active.ChildReferences) > 0 {
-						for _, childRef := range active.ChildReferences {
-							nk.NkLayoutRowTemplateBegin(s.ctx, 30)
-							nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
-							nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
-							nk.NkLayoutRowTemplateEnd(s.ctx)
-
-							nk.NkLabel(s.ctx, childRef.File, nk.TextLeft)
-							if nk.NkButtonLabel(s.ctx, "E") > 0 {
-								log.Println("[DEBUG] comp:childref:edit pressed!")
-							}
-						}
-					}
-				}
-			}
-			nk.NkGroupEnd(s.ctx)
-			nk.NkTreePop(s.ctx)
-		}
-
-		// properties
 	}
-	nk.NkEnd(s.ctx)
-}
 
-// renderMeshProperties draws the window listing the properties
-// for the selected component.
-func (s *State) renderMeshProperties() {
-	winWidth, _ := s.window.GetSize()
-	bounds := nk.NkRect(float32(winWidth)-310.0, 75, 300.0, 600)
-	update := nk.NkBegin(s.ctx, "Mesh Properties", bounds,
-		nk.WindowBorder|nk.WindowMovable|nk.WindowMinimizable|nk.WindowScalable)
-	if update > 0 {
-		active := s.components.activeMesh
-
-		// put in the mesh name
-		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
-		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
-		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
-		nk.NkLayoutRowTemplateEnd(s.ctx)
-		{
-			nk.NkLabel(s.ctx, "Name:", nk.TextLeft)
-			newString, _ := editString(s.ctx, nk.EditField, active.Name, nk.NkFilterDefault)
-			active.Name = newString
-		}
-
-		// put in the mesh source file
-		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
-		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
-		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
-		nk.NkLayoutRowTemplateEnd(s.ctx)
-		{
-			nk.NkLabel(s.ctx, "Source:", nk.TextLeft)
-			newString, _ := editString(s.ctx, nk.EditField, active.SrcFile, nk.NkFilterDefault)
-			active.SrcFile = newString
-		}
-
-		// put in the mesh binary file
-		nk.NkLayoutRowTemplateBegin(s.ctx, 30)
-		nk.NkLayoutRowTemplatePushStatic(s.ctx, 40)
-		nk.NkLayoutRowTemplatePushVariable(s.ctx, 80)
-		nk.NkLayoutRowTemplateEnd(s.ctx)
-		{
-			nk.NkLabel(s.ctx, "Binary:", nk.TextLeft)
-			newString, _ := editString(s.ctx, nk.EditField, active.BinFile, nk.NkFilterDefault)
-			active.BinFile = newString
-		}
-
-		// put in the mesh offset
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkLabel(s.ctx, "Offset:", nk.TextLeft)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#x:", -100000.0, &active.Offset[0], 100000.0, 0.01, 0.1)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#y:", -100000.0, &active.Offset[1], 100000.0, 0.01, 0.1)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#z:", -100000.0, &active.Offset[2], 100000.0, 0.01, 0.1)
-
-		// put in the mesh rotation
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkLabel(s.ctx, "Rotation:", nk.TextLeft)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#x:", -100000.0, &active.RotationAxis[0], 100000.0, 0.01, 0.1)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#y:", -100000.0, &active.RotationAxis[1], 100000.0, 0.01, 0.1)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#z:", -100000.0, &active.RotationAxis[2], 100000.0, 0.01, 0.1)
-
-		// put in the mesh rotation order
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		sel := nk.NkPropertyi(s.ctx, "Order: "+rotationOrderStrings[active.RotationOrder], 0, int32(active.RotationOrder), 11, 1, 1)
-		active.RotationOrder = mgl.RotationOrder(sel)
-
-		// put in the mesh scale
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkLabel(s.ctx, "Scale:", nk.TextLeft)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#x:", -100000.0, &active.Scale[0], 100000.0, 0.01, 0.1)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#y:", -100000.0, &active.Scale[1], 100000.0, 0.01, 0.1)
-		nk.NkLayoutRowDynamic(s.ctx, 20, 1)
-		nk.NkPropertyFloat(s.ctx, "#z:", -100000.0, &active.Scale[2], 100000.0, 0.01, 0.1)
-
-	}
-	nk.NkEnd(s.ctx)
 }
 
 // renderComponentBrowser draws the window listing all of the known
