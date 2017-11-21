@@ -521,6 +521,59 @@ const (
 	  frag_color = vec4(gl_FragCoord.z);
 	}
 	`
+	/*
+	    _____  _   ____   ________  _____ __   __
+	   /  ___|| | / /\ \ / /| ___ \|  _  |\ \ / /
+	   \ `--. | |/ /  \ V / | |_/ /| | | | \ V /
+	    `--. \|    \   \ /  | ___ \| | | | /   \
+	   /\__/ /| |\  \  | |  | |_/ /\ \_/ // /^\ \
+	   \____/ \_| \_/  \_/  \____/  \___/ \/   \/
+
+	*/
+
+	/*
+		heavily inspired by "Simple Sky Shader" (https://www.shadertoy.com/view/MsVSWt)
+		made by robobo1221 (https://www.shadertoy.com/user/robobo1221).
+	*/
+
+	skyShaderV = `#version 330
+	precision highp float;
+	
+	uniform mat4 MVP_MATRIX;
+	in vec3 VERTEX_POSITION;
+	in vec2 VERTEX_UV_0;
+	
+	out vec2 vs_tex0_uv;
+	
+	void main(void) {
+		gl_Position = MVP_MATRIX * vec4(VERTEX_POSITION, 1.0);
+		vs_tex0_uv = VERTEX_UV_0;
+	}
+	`
+
+	skyShaderF = `#version 330
+	precision highp float;
+	
+	in vec2 vs_tex0_uv;
+	out vec4 frag_color;
+	
+	vec3 getSky(vec2 uv)
+	{
+		float atmosphere = sqrt(1.0-uv.y);
+		vec3 skyColor = vec3(0.2,0.4,0.8);
+		
+		float scatter = pow(uv.y, 1.0/15.0);
+		scatter = 1.0 - clamp(scatter, 0.8, 1.0);
+		
+		vec3 scatterColor = mix(vec3(1.0),vec3(1.0,0.3,0.0) * 1.5,scatter);
+		return mix(skyColor,vec3(scatterColor),atmosphere / 1.3);
+	}
+	
+	void main (void) {
+		vec3 texColor = getSky(vs_tex0_uv);
+		frag_color = vec4(texColor, 1.0);
+	}
+	`
 )
 
 // CreateBasicShader creates a new shader object using the built
@@ -559,4 +612,10 @@ func CreateShadowmapGeneratorShader() (*fizzle.RenderShader, error) {
 // in diffuse texture shader that is unlit (no lighting calculated).
 func CreateDiffuseUnlitShader() (*fizzle.RenderShader, error) {
 	return fizzle.LoadShaderProgram(diffuseUnlitShaderV, diffuseUnlitShaderF, nil)
+}
+
+// CreateSkyboxShader creates a new shader object using the built
+// in skybox shader.
+func CreateSkyboxShader() (*fizzle.RenderShader, error) {
+	return fizzle.LoadShaderProgram(skyShaderV, skyShaderF, nil)
 }

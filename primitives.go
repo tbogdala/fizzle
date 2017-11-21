@@ -5,7 +5,11 @@ package fizzle
 
 import (
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"math"
+	"os"
 
 	mgl "github.com/go-gl/mathgl/mgl32"
 	graphics "github.com/tbogdala/fizzle/graphicsprovider"
@@ -936,4 +940,143 @@ func MapUvToCubemap(side int, s, t float32) (float32, float32) {
 	tScale := topLeft[1] - botLeft[1]
 
 	return botLeft[0] + (s * sScale), botLeft[1] + (t * tScale)
+}
+
+// CreateLandscapeFromFile will create a landscape mesh using CreateLandscape()
+// after loading the image from the supplied filepath. An error is returned on
+// failure.
+func CreateLandscapeFromFile(width int, height int, heightmapFile string, scale mgl.Vec3) (*Renderable, error) {
+	hmImgFile, err := os.Open(heightmapFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open the height map file: %v", err)
+	}
+	defer hmImgFile.Close()
+
+	hmImg, err := png.Decode(hmImgFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode the height map image: %v", err)
+	}
+
+	return CreateLandscape(width, height, hmImg, scale)
+}
+
+// CreateLandscape creates a mesh for the heightmap. By default, this function
+// will create a mesh with the dimensions of the source image, but the vertex components
+// can be scaled using the `scale` parameter. By default the heightmap is used to control
+// the Y-axis of the resulting mesh. An error is returned on failure.
+func CreateLandscape(width int, height int, heightmap image.Image, scale mgl.Vec3) (*Renderable, error) {
+	// simple sanity test
+	if width < 3 || height < 3 {
+		return nil, fmt.Errorf("small sized landscapes are not supported")
+	}
+
+	vertCount := width * height
+
+	uScale := 1.0 / float32(width)
+	vScale := 1.0 / float32(height)
+
+	verts := make([]float32, 0, vertCount*3)
+	uvs := make([]float32, 0, vertCount*2)
+	normals := make([]float32, 0, vertCount*3)
+	indexes := make([]uint32, 0, 2*width*(height-1))
+
+	calcNormie := func(img image.Image, x int, z int) mgl.Vec3 {
+
+		if x == 0 {
+			x = 1
+		}
+		if z == 0 {
+			z = 1
+		}
+
+		hlColor := img.At(x-1, z)
+		hlGrey := color.Gray16Model.Convert(hlColor).(color.Gray16)
+		hl := float32(hlGrey.Y) / math.MaxUint16
+
+		hrColor := img.At(x+1, z)
+		hrGrey := color.Gray16Model.Convert(hrColor).(color.Gray16)
+		hr := float32(hrGrey.Y) / math.MaxUint16
+
+		hdColor := img.At(x, z-1)
+		hdGrey := color.Gray16Model.Convert(hdColor).(color.Gray16)
+		hd := float32(hdGrey.Y) / math.MaxUint16
+
+		huColor := img.At(x, z+1)
+		huGrey := color.Gray16Model.Convert(huColor).(color.Gray16)
+		hu := float32(huGrey.Y) / math.MaxUint16
+
+		n := mgl.Vec3{hl - hr, 2.0, hd - hu}
+		return n.Normalize()
+	}
+
+	maxHeight := float32(0.0)
+	vnuBuffer := make([]float32, 0, len(verts)+len(uvs)+len(normals))
+	for z := 0; z < height; z++ {
+		for x := 0; x < width; x++ {
+			heightColor := heightmap.At(x, z)
+			heightVal := color.Gray16Model.Convert(heightColor).(color.Gray16)
+			normalized := float32(heightVal.Y) / math.MaxUint16
+
+			// we track the max height for adjusting the bounding box later
+			if normalized > maxHeight {
+				maxHeight = normalized
+			}
+
+			// add the vertex
+			vnuBuffer = append(vnuBuffer, float32(x)*scale[0])
+			vnuBuffer = append(vnuBuffer, normalized*scale[1])
+			vnuBuffer = append(vnuBuffer, float32(z)*scale[2])
+
+			// add the normal
+			normie := calcNormie(heightmap, x, z)
+			vnuBuffer = append(vnuBuffer, float32(normie[0]))
+			vnuBuffer = append(vnuBuffer, float32(normie[1]))
+			vnuBuffer = append(vnuBuffer, float32(normie[2]))
+
+			// add the uv
+			vnuBuffer = append(vnuBuffer, uScale*float32(x))
+			vnuBuffer = append(vnuBuffer, vScale*float32(height-z))
+		}
+	}
+
+	// generate the triangle strips index buffer
+	for z := 0; z < height-1; z++ {
+		// repeat the first vertex in the degenerate case
+		if z > 0 {
+			indexes = append(indexes, uint32(z*height))
+		}
+
+		for x := 0; x < width; x++ {
+			indexes = append(indexes, uint32((z*height)+x), uint32(((z+1)*height)+x))
+		}
+
+		// degenerate case for all but the last strip
+		if z < height-2 {
+			indexes = append(indexes, uint32(((z+1)*height)+(width-1)))
+		}
+	}
+
+	const floatSize = 4
+	const uintSize = 4
+
+	r := NewRenderable()
+	r.FaceCount = uint32(len(indexes)) // FaceCount is handled differently for the triangle strip
+	r.BoundingRect.Bottom = mgl.Vec3{0, 0, 0}
+	r.BoundingRect.Top = mgl.Vec3{float32(width) * scale[0], float32(maxHeight) * scale[1], float32(height) * scale[2]}
+	r.Core.VertVBO = gfx.GenBuffer()
+	r.Core.UvVBO = r.Core.VertVBO
+	r.Core.NormsVBO = r.Core.VertVBO
+	r.Core.VertVBOOffset = 0
+	r.Core.NormsVBOOffset = floatSize * 3
+	r.Core.UvVBOOffset = floatSize * 6
+	r.Core.VBOStride = floatSize * (3 + 3 + 2) // vert / normal / uv
+	gfx.BindBuffer(graphics.ARRAY_BUFFER, r.Core.VertVBO)
+	gfx.BufferData(graphics.ARRAY_BUFFER, floatSize*len(vnuBuffer), gfx.Ptr(&vnuBuffer[0]), graphics.STATIC_DRAW)
+
+	// create a VBO to hold the face indexes
+	r.Core.ElementsVBO = gfx.GenBuffer()
+	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
+	gfx.BufferData(graphics.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gfx.Ptr(&indexes[0]), graphics.STATIC_DRAW)
+
+	return r, nil
 }

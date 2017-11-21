@@ -61,8 +61,8 @@ type Renderer interface {
 	// in the function call instead of the one in the object.
 	DrawRenderableWithShader(r *fizzle.Renderable, shader *fizzle.RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
 
-	// DrawLines draws the renderable as a GL_LINES type of object.
-	DrawLines(r *fizzle.Renderable, shader *fizzle.RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera)
+	// DrawLines draws the renderable with the GL mode specified.
+	DrawRenderableWithMode(r *fizzle.Renderable, shader *fizzle.RenderShader, binder RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera, mode graphics.Enum)
 
 	// EndRenderFrame should be called to finish the rendering of a frame.
 	EndRenderFrame()
@@ -75,7 +75,7 @@ type RenderBinder func(renderer Renderer, r *fizzle.Renderable, shader *fizzle.R
 // BindAndDraw is a common shader variable binder meant to be called from the
 // renderer implementations.
 func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderShader,
-	binders []RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera, mode uint32) {
+	binders []RenderBinder, perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera, mode graphics.Enum) {
 	gfx := renderer.GetGraphics()
 	gfx.UseProgram(shader.Prog)
 	gfx.BindVertexArray(r.Core.Vao)
@@ -266,10 +266,12 @@ func BindAndDraw(renderer Renderer, r *fizzle.Renderable, shader *fizzle.RenderS
 	}
 
 	gfx.BindBuffer(graphics.ELEMENT_ARRAY_BUFFER, r.Core.ElementsVBO)
-	if mode != graphics.LINES {
-		gfx.DrawElements(graphics.Enum(mode), int32(r.FaceCount*3), graphics.UNSIGNED_INT, gfx.PtrOffset(0))
-	} else {
+	if mode == graphics.LINES {
 		gfx.DrawElements(graphics.Enum(mode), int32(r.FaceCount*2), graphics.UNSIGNED_INT, gfx.PtrOffset(0))
+	} else if mode == graphics.TRIANGLE_STRIP {
+		gfx.DrawElements(graphics.Enum(mode), int32(r.FaceCount), graphics.UNSIGNED_INT, gfx.PtrOffset(0))
+	} else {
+		gfx.DrawElements(graphics.Enum(mode), int32(r.FaceCount*3), graphics.UNSIGNED_INT, gfx.PtrOffset(0))
 	}
 	gfx.BindVertexArray(0)
 }

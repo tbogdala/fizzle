@@ -1,3 +1,20 @@
+NEW
+===
+
+* APIBREAK: removed DrawLines from Renderer interface and replaced it with
+  a more generic DrawRenderableWithMode().
+
+* NEW: Supporting the TRIANGLE_STRIP mode for glDrawElements in DrawRenderable*().
+
+* NEW: Added a skybox shader; use CreateSkyboxShader() to instance it.
+
+* NEW: Added a landscape primitive that can be created using 16-bit greyscale PNG heightmaps.
+  Create the Renderable with CreateLandscape or CreateLandscapeFromFile
+
+* NEW: The `example\landscape` example project was added to show landscape creation
+  via heightmap 16-bit PNG files.
+
+
 Version v0.3.1
 ==============
 

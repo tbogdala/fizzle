@@ -550,9 +550,10 @@ func (fr *ForwardRenderer) DrawRenderableWithShader(r *fizzle.Renderable, shader
 	renderer.BindAndDraw(fr, r, shader, binders, perspective, view, camera, graphics.TRIANGLES)
 }
 
-// DrawLines draws the Renderable using graphics.LINES mode instead of graphics.TRIANGLES.
-func (fr *ForwardRenderer) DrawLines(r *fizzle.Renderable, shader *fizzle.RenderShader, binder renderer.RenderBinder,
-	perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera) {
+// DrawRenderableWithMode will draw the Renderable using the GL mode supplied in addition
+// to the normal DrawRenderable parameters.
+func (fr *ForwardRenderer) DrawRenderableWithMode(r *fizzle.Renderable, shader *fizzle.RenderShader, binder renderer.RenderBinder,
+	perspective mgl.Mat4, view mgl.Mat4, camera fizzle.Camera, mode graphics.Enum) {
 	// only draw visible nodes
 	if !r.IsVisible {
 		return
@@ -560,7 +561,7 @@ func (fr *ForwardRenderer) DrawLines(r *fizzle.Renderable, shader *fizzle.Render
 
 	// draw the children
 	for _, child := range r.Children {
-		fr.DrawLines(child, shader, binder, perspective, view, camera)
+		fr.DrawRenderableWithMode(child, shader, binder, perspective, view, camera, mode)
 	}
 
 	// if the renderable is a group just draw the children
@@ -572,5 +573,5 @@ func (fr *ForwardRenderer) DrawLines(r *fizzle.Renderable, shader *fizzle.Render
 	if binder != nil {
 		binders = append(binders, binder)
 	}
-	renderer.BindAndDraw(fr, r, shader, binders, perspective, view, camera, graphics.LINES)
+	renderer.BindAndDraw(fr, r, shader, binders, perspective, view, camera, mode)
 }

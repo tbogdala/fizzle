@@ -3,12 +3,13 @@ examples/joystick/joystick
 examples/lightsforward/lightsforward
 examples/shaders/shaders
 examples/testscene/testscene
-examples/*.exe
-examples/*.dll
+examples/**/*.exe
+examples/**/*.dll
 
 *.exe
 *.dll
 *.swp
+.vscode
 
 cmd/particles/particles
 cmd/particles/particles.exe
